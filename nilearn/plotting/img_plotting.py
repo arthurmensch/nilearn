@@ -314,12 +314,13 @@ def _load_anat(anat_img=MNI152TEMPLATE, dim=False, black_bg='auto'):
 # Usage-specific functions
 
 
-def plot_4d(img, anat_img=MNI152TEMPLATE, cut_coords=None,
-            output_file=None, display_mode='ortho', figure=None,
-            axes=None, title=None, annotate=True, draw_cross=True,
-            black_bg='auto', dim=False, cmap=plt.cm.gray, **kwargs):
+def plot_multi_maps(img, anat_img=MNI152TEMPLATE, option='contours', cut_coords=None,
+                    output_file=None, display_mode='ortho', figure=None,
+                    axes=None, title=None, annotate=True, draw_cross=True,
+                    black_bg='auto', dim=False, cmap=plt.cm.gist_rainbow, 
+                    vmin=None, vmax=None, **kwargs):
 
-    """ Plot the 4D atlas maps onto the anatomical image by default MNI Template
+    """ Plot the multiple atlas maps onto the anatomical image by default MNI Template
 
         Parameters
         ----------
@@ -328,6 +329,9 @@ def plot_4d(img, anat_img=MNI152TEMPLATE, cut_coords=None,
             See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
             The anatomical image to be used as a background. If None is
             given, nilearn tries to find a T1 template.
+        option: contours, optional
+            By default, maps are overlayed as contours
+            If option == 'continuous', maps are overlayed as continous colors
         cut_coords: None, a tuple of floats, or an integer
             The MNI coordinates of the point where the cut is performed
             If display_mode is 'ortho', this should be a 3-tuple: (x, y, z)
@@ -365,25 +369,41 @@ def plot_4d(img, anat_img=MNI152TEMPLATE, cut_coords=None,
             will need to pass "facecolor='k', edgecolor='k'" to pylab's
             savefig.
         cmap: matplotlib colormap, optional
-            The colormap for the anat 
+            The colormap for the atlas maps 
+        vmin: float
+            Lower bound for plotting, passed to matplotlib.pyplot.imshow
+        vmax: float
+            Upper bound for plotting, passed to matplotlib.pyplot.imshow
+
     """
-    anat_img, black_bg, vmin, vmax = _load_anat(anat_img,
-                                                dim=dim, black_bg=black_bg)
-    vmin = kwargs.pop('vmin', vmin)
-    vmax = kwargs.pop('vmax', vmax)
-    img = _utils.check_niimg_4d(img)
-    n_colors = img.shape[3]
-    node_colors = [plt.cm.spectral(i / float(n_colors))
-                       for i in range(n_colors)]
+    anat_img, black_bg, anat_vmin, anat_vmax = _load_anat(anat_img,
+                                                          dim=dim, black_bg=black_bg)
+    print
+    if vmin is None:
+        vmin = anat_vmin
+    if vmax is None:
+        vmax = anat_vmax
+    
     display = plot_img(anat_img, cut_coords=cut_coords,
                        output_file=output_file, display_mode=display_mode,
                        figure=figure, axes=axes, title=title,
                        threshold=None, annotate=annotate,
                        draw_cross=draw_cross, black_bg=black_bg,
-                       vmin=vmin, vmax=vmax, cmap=cmap, **kwargs)
-    for i, cur_img in enumerate(iter_img(img)):
-        display.add_contours(cur_img, levels=[30], linewidths=2, 
-                             colors=[node_colors[i][0:3]])    
+                       vmin=vmin, vmax=vmax, cmap=plt.cm.gray, **kwargs)
+    
+    img = _utils.check_niimg_4d(img)
+    n_colors = img.shape[3]    
+    colors_list = [cmap(i/float(n_colors))
+                               for i in range(n_colors)]
+
+    if option == 'contours':
+       for i, cur_img in enumerate(iter_img(img)):
+           display.add_contours(cur_img, levels=[vmin, vmax], 
+                                colors=[colors_list[i][0:3]])
+    else:
+        for i, cur_img in enumerate(iter_img(img)):
+           display.add_overlay(cur_img, cmap=cmap)
+
     return display
 
 def plot_anat(anat_img=MNI152TEMPLATE, cut_coords=None,
