@@ -22,6 +22,8 @@ from nibabel.spatialimages import SpatialImage
 from .._utils.numpy_conversions import as_ndarray
 
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import ListedColormap
 
 from .. import _utils
 from .._utils import new_img_like
@@ -36,6 +38,62 @@ from . import cm
 
 ################################################################################
 # Core, usage-agnostic functions
+
+def black_to_(color):
+    cdict = dict(
+        red=((0., 0., 0.),
+             (.5, color[0], color[0]),
+             (1.0, min(color[0] + .5, 1.), min(color[0] + .5, 1.))
+        ),
+        green=(
+            (0., 0., 0.),
+            (.5, color[1], color[1]),
+            (1.0, min(color[1] + .5, 1.), min(color[1] + .5, 1.))
+        ),
+        blue=(
+            (0., 0., 0.),
+            (.5, color[2], color[2]),
+            (1.0, min(color[2] + .5, 1.), min(color[2] + .5, 1.))
+        )
+    )
+    return LinearSegmentedColormap('cmap', cdict)
+
+def add_contours_(display, maps_img, n_maps, cmap, threshold=None,
+                  linewidths=2):
+
+    """  
+    """
+    if isinstance(cmap, basestring):
+       color_map = plt.cm.get_cmap(cmap)
+    # Build a custom colormap for displaying contours
+    color_list = color_map(np.linspace(0, 1, n_maps))
+    contour_maps = [ListedColormap(color) for color in color_list]
+
+    for map_img, cmap in zip(iter_img(maps_img), contour_maps):
+        if threshold is None:
+           level = 5e-1 * map_img.get_data().max()
+        else:
+            level = threshold
+
+        display.add_contours(map_img, levels=[level],linewidths=linewidths,
+                              colors=[cmap.colors[0:3]])
+
+    return display
+
+def add_overlays_(display, maps_img, n_maps, cmap, **kwargs):
+
+    """  
+    """
+    if isinstance(cmap, basestring):
+       color_map = plt.cm.get_cmap(cmap)
+    # Build a custom colormap for display purpose
+    color_list = color_map(np.linspace(0, 1, n_maps))
+    overlay_maps = [black_to_(color) for color in color_list]
+
+    for map_img, cmap in zip(iter_img(maps_img), overlay_maps):
+        display.add_overlay(map_img, cmap=cmap, vmax=1.0, vmin=0.)
+
+    return display
 
 
 def _plot_img_with_bg(img, bg_img=None, cut_coords=None,
@@ -313,12 +371,11 @@ def _load_anat(anat_img=MNI152TEMPLATE, dim=False, black_bg='auto'):
 ################################################################################
 # Usage-specific functions
 
-
-def plot_multi_maps(img, anat_img=MNI152TEMPLATE, option='contours', cut_coords=None,
-                    output_file=None, display_mode='ortho', figure=None,
-                    axes=None, title=None, annotate=True, draw_cross=True,
-                    black_bg='auto', dim=False, cmap=plt.cm.gist_rainbow, 
-                    vmin=None, vmax=None, **kwargs):
+def plot_atlas_maps(maps_img, anat_img=MNI152TEMPLATE, threshold=None, linewidths=2, 
+                    cut_coords=None, output_file=None, display_mode='ortho', 
+                    figure=None, axes=None, title=None, annotate=True, 
+                    draw_cross=True, black_bg='auto', dim=False, 
+                    cmap='gist_rainbow', vmin=None, vmax=None, **kwargs):
 
     """ Plot the multiple atlas maps onto the anatomical image by default MNI Template
 
@@ -376,34 +433,23 @@ def plot_multi_maps(img, anat_img=MNI152TEMPLATE, option='contours', cut_coords=
             Upper bound for plotting, passed to matplotlib.pyplot.imshow
 
     """
-    anat_img, black_bg, anat_vmin, anat_vmax = _load_anat(anat_img,
-                                                          dim=dim, black_bg=black_bg)
-    print
-    if vmin is None:
-        vmin = anat_vmin
-    if vmax is None:
-        vmax = anat_vmax
-    
+    anat_img, black_bg, _, _ = _load_anat(anat_img, dim=dim, 
+                                          black_bg=black_bg)
     display = plot_img(anat_img, cut_coords=cut_coords,
                        output_file=output_file, display_mode=display_mode,
                        figure=figure, axes=axes, title=title,
-                       threshold=None, annotate=annotate,
+                       threshold=threshold, annotate=annotate,
                        draw_cross=draw_cross, black_bg=black_bg,
-                       vmin=vmin, vmax=vmax, cmap=plt.cm.gray, **kwargs)
-    
-    img = _utils.check_niimg_4d(img)
-    n_colors = img.shape[3]    
-    colors_list = [cmap(i/float(n_colors))
-                               for i in range(n_colors)]
-
-    if option == 'contours':
-       for i, cur_img in enumerate(iter_img(img)):
-           display.add_contours(cur_img, levels=[vmin, vmax], 
-                                colors=[colors_list[i][0:3]])
-    else:
-        for i, cur_img in enumerate(iter_img(img)):
-           display.add_overlay(cur_img, cmap=cmap)
-
+                       cmap=plt.cm.gray, **kwargs)  
+  
+    maps_img = _utils.check_niimg_4d(maps_img)
+    n_maps = maps_img.shape[3]
+    if n_maps > 4:
+       display = add_contours_(display, maps_img, n_maps, cmap=cmap, 
+                               threshold=threshold, linewidths=linewidths)
+    elif n_maps <= 4:
+         display = add_overlays_(display, maps_img, n_maps, cmap=cmap, **kwargs)
+        
     return display
 
 def plot_anat(anat_img=MNI152TEMPLATE, cut_coords=None,
