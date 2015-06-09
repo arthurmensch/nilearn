@@ -38,25 +38,19 @@ from . import cm
 ################################################################################
 # Core, usage-agnostic functions
 
-def black_to(color):
-    # Returns a colormap with a given color
-    cdict = dict(
-        red=((0., 0., 0.),
-             (.5, color[0], color[0]),
-             (1.0, min(color[0] + .5, 1.), min(color[0] + .5, 1.))
-        ),
-        green=(
-            (0., 0., 0.),
-            (.5, color[1], color[1]),
-            (1.0, min(color[1] + .5, 1.), min(color[1] + .5, 1.))
-        ),
-        blue=(
-            (0., 0., 0.),
-            (.5, color[2], color[2]),
-            (1.0, min(color[2] + .5, 1.), min(color[2] + .5, 1.))
-        )
-    )
-    return LinearSegmentedColormap('cmap', cdict)
+def _alpha_cmap(color):
+    """ Return a colormap with the given color, and alpha going from
+        zero to 1.
+    """
+    red, green, blue = color[:3]
+    cmapspec = [(red, green, blue, 0.),
+                (red, green, blue, 1.), ]
+    cmap = LinearSegmentedColormap.from_list(
+        'alpha', cmapspec, plt.cm.LUTSIZE)
+    cmap._init()
+    cmap._lut[:, -1] = np.linspace(.7, .95, cmap._lut.shape[0])
+    cmap._lut[-1, -1] = 0
+    return cmap
 
 def _plot_img_with_bg(img, bg_img=None, cut_coords=None,
                       output_file=None, display_mode='ortho',
@@ -334,31 +328,39 @@ def _load_anat(anat_img=MNI152TEMPLATE, dim=False, black_bg='auto'):
 # Usage-specific functions
 
 def plot_prob_atlas(maps_img, anat_img=MNI152TEMPLATE, view_type='auto', 
-                    threshold=1e-1, linewidths=2, 
+                    threshold=None, linewidths=2.5, fill=False,
                     cut_coords=None, output_file=None, display_mode='ortho', 
                     figure=None, axes=None, title=None, annotate=True, 
                     draw_cross=True, black_bg='auto', dim=False, 
                     cmap='gist_rainbow', vmin=None, vmax=None, **kwargs):
 
-    """ Plot the multiple atlas maps onto the anatomical image by default MNI Template
+    """ Plot the multiple atlas or statistical maps onto the anatomical image 
+        by default MNI template
 
         Parameters
         ----------
-        maps_img: a nifti like object or the filename of the 4D probabilistic atlas maps
+        maps_img: a nifti like object or the filename of the 4D probabilistic
+            atlas maps or statistical maps
         anat_img : Niimg-like object
             See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
             The anatomical image to be used as a background. If None is
             given, nilearn tries to find a T1 template.
-        view_type: {'auto', 'continuous'}, optional
-            By default 'auto' mode, maps are overlayed as contours 
-            If view_type == 'continuous', maps are overlayed as continous colors
-        threshold: a value or list of values, value range can be from (0.1 - 0.99), optional
-            By default 1e-1: the levels of the maps are automatically thresholded 
-            with this value to display onto the anatomical image.
-            Generally, if we have more maps to display less value is preferred to give 
-            as input in particular to avoid maximum overlap in contours or continuous 
-            displays between each maps.
-        linewidths: to set the thickness of the boundary of the contour of the maps, optional
+        view_type: {'auto', 'contours', 'continuous'}, optional
+            By default view_type =='auto', which means maps are overlayed as contours if
+            maps are more or overlayed as continuous colors if less in number.
+            For view_type == 'contours', maps are overlayed as contours
+            For view_type == 'continuous', maps are overlayed as continous colors 
+            irrespective of number maps.
+        threshold: None, a value or list of values, optional
+            This option is served for two purposes, for contours this option 
+            serves to select the level of the maps to display. For continuous overlays
+            this option serves to display which are greater than a value or list of values
+            If None is given, the maps are selected with default percentile value. 
+        linewidths: a value, optional
+            This option can be used to set the boundary thickness of the contours.
+        fill: True or False, optional
+            This option can be used if contours are needed to be displayed 
+            with color fillings.
         cut_coords: None, a tuple of floats, or an integer
             The MNI coordinates of the point where the cut is performed
             If display_mode is 'ortho', this should be a 3-tuple: (x, y, z)
@@ -403,45 +405,56 @@ def plot_prob_atlas(maps_img, anat_img=MNI152TEMPLATE, view_type='auto',
             Upper bound for plotting, passed to matplotlib.pyplot.imshow
 
     """
-    anat_img, black_bg, _, _ = _load_anat(anat_img, dim=dim, 
+    anat_img, black_bg, _, _ = _load_anat(anat_img, dim=dim,
                                           black_bg=black_bg)
+  
     display = plot_img(anat_img, cut_coords=cut_coords,
                        output_file=output_file, display_mode=display_mode,
                        figure=figure, axes=axes, title=title,
-                       threshold=None, annotate=annotate,
+                       threshold=threshold, annotate=annotate,
                        draw_cross=draw_cross, black_bg=black_bg,
-                       cmap=plt.cm.gray, **kwargs) 
+                       cmap=plt.cm.gray, **kwargs)
  
     maps_img = _utils.check_niimg_4d(maps_img)
     n_maps = maps_img.shape[3]
    
     if isinstance(cmap, basestring):
-       color_map = plt.cm.get_cmap(cmap)
+        color_map = plt.cm.get_cmap(cmap)
+
     # Build a custom colormap for displaying contours
     color_list = color_map(np.linspace(0, 1, n_maps))
-
-    for i, (map_img, color) in enumerate(zip(iter_img(maps_img), color_list)):
-        over = black_to(color)
-        cont = ListedColormap(color).colors
-        if threshold is not None:
-           if hasattr(threshold, '__iter__'):
-              value = threshold[i]
-           else: 
-                value = threshold
+    if threshold is None:
+        # percentage is predefined at the moment, 
+        # for a nicer look avoiding maximum overlaps
+        threshold = [99.7] * n_maps
+    elif not hasattr(threshold, '__iter__'):
+        threshold = [threshold] * n_maps
+    
+    for i, (map_img, color, value) in enumerate(zip(iter_img(maps_img), color_list, threshold)):
         # To threshold or choose the level of the contours
-        percentile = 100 * (1 - (value/n_maps))
-        data = np.abs(map_img.get_data())
-        level = fast_abs_percentile(data, percentile) + 1e-4
+        data = map_img.get_data()
+        #percentile = 100 * (1 - (value/n_maps))
+        level = fast_abs_percentile(data, value) + 1e-4
         
-        if view_type == 'auto': 
-           # Color filling of the contours
-           display.add_overlay(map_img, threshold=level, cmap=over)
-           display.add_contours(map_img, levels=[level],
-                                linewidths=linewidths,
-                                colors=[cont[:3]])
+        if view_type == 'auto':
+            if n_maps > 4:
+                view_type = 'contours'
+            else:
+                view_type = 'continuous'
+        elif view_type == 'contours':
+            display.add_contours(map_img, levels=[level],
+                                 linewidths=linewidths,
+                                 colors=[color])
+            if fill:
+                # Append the lower boundary value as 0 for contour fillings
+                display.add_contours(map_img, levels=[level, 0.],
+                                     linewidths=linewidths,
+                                     colors=[color[:3].tolist() + [.5]],
+                                     linestyles='solid', fill=fill)
         elif view_type == 'continuous':
-             display.add_overlay(map_img, 
-                                 threshold=level, cmap=over)
+            over = _alpha_cmap(color)
+            display.add_overlay(map_img, threshold=level, 
+                                cmap=over)
     return display
 
 def plot_anat(anat_img=MNI152TEMPLATE, cut_coords=None,
