@@ -328,7 +328,7 @@ def _load_anat(anat_img=MNI152TEMPLATE, dim=False, black_bg='auto'):
 # Usage-specific functions
 
 def plot_prob_atlas(maps_img, anat_img=MNI152TEMPLATE, view_type='auto', 
-                    threshold=None, linewidths=2.5, fill=False,
+                    threshold=None, linewidths=2.5, filled=False,
                     cut_coords=None, output_file=None, display_mode='ortho', 
                     figure=None, axes=None, title=None, annotate=True, 
                     draw_cross=True, black_bg='auto', dim=False, 
@@ -358,7 +358,7 @@ def plot_prob_atlas(maps_img, anat_img=MNI152TEMPLATE, view_type='auto',
             If None is given, the maps are selected with default percentile value. 
         linewidths: a value, optional
             This option can be used to set the boundary thickness of the contours.
-        fill: True or False, optional
+        filled: True or False, optional
             This option can be used if contours are needed to be displayed 
             with color fillings.
         cut_coords: None, a tuple of floats, or an integer
@@ -411,7 +411,7 @@ def plot_prob_atlas(maps_img, anat_img=MNI152TEMPLATE, view_type='auto',
     display = plot_img(anat_img, cut_coords=cut_coords,
                        output_file=output_file, display_mode=display_mode,
                        figure=figure, axes=axes, title=title,
-                       threshold=threshold, annotate=annotate,
+                       threshold=None, annotate=annotate,
                        draw_cross=draw_cross, black_bg=black_bg,
                        cmap=plt.cm.gray, **kwargs)
  
@@ -423,19 +423,39 @@ def plot_prob_atlas(maps_img, anat_img=MNI152TEMPLATE, view_type='auto',
 
     # Build a custom colormap for displaying contours
     color_list = color_map(np.linspace(0, 1, n_maps))
-    if threshold is None:
-        # percentage is predefined at the moment, 
-        # for a nicer look avoiding maximum overlaps
-        threshold = [99.7] * n_maps
-    elif not hasattr(threshold, '__iter__'):
-        threshold = [threshold] * n_maps
     
-    for i, (map_img, color, value) in enumerate(zip(iter_img(maps_img), color_list, threshold)):
+    if threshold is None:
+        # it will use default percentage, 
+        # for a nicer look avoiding maximum overlaps for visualization
+        threshold = ["99.7%"] * n_maps
+     
+    if hasattr(threshold, '__iter__'):
+        if len(threshold) != n_maps:
+            raise TypeError('The list of values to threshold '
+                                'should be equal to number of maps')
+    else:
+        threshold = [threshold] * n_maps 
+    
+    for i, (map_img, color, thr) in enumerate(zip(iter_img(maps_img), color_list, threshold)):
         # To threshold or choose the level of the contours
         data = map_img.get_data()
-        #percentile = 100 * (1 - (value/n_maps))
-        level = fast_abs_percentile(data, value) + 1e-4
+        if isinstance(thr, basestring):
+            message = ("If 'threshold' is given as a string it "
+                       'should be a number followed by the percent sign, '
+                       'e.g. "25.3%"')
+            if not thr.endswith('%'):
+                raise ValueError(message)
+            try:
+                percentile = float(thr[:-1])
+            except ValueError as exc:
+                exc.args += (message, )
+                raise
+            thr = fast_abs_percentile(data, thr) + 1e-4
+        elif False: # TODO: check if it's not a number
+            raise TypeError('Threshold must be a number or...')
         
+        level = thr
+
         if view_type == 'auto':
             if n_maps > 4:
                 view_type = 'contours'
@@ -445,12 +465,12 @@ def plot_prob_atlas(maps_img, anat_img=MNI152TEMPLATE, view_type='auto',
             display.add_contours(map_img, levels=[level],
                                  linewidths=linewidths,
                                  colors=[color])
-            if fill:
+            if filled:
                 # Append the lower boundary value as 0 for contour fillings
                 display.add_contours(map_img, levels=[level, 0.],
                                      linewidths=linewidths,
                                      colors=[color[:3].tolist() + [.5]],
-                                     linestyles='solid', fill=fill)
+                                     linestyles='solid', fill=filled)
         elif view_type == 'continuous':
             over = _alpha_cmap(color)
             display.add_overlay(map_img, threshold=level, 
