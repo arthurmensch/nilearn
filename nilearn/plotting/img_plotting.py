@@ -450,7 +450,7 @@ def plot_prob_atlas(maps_img, anat_img=MNI152TEMPLATE, view_type='auto',
             except ValueError as exc:
                 exc.args += (message, )
                 raise
-            thr = fast_abs_percentile(data, thr) + 1e-4
+            thr = fast_abs_percentile(data, percentile) + 1e-4
         elif False: # TODO: check if it's not a number
             raise TypeError('Threshold must be a number or...')
         
