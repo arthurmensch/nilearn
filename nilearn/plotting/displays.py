@@ -88,9 +88,6 @@ class BaseAxes(object):
             raise ValueError('Invalid value for direction %s' %
                              self.direction)
         ax = self.ax
-        # Switches into contour fillings by overriding type as 'contourf'
-        if 'fill' in kwargs and kwargs['fill'] is True:
-            type = 'contourf'
         # Here we need to do a copy to avoid having the image changing as
         # we change the data
         im = getattr(ax, type)(data_2d.copy(),
@@ -98,7 +95,7 @@ class BaseAxes(object):
                                **kwargs)
 
         self.add_object_bounds((xmin_, xmax_, zmin_, zmax_))
-      
+
         return im
 
     def get_object_bounds(self):
@@ -512,7 +509,7 @@ class BaseSlicer(object):
 
         plt.draw_if_interactive()
 
-    def add_contours(self, img, **kwargs):
+    def add_contours(self, img, filled=False, **kwargs):
         """ Contour a 3D map in all the views.
 
             Parameters
@@ -520,6 +517,8 @@ class BaseSlicer(object):
             img: Niimg-like object
                 See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
                 Provides image to plot.
+            filled: boolean, optional
+                If filled=True, contours are displayed with color fillings.
             kwargs:
                 Extra keyword arguments are passed to contour, see the
                 documentation of pylab.contour
@@ -528,35 +527,41 @@ class BaseSlicer(object):
                 "colors", which is one color or a list of colors for
                 these contours.
         """
-        self._map_show(img, type='contour', **kwargs)
+        if filled:
+            # Switches into contour fillings by overriding type as 'contourf'
+            filled_type = 'contour' + 'f'
+        else:
+            filled_type = 'contour'
+
+        self._map_show(img, type=filled_type, **kwargs)
         plt.draw_if_interactive()
 
     def _map_show(self, img, type='imshow', resampling_interpolation='continuous', **kwargs):
         img = reorder_img(img, resample=resampling_interpolation)
-               
+
         affine = img.get_affine()
         data = img.get_data()
         data_bounds = get_bounds(data.shape, affine)
         (xmin, xmax), (ymin, ymax), (zmin, zmax) = data_bounds
-        
+
         xmin_, xmax_, ymin_, ymax_, zmin_, zmax_ = \
                                         xmin, xmax, ymin, ymax, zmin, zmax
-         
+
         if hasattr(data, 'mask') and isinstance(data.mask, np.ndarray):
             not_mask = np.logical_not(data.mask)
             xmin_, xmax_, ymin_, ymax_, zmin_, zmax_ = \
                     get_mask_bounds(new_img_like(img, not_mask, affine))
-              
-        data_2d_list = []         
+
+        data_2d_list = []
         for display_ax in self.axes.values():
             try:
                 data_2d = display_ax.transform_to_2d(data, affine)
             except IndexError:
                 # We are cutting outside the indices of the data
                 data_2d = None
-                 
+
             data_2d_list.append(data_2d)
-            
+
         if kwargs.get('vmin') is None:
             kwargs['vmin'] = np.ma.min([d.min() for d in data_2d_list
                                         if d is not None])
@@ -565,14 +570,14 @@ class BaseSlicer(object):
                                         if d is not None])
 
         bounding_box = (xmin_, xmax_), (ymin_, ymax_), (zmin_, zmax_)
-        
+
         ims = []
-        to_iterate_over = zip(self.axes.values(), data_2d_list)        
+        to_iterate_over = zip(self.axes.values(), data_2d_list)
         for display_ax, data_2d in to_iterate_over:
             if data_2d is not None:
                 im = display_ax.draw_2d(data_2d, data_bounds, bounding_box,
-                                        type=type, **kwargs)                
-                ims.append(im)        
+                                        type=type, **kwargs)
+                ims.append(im)
         return ims
 
     def _colorbar_show(self, im, threshold):

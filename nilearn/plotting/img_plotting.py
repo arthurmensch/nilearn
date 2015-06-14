@@ -21,11 +21,10 @@ from nibabel.spatialimages import SpatialImage
 from .._utils.numpy_conversions import as_ndarray
 
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.colors import ListedColormap
 
 from .. import _utils
 from .._utils import new_img_like
+from .._utils.compat import _basestring
 from .._utils.extmath import fast_abs_percentile
 from .._utils.fixes.matplotlib_backports import (cbar_outline_get_xy,
                                                  cbar_outline_set_xy)
@@ -37,20 +36,6 @@ from . import cm
 
 ################################################################################
 # Core, usage-agnostic functions
-
-def _alpha_cmap(color):
-    """ Return a colormap with the given color, and alpha going from
-        zero to 1.
-    """
-    red, green, blue = color[:3]
-    cmapspec = [(red, green, blue, 0.),
-                (red, green, blue, 1.), ]
-    cmap = LinearSegmentedColormap.from_list(
-        'alpha', cmapspec, plt.cm.LUTSIZE)
-    cmap._init()
-    cmap._lut[:, -1] = np.linspace(.7, .95, cmap._lut.shape[0])
-    cmap._lut[-1, -1] = 0
-    return cmap
 
 def _plot_img_with_bg(img, bg_img=None, cut_coords=None,
                       output_file=None, display_mode='ortho',
@@ -327,155 +312,6 @@ def _load_anat(anat_img=MNI152TEMPLATE, dim=False, black_bg='auto'):
 ################################################################################
 # Usage-specific functions
 
-def plot_prob_atlas(maps_img, anat_img=MNI152TEMPLATE, view_type='auto', 
-                    threshold=None, linewidths=2.5, filled=False,
-                    cut_coords=None, output_file=None, display_mode='ortho', 
-                    figure=None, axes=None, title=None, annotate=True, 
-                    draw_cross=True, black_bg='auto', dim=False, 
-                    cmap='gist_rainbow', vmin=None, vmax=None, **kwargs):
-
-    """ Plot the multiple atlas or statistical maps onto the anatomical image 
-        by default MNI template
-
-        Parameters
-        ----------
-        maps_img: a nifti like object or the filename of the 4D probabilistic
-            atlas maps or statistical maps
-        anat_img : Niimg-like object
-            See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
-            The anatomical image to be used as a background. If None is
-            given, nilearn tries to find a T1 template.
-        view_type: {'auto', 'contours', 'continuous'}, optional
-            By default view_type =='auto', which means maps are overlayed as contours if
-            maps are more or overlayed as continuous colors if less in number.
-            For view_type == 'contours', maps are overlayed as contours
-            For view_type == 'continuous', maps are overlayed as continous colors 
-            irrespective of number maps.
-        threshold: None, a value or list of values, optional
-            This option is served for two purposes, for contours this option 
-            serves to select the level of the maps to display. For continuous overlays
-            this option serves to display which are greater than a value or list of values
-            If None is given, the maps are selected with default percentile value. 
-        linewidths: a value, optional
-            This option can be used to set the boundary thickness of the contours.
-        filled: True or False, optional
-            This option can be used if contours are needed to be displayed 
-            with color fillings.
-        cut_coords: None, a tuple of floats, or an integer
-            The MNI coordinates of the point where the cut is performed
-            If display_mode is 'ortho', this should be a 3-tuple: (x, y, z)
-            For display_mode == 'x', 'y', or 'z', then these are the
-            coordinates of each cut in the corresponding direction.
-            If None is given, the cuts is calculated automaticaly.
-            If display_mode is 'x', 'y' or 'z', cut_coords can be an integer,
-            in which case it specifies the number of cuts to perform
-        output_file: string, or None, optional
-            The name of an image file to export the plot to. Valid extensions
-            are .png, .pdf, .svg. If output_file is not None, the plot
-            is saved to a file, and the display is closed.
-        display_mode: {'ortho', 'x', 'y', 'z'}
-            Choose the direction of the cuts: 'x' - saggital, 'y' - coronal,
-            'z' - axial, 'ortho' - three cuts are performed in orthogonal
-            directions.
-        figure : integer or matplotlib figure, optional
-            Matplotlib figure used or its number. If None is given, a
-            new figure is created.
-        axes : matplotlib axes or 4 tuple of float: (xmin, ymin, width, height), optional
-            The axes, or the coordinates, in matplotlib figure space,
-            of the axes used to display the plot. If None, the complete
-            figure is used.
-        title : string, optional
-            The title displayed on the figure.
-        annotate: boolean, optional
-            If annotate is True, positions and left/right annotation
-            are added to the plot.
-        draw_cross: boolean, optional
-            If draw_cross is True, a cross is drawn on the plot to
-            indicate the cut plosition.
-        black_bg: boolean, optional
-            If True, the background of the image is set to be black. If
-            you wish to save figures with a black background, you
-            will need to pass "facecolor='k', edgecolor='k'" to pylab's
-            savefig.
-        cmap: matplotlib colormap, optional
-            The colormap for the atlas maps 
-        vmin: float
-            Lower bound for plotting, passed to matplotlib.pyplot.imshow
-        vmax: float
-            Upper bound for plotting, passed to matplotlib.pyplot.imshow
-
-    """
-    anat_img, black_bg, _, _ = _load_anat(anat_img, dim=dim,
-                                          black_bg=black_bg)
-  
-    display = plot_img(anat_img, cut_coords=cut_coords,
-                       output_file=output_file, display_mode=display_mode,
-                       figure=figure, axes=axes, title=title,
-                       threshold=None, annotate=annotate,
-                       draw_cross=draw_cross, black_bg=black_bg,
-                       cmap=plt.cm.gray, **kwargs)
- 
-    maps_img = _utils.check_niimg_4d(maps_img)
-    n_maps = maps_img.shape[3]
-   
-    if isinstance(cmap, basestring):
-        color_map = plt.cm.get_cmap(cmap)
-
-    # Build a custom colormap for displaying contours
-    color_list = color_map(np.linspace(0, 1, n_maps))
-    
-    if threshold is None:
-        # it will use default percentage, 
-        # for a nicer look avoiding maximum overlaps for visualization
-        threshold = ["99.7%"] * n_maps
-     
-    if hasattr(threshold, '__iter__'):
-        if len(threshold) != n_maps:
-            raise TypeError('The list of values to threshold '
-                                'should be equal to number of maps')
-    else:
-        threshold = [threshold] * n_maps 
-    
-    for i, (map_img, color, thr) in enumerate(zip(iter_img(maps_img), color_list, threshold)):
-        # To threshold or choose the level of the contours
-        data = map_img.get_data()
-        if isinstance(thr, basestring):
-            message = ("If 'threshold' is given as a string it "
-                       'should be a number followed by the percent sign, '
-                       'e.g. "25.3%"')
-            if not thr.endswith('%'):
-                raise ValueError(message)
-            try:
-                percentile = float(thr[:-1])
-            except ValueError as exc:
-                exc.args += (message, )
-                raise
-            thr = fast_abs_percentile(data, percentile) + 1e-4
-        elif False: # TODO: check if it's not a number
-            raise TypeError('Threshold must be a number or...')
-        
-        level = thr
-
-        if view_type == 'auto':
-            if n_maps > 4:
-                view_type = 'contours'
-            else:
-                view_type = 'continuous'
-        elif view_type == 'contours':
-            display.add_contours(map_img, levels=[level],
-                                 linewidths=linewidths,
-                                 colors=[color])
-            if filled:
-                # Append the lower boundary value as 0 for contour fillings
-                display.add_contours(map_img, levels=[level, 0.],
-                                     linewidths=linewidths,
-                                     colors=[color[:3].tolist() + [.5]],
-                                     linestyles='solid', fill=filled)
-        elif view_type == 'continuous':
-            over = _alpha_cmap(color)
-            display.add_overlay(map_img, threshold=level, 
-                                cmap=over)
-    return display
 
 def plot_anat(anat_img=MNI152TEMPLATE, cut_coords=None,
               output_file=None, display_mode='ortho', figure=None,
@@ -717,6 +553,158 @@ def plot_roi(roi_img, bg_img=MNI152TEMPLATE, cut_coords=None,
                                 resampling_interpolation='nearest',
                                 alpha=alpha, cmap=cmap,
                                 vmin=vmin, vmax=vmax, **kwargs)
+    return display
+
+
+def plot_prob_atlas(maps_img, anat_img=MNI152TEMPLATE, view_type='auto',
+                    threshold=None, linewidths=2.5, filled=False,
+                    cut_coords=None, output_file=None, display_mode='ortho',
+                    figure=None, axes=None, title=None, annotate=True,
+                    draw_cross=True, black_bg='auto', dim=False,
+                    cmap='gist_rainbow', vmin=None, vmax=None,
+                    alpha=0.5, **kwargs):
+
+    """ Plot the multiple atlas or statistical maps onto the anatomical image
+        by default MNI template
+
+        Parameters
+        ----------
+        maps_img: a nifti like object or the filename of the 4D probabilistic
+            atlas maps or statistical maps
+        anat_img : Niimg-like object
+            See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
+            The anatomical image to be used as a background. If None is
+            given, nilearn tries to find a T1 template.
+        view_type: {'auto', 'contours', 'continuous'}, optional
+            By default view_type =='auto', which means maps are overlayed as
+            contours if number of maps to display are more or
+            overlayed as continuous colors if number of maps are less.
+            For view_type == 'contours', maps are overlayed as contours
+            For view_type == 'continuous', maps are overlayed as continous
+            colors irrespective of number maps.
+        threshold: None, str or a list of strings or number or list of numbers, optional
+            If threshold is a string it must finish with a percent sign,
+            e.g. "25.3%", or if it is a number it can be real numbers.
+            This option is served for two purposes, for contours and
+            contour fillings threshold serves to select the level of
+            the maps to display.
+            For continuous overlays this threshold value serves to select
+            the maps which are greater than a given value or list of given values.
+            If None is given, the maps are thresholded with default value.
+        linewidths: a value, optional
+            This option can be used to set the boundary thickness of the contours.
+        filled: True or False, optional
+            This option can be used if contours are needed to be displayed
+            with color fillings.
+        cut_coords: None, a tuple of floats, or an integer
+            The MNI coordinates of the point where the cut is performed
+            If display_mode is 'ortho', this should be a 3-tuple: (x, y, z)
+            For display_mode == 'x', 'y', or 'z', then these are the
+            coordinates of each cut in the corresponding direction.
+            If None is given, the cuts is calculated automaticaly.
+            If display_mode is 'x', 'y' or 'z', cut_coords can be an integer,
+            in which case it specifies the number of cuts to perform
+        output_file: string, or None, optional
+            The name of an image file to export the plot to. Valid extensions
+            are .png, .pdf, .svg. If output_file is not None, the plot
+            is saved to a file, and the display is closed.
+        display_mode: {'ortho', 'x', 'y', 'z'}
+            Choose the direction of the cuts: 'x' - saggital, 'y' - coronal,
+            'z' - axial, 'ortho' - three cuts are performed in orthogonal
+            directions.
+        figure : integer or matplotlib figure, optional
+            Matplotlib figure used or its number. If None is given, a
+            new figure is created.
+        axes : matplotlib axes or 4 tuple of float: (xmin, ymin, width, height), optional
+            The axes, or the coordinates, in matplotlib figure space,
+            of the axes used to display the plot. If None, the complete
+            figure is used.
+        title : string, optional
+            The title displayed on the figure.
+        annotate: boolean, optional
+            If annotate is True, positions and left/right annotation
+            are added to the plot.
+        draw_cross: boolean, optional
+            If draw_cross is True, a cross is drawn on the plot to
+            indicate the cut plosition.
+        black_bg: boolean, optional
+            If True, the background of the image is set to be black. If
+            you wish to save figures with a black background, you
+            will need to pass "facecolor='k', edgecolor='k'" to pylab's
+            savefig.
+        cmap: matplotlib colormap, optional
+            The colormap for the atlas maps
+        vmin: float
+            Lower bound for plotting, passed to matplotlib.pyplot.imshow
+        vmax: float
+            Upper bound for plotting, passed to matplotlib.pyplot.imshow
+        alpha: float between 0 and 1
+            Alpha transparency for the brain schematics.
+    """
+    display = plot_anat(anat_img, cut_coords=cut_coords,
+                        output_file=output_file, display_mode=display_mode,
+                        figure=figure, axes=axes, title=title,
+                        threshold=None, annotate=annotate,
+                        draw_cross=draw_cross, black_bg=black_bg,
+                        cmap=plt.cm.gray, **kwargs)
+
+    maps_img = _utils.check_niimg_4d(maps_img)
+    n_maps = maps_img.shape[3]
+
+    if isinstance(cmap, _basestring):
+        color_map = plt.cm.get_cmap(cmap)
+
+    # Build a custom colormap for displaying contours
+    color_list = color_map(np.linspace(0, 1, n_maps))
+
+    if threshold is None:
+        # it will use default percentage,
+        # for a nicer look avoiding maximum overlaps for visualization
+        threshold = "99.7%"
+
+    if hasattr(threshold, '__iter__') and not isinstance(threshold, _basestring):
+        if len(threshold) != n_maps:
+            raise TypeError('The list of values to threshold '
+                            'should be equal to number of maps')
+    else:
+        threshold = [threshold] * n_maps
+
+    for i, (map_img, color, thr) in enumerate(zip(iter_img(maps_img), color_list, threshold)):
+        # To threshold or choose the level of the contours
+        data = map_img.get_data()
+        if isinstance(thr, _basestring):
+            message = ("If 'threshold' is given as a string it "
+                       'should be a number followed by the percent sign, '
+                       'e.g. "25.3%"')
+            if not thr.endswith('%'):
+                raise ValueError(message)
+            try:
+                percentile = float(thr[:-1])
+            except ValueError as exc:
+                exc.args += (message, )
+                raise
+            thr = fast_abs_percentile(data, percentile) + 1e-1
+        elif not isinstance(thr, numbers.Real):
+            raise TypeError('Threshold must be a real value and you gave '
+                            'a %s.' % type(thr))
+        if view_type == 'auto':
+            if n_maps > 4:
+                view_type = 'contours'
+            else:
+                view_type = 'continuous'
+        elif view_type == 'contours':
+            display.add_contours(map_img, levels=[thr],
+                                 linewidths=linewidths,
+                                 colors=[color])
+            if filled:
+                # Append the lower boundary value as 0 for contour fillings
+                display.add_contours(map_img, levels=[thr, 0.],
+                                     linewidths=linewidths,
+                                     colors=[color[:3].tolist() + [alpha]],
+                                     linestyles='solid', filled=filled)
+        elif view_type == 'continuous':
+            display.add_overlay(map_img, threshold=thr,
+                                cmap=cm.alpha_cmap(color))
     return display
 
 
