@@ -11,6 +11,7 @@ import itertools
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.externals.joblib import Memory, Parallel, delayed
+from sklearn.utils import gen_even_slices
 
 from .. import masking
 from .. import image
@@ -19,7 +20,7 @@ from .. import _utils
 from .._utils.cache_mixin import CacheMixin, cache
 from .._utils.class_inspect import enclosing_scope_name, get_params
 from .._utils.compat import _basestring
-from nilearn._utils.niimg_conversions import _iter_check_niimg
+from nilearn._utils.niimg_conversions import _iter_check_niimg, concat_niimgs
 
 
 def filter_and_mask(imgs, mask_img_,
@@ -260,9 +261,11 @@ class BaseMasker(BaseEstimator, TransformerMixin, CacheMixin):
                               ' will be used.' % self.__class__.__name__)
                 return self.fit(**fit_params).transform(X, confounds=confounds)
 
-    def inverse_transform(self, X):
-        img = self._cache(masking.unmask, func_memory_level=1,
-            )(X, self.mask_img_)
+    def inverse_transform(self, X, n_jobs=1):
+        func = self._cache(masking.unmask, func_memory_level=1)
+        slices = gen_even_slices(X.shape[0], n_jobs)
+        img_list = Parallel(n_jobs=n_jobs)(delayed(func)(X[this_slice], self.mask_img_) for this_slice in slices)
+        img = concat_niimgs(img_list)
         # Be robust again memmapping that will create read-only arrays in
         # internal structures of the header: remove the memmaped array
         try:
