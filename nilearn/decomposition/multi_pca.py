@@ -26,7 +26,8 @@ def session_pca(imgs, mask_img, parameters,
                 memory=Memory(cachedir=None),
                 verbose=0,
                 copy=True,
-                random_state=0):
+                random_state=0,
+                return_data=False):
     """Filter, mask and compute PCA on Niimg-like objects
 
     This is an helper function whose first call `base_masker.filter_and_mask`
@@ -41,6 +42,9 @@ def session_pca(imgs, mask_img, parameters,
     mask_img: Niimg-like object
         See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
         Mask to apply on the data
+
+    return_data: boolean,
+        Return data
 
     parameters: dictionary
         Dictionary of parameters passed to `filter_and_mask`. Please see the
@@ -92,7 +96,10 @@ def session_pca(imgs, mask_img, parameters,
             data.T, full_matrices=False)
     U = U.T[:n_components].copy()
     S = S[:n_components]
-    return U, S
+    if return_data:
+        return U, S, data
+    else:
+        return U, S, None
 
 
 class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
@@ -144,6 +151,9 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         This parameter is passed to signal.clean. Please see the related
         documentation for details
 
+    keep_data_flat: boolean,
+        Keep data in memory
+
     random_state: int or RandomState
         Pseudo number generator state used for random sampling.
 
@@ -184,6 +194,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
     def __init__(self, n_components=20, smoothing_fwhm=None, mask=None,
                  do_cca=True, standardize=True, target_affine=None,
                  target_shape=None, low_pass=None, high_pass=None,
+                 keep_data_flat=True,
                  t_r=None, memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, verbose=0,
                  random_state=None
@@ -196,6 +207,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         self.low_pass = low_pass
         self.high_pass = high_pass
         self.t_r = t_r
+        self.keep_data_flat = keep_data_flat
 
         self.do_cca = do_cca
         self.n_components = n_components
@@ -302,13 +314,16 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
                 parameters,
                 n_components=self.n_components,
                 memory=self.memory,
+                return_data=self.keep_data_flat,
                 memory_level=self.memory_level,
                 confounds=confound,
                 verbose=self.verbose,
                 random_state=random_state
             )
             for img, confound in zip(imgs, confounds))
-        subject_pcas, subject_svd_vals = zip(*subject_pcas)
+        subject_pcas, subject_svd_vals, subject_datas = zip(*subject_pcas)
+        if self.verbose:
+            print("Done")
 
         if self.verbose:
             print("[MultiPCA] Learning group level PCA")
@@ -338,6 +353,8 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         self.components_ = data
         self.variance_ = variance
 
+        if self.keep_data_flat:
+            self.data_flat_ = subject_datas
         return self
 
     def transform(self, imgs, confounds=None):

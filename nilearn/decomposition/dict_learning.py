@@ -1,26 +1,27 @@
 """
-CanICA
+DictLearning
 """
 
-# Author: Alexandre Abraham, Gael Varoquaux,
+# Author: Arthur Mensch
 # License: BSD 3 clause
-from distutils.version import LooseVersion
+from ..input_data.base_masker import filter_and_mask
 
-from operator import itemgetter
 import numpy as np
-from scipy.stats import scoreatpercentile
 
-import sklearn
-from sklearn.decomposition import fastica
 from sklearn.externals.joblib import Memory, delayed, Parallel
-from sklearn.utils import check_random_state
 
-from .multi_pca import MultiPCA
-from .._utils.cache_mixin import CacheMixin
+from sklearn.decomposition import dict_learning_online
+from .._utils.class_inspect import get_params
+from .._utils import as_ndarray
+
+from ..input_data import MultiNiftiMasker
+
+from .canica import CanICA
+from .._utils.cache_mixin import cache, CacheMixin
 
 
-class CanICA(MultiPCA, CacheMixin):
-    """Perform Canonical Independent Component Analysis.
+class DictLearning(CanICA, CacheMixin):
+    """Perform Dictionary Learning analysis.
 
     Parameters
     ----------
@@ -115,23 +116,27 @@ class CanICA(MultiPCA, CacheMixin):
                  random_state=0,
                  target_affine=None, target_shape=None,
                  low_pass=None, high_pass=None, t_r=None,
+                 l1_ratio=0.1,
+                 batch_size=10,
                  # Common options
                  memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, verbose=0,
                  ):
-        super(CanICA, self).__init__(
+        super(DictLearning, self).__init__(
             mask=mask, memory=memory, memory_level=memory_level,
-            n_jobs=n_jobs, verbose=max(0, verbose - 1), do_cca=do_cca,
+            n_jobs=n_jobs, verbose=verbose, do_cca=do_cca,
+            threshold=threshold, n_init=n_init,
             n_components=n_components, smoothing_fwhm=smoothing_fwhm,
-            target_affine=target_affine, target_shape=target_shape,
-            random_state=random_state)
+            target_affine=target_affine, target_shape=target_shape)
+
         self.threshold = threshold
         self.random_state = random_state
         self.low_pass = low_pass
         self.high_pass = high_pass
         self.t_r = t_r
-        self.n_init = n_init
         self.standardize = standardize
+        self.l1_ratio = l1_ratio
+        self.batch_size = batch_size
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
@@ -147,49 +152,28 @@ class CanICA(MultiPCA, CacheMixin):
             This parameter is passed to nilearn.signal.clean. Please see the
             related documentation for details
         """
-        MultiPCA.fit(self, imgs, y=y, confounds=confounds)
-        random_state = check_random_state(self.random_state)
+        CanICA.fit(self, imgs, y=y, confounds=confounds)
 
-        if self.verbose:
-            print("[CanICA] Performing ICA")
-        seeds = random_state.randint(np.iinfo(np.int32).max, size=self.n_init)
-        if (LooseVersion(sklearn.__version__).version > [0, 12]):
-            # random_state in fastica was added in 0.13
-            results = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
-                delayed(self._cache(fastica, func_memory_level=1))
-                       (self.components_.T,
-                        whiten=True, fun='cube', random_state=seed)
-                        for seed in seeds)
-        else:
-            results = Parallel(n_jobs=1, verbose=self.verbose)(
-                delayed(self._cache(fastica, func_memory_level=1))
-                       (self.components_.T, whiten=True, fun='cube')
-                        for seed in seeds)
+        data = np.concatenate(self.data_flat_, axis=0)
 
-        ica_maps_gen_ = (result[2].T for result in results)
-        ica_maps_and_sparsities = ((ica_map,
-                                    np.sum(np.abs(ica_map), axis=1).max())
-                                   for ica_map in ica_maps_gen_)
-        ica_maps, _ = min(ica_maps_and_sparsities, key=itemgetter(-1))
+        np.random.shuffle(data)
 
-        # Thresholding
-        ratio = None
-        if isinstance(self.threshold, float):
-            ratio = self.threshold
-        elif self.threshold == 'auto':
-            ratio = 1.
-        elif self.threshold is not None:
-            raise ValueError("Threshold must be None, "
-                             "'auto' or float. You provided %s." %
-                             str(self.threshold))
-        if ratio is not None:
-            abs_ica_maps = np.abs(ica_maps)
-            threshold = scoreatpercentile(
-                abs_ica_maps,
-                100. - (100. / len(ica_maps)) * ratio)
-            ica_maps[abs_ica_maps < threshold] = 0.
-        self.components_ = ica_maps
+        n_samples = data.shape[0]
 
+        self.components_ = cache(dict_learning_online, self.memory, memory_level=self.memory_level,
+                                 ignore=['n_jobs'])(data, self.n_components,
+                                                    n_iter=n_samples / self.batch_size,
+                                                    return_code=False, dict_init=self.components_,
+                                                    verbose=max(self.verbose - 1, 0),
+                                                    shuffle=True, n_jobs=1,
+                                                    l1_ratio=self.l1_ratio,
+                                                    method="ols",
+                                                    constraint="enet",
+                                                    batch_size=self.batch_size,
+                                                    random_state=self.random_state
+                                                    )
+
+        self.components_ = as_ndarray(self.components_)
         # flip signs in each component so that peak is +ve
         for component in self.components_:
             if component.max() < -component.min():
