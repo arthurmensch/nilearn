@@ -126,7 +126,6 @@ class CanICA(MultiPCA, CacheMixin):
             target_affine=target_affine, target_shape=target_shape,
             random_state=random_state)
         self.threshold = threshold
-        self.random_state = random_state
         self.low_pass = low_pass
         self.high_pass = high_pass
         self.t_r = t_r
@@ -186,7 +185,7 @@ class CanICA(MultiPCA, CacheMixin):
             abs_ica_maps = np.abs(ica_maps)
             threshold = scoreatpercentile(
                 abs_ica_maps,
-                100. - (100. / len(ica_maps)) * ratio)
+                100. * (1 - ratio))
             ica_maps[abs_ica_maps < threshold] = 0.
         self.components_ = ica_maps
 

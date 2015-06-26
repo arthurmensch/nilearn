@@ -27,12 +27,19 @@ print('First functional nifti image (4D) is at: %s' %
 
 ### Apply DictLearning ########################################################
 from nilearn.decomposition.dict_learning import DictLearning
+from nilearn.decomposition.canica import CanICA
 
 n_components = 50
+# dict_learning = CanICA(n_components=n_components, smoothing_fwhm=6.,
+#                        memory="nilearn_cache", memory_level=5,
+#                        threshold=0.5, verbose=10, random_state=0,
+#                        n_jobs=1, n_init=5)
+
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
-                             memory="nilearn_cache", memory_level=5,
+                             memory="nilearn_cache", memory_level=5, method='trans',
                              threshold=1., verbose=10, random_state=0,
-                             n_jobs=5, n_init=5, l1_ratio=0.1)
+                             n_jobs=1, n_init=5, l1_ratio=0.3, alpha=4.5, n_iter=100)
+
 dict_learning.fit(func_filenames)
 
 # Retrieve the independent components in brain space
@@ -48,7 +55,9 @@ from nilearn.plotting import plot_stat_map
 from nilearn.image import iter_img
 
 for i, cur_img in enumerate(iter_img(components_img)):
+    if i > 10:
+        break
     plot_stat_map(cur_img, display_mode="z", title="Map %d" % i, cut_coords=1,
-                  colorbar=False)
+                  colorbar=True)
 
 plt.show()

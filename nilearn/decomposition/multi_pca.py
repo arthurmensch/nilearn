@@ -25,9 +25,9 @@ def session_pca(imgs, mask_img, parameters,
                 memory_level=0,
                 memory=Memory(cachedir=None),
                 verbose=0,
+                return_data=False,
                 copy=True,
-                random_state=0,
-                return_data=False):
+                random_state=0):
     """Filter, mask and compute PCA on Niimg-like objects
 
     This is an helper function whose first call `base_masker.filter_and_mask`

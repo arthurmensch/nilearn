@@ -19,8 +19,11 @@ from ..input_data import MultiNiftiMasker
 from .canica import CanICA
 from .._utils.cache_mixin import cache, CacheMixin
 
+from sklearn.linear_model import Ridge
+from sklearn.decomposition import MiniBatchDictionaryLearning
 
-class DictLearning(CanICA, CacheMixin):
+
+class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
     """Perform Dictionary Learning analysis.
 
     Parameters
@@ -117,26 +120,35 @@ class DictLearning(CanICA, CacheMixin):
                  target_affine=None, target_shape=None,
                  low_pass=None, high_pass=None, t_r=None,
                  l1_ratio=0.1,
+                 alpha=1,
                  batch_size=10,
+                 method='enet',
+                 n_iter=100,
                  # Common options
                  memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, verbose=0,
                  ):
-        super(DictLearning, self).__init__(
+        CanICA.__init__(self,
             mask=mask, memory=memory, memory_level=memory_level,
             n_jobs=n_jobs, verbose=verbose, do_cca=do_cca,
             threshold=threshold, n_init=n_init,
             n_components=n_components, smoothing_fwhm=smoothing_fwhm,
-            target_affine=target_affine, target_shape=target_shape)
-
-        self.threshold = threshold
-        self.random_state = random_state
-        self.low_pass = low_pass
-        self.high_pass = high_pass
-        self.t_r = t_r
-        self.standardize = standardize
-        self.l1_ratio = l1_ratio
-        self.batch_size = batch_size
+            target_affine=target_affine, target_shape=target_shape,
+            random_state=random_state, high_pass=high_pass, low_pass=low_pass,
+            t_r=t_r,
+            standardize=standardize
+        )
+        self.method = method
+        MiniBatchDictionaryLearning.__init__(self, n_components=n_components, alpha=alpha,
+                                             n_iter=n_iter, batch_size=batch_size,
+                                             tol=1e-4,
+                                             fit_algorithm='<unknown>',
+                                             fit_constraint='<unknown>',
+                                             verbose=verbose,
+                                             l1_ratio=l1_ratio,
+                                             random_state=random_state,
+                                             shuffle=True,
+                                             n_jobs=n_jobs)
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
@@ -152,31 +164,52 @@ class DictLearning(CanICA, CacheMixin):
             This parameter is passed to nilearn.signal.clean. Please see the
             related documentation for details
         """
+        if self.method == 'enet':
+            self.fit_algorithm = 'ols'
+            self.update_dict_dir = 'feature'
+        elif self.method == 'trans':
+            self.fit_algorithm = 'cd'
+            self.fit_constraint = 'component'
+            self.transform_algorithm = 'lasso_cd'
+            self.transform_alpha = self.alpha
+        else:
+            raise ValueError("Method is not valid : expected 'enet' or 'trans', got %s" % self.method)
+
         CanICA.fit(self, imgs, y=y, confounds=confounds)
 
         data = np.concatenate(self.data_flat_, axis=0)
+        if self.method is 'enet':
+            if self.verbose:
+                print('Learning dictionary')
+            self.dict_init = self.components_
+            MiniBatchDictionaryLearning.fit(self, data)
+            if self.verbose:
+                print('Done')
 
-        np.random.shuffle(data)
-
-        n_samples = data.shape[0]
-
-        self.components_ = cache(dict_learning_online, self.memory, memory_level=self.memory_level,
-                                 ignore=['n_jobs'])(data, self.n_components,
-                                                    n_iter=n_samples / self.batch_size,
-                                                    return_code=False, dict_init=self.components_,
-                                                    verbose=max(self.verbose - 1, 0),
-                                                    shuffle=True, n_jobs=1,
-                                                    l1_ratio=self.l1_ratio,
-                                                    method="ols",
-                                                    constraint="enet",
-                                                    batch_size=self.batch_size,
-                                                    random_state=self.random_state
-                                                    )
+        if self.method is 'trans':
+            if self.verbose:
+                print('Learning time serie')
+            ridge = Ridge(alpha=1e-6, fit_intercept=None)
+            ridge.fit(self.components_.T, data.T)
+            self.dict_init = ridge.coef_.T
+            S = np.sqrt(np.sum(self.dict_init ** 2, axis=0))
+            self.dict_init /= S[np.newaxis, :]
+            if self.verbose:
+                print('Done')
+                print('Learning dictionary')
+            MiniBatchDictionaryLearning.fit(self, data.T)
+            if self.verbose:
+                print('Done')
+            if self.verbose:
+                print('Learning code')
+            self.components_ = MiniBatchDictionaryLearning.transform(self, data.T).T
+            if self.verbose:
+                print('Done')
 
         self.components_ = as_ndarray(self.components_)
         # flip signs in each component so that peak is +ve
         for component in self.components_:
-            if component.max() < -component.min():
+            if np.sum(component[component > 0]) < - np.sum(component[component <= 0]):
                 component *= -1
 
         return self
