@@ -2630,3 +2630,22 @@ def fetch_abide_pcp(data_dir=None, n_subjects=None, pipeline='cpac',
             files = [np.loadtxt(f) for f in files]
         results[derivative] = files
     return Bunch(**results)
+
+def fetch_hcp_rest(data_dir=None, n_subjects=10):
+    if data_dir is None:
+        warnings.warn('Stting default HCP folder for drago')
+        data_dir = '/storage/data/HCP'
+    if n_subjects > 500:
+        warnings.warn('Warning: there are only 500 subjects')
+        n_subjects = 500
+    subjects_funcs = []
+    for subdir in ['S500-1', 'S500-2', 'S500-3', 'S500-4']:
+        subdir = os.path.join(data_dir, subdir)
+        for subject_id in os.listdir(subdir):
+            this_subject_funcs = []
+            for rest_folder in ['rfMRI_REST1_RL', 'rfMRI_REST1_LR', 'rfMRI_REST2_RL', 'rfMRI_REST2_LR']:
+                this_subject_funcs.append(os.path.join(subdir, subject_id, rest_folder, rest_folder + '.nii.gz'))
+            subjects_funcs.append(this_subject_funcs)
+    subjects_funcs = subjects_funcs[:n_subjects]
+
+    return Bunch(func=subjects_funcs)

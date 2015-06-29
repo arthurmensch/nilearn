@@ -15,8 +15,21 @@ Pre-prints for paper is available on hal
 (http://hal.archives-ouvertes.fr)
 """
 
+import numpy as np
+
 ### Load ADHD rest dataset ####################################################
 from nilearn import datasets
+
+# OUTPUT DIR
+import os
+import datetime
+
+output_dir = os.path.expanduser('~/work/output/nilearn/plot_dict_learning_resting_state')
+output_dir = os.path.join(output_dir, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+try:
+    os.makedirs(output_dir)
+except OSError:
+    pass
 
 adhd_dataset = datasets.fetch_adhd()
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
@@ -36,17 +49,23 @@ n_components = 50
 #                        n_jobs=1, n_init=5)
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
-                             memory="nilearn_cache", memory_level=5, method='trans',
+                             memory="nilearn_cache", memory_level=5, method='enet',
                              threshold=1., verbose=10, random_state=0,
-                             n_jobs=1, n_init=5, l1_ratio=0.3, alpha=4.5, n_iter=100)
+                             n_jobs=5, n_init=5, l1_ratio=0.5, alpha=3.7, n_iter=1000)
 
-dict_learning.fit(func_filenames)
+dict_learning.incremental_fit(func_filenames)
+dict_learning.incremental_fit(func_filenames)
 
 # Retrieve the independent components in brain space
 components_img = dict_learning.masker_.inverse_transform(dict_learning.components_)
 # components_img is a Nifti Image object, and can be saved to a file with
 # the following line:
-components_img.to_filename('dict_learning_resting_state.nii.gz')
+components_img.to_filename(os.path.join(output_dir, 'dict_learning_resting_state.nii.gz'))
+
+# Debug info drop
+np.save(os.path.join(output_dir, 'values'), dict_learning.values_)
+np.save(os.path.join(output_dir, 'residuals'), dict_learning.residuals_)
+np.save(os.path.join(output_dir, 'density'), dict_learning.density_)
 
 ### Visualize the results #####################################################
 # Show some interesting components

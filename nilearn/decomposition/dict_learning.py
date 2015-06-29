@@ -21,6 +21,7 @@ from .._utils.cache_mixin import cache, CacheMixin
 
 from sklearn.linear_model import Ridge
 from sklearn.decomposition import MiniBatchDictionaryLearning
+from sklearn.utils import gen_batches
 
 
 class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
@@ -143,12 +144,45 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                                              n_iter=n_iter, batch_size=batch_size,
                                              tol=1e-4,
                                              fit_algorithm='<unknown>',
-                                             fit_constraint='<unknown>',
+                                             fit_update_dict_dir='<unknown>',
                                              verbose=verbose,
                                              l1_ratio=l1_ratio,
                                              random_state=random_state,
                                              shuffle=True,
                                              n_jobs=n_jobs)
+
+    def _init_dict(self, imgs, y=None, confounds=None):
+        if self.method == 'enet':
+            self.fit_algorithm = 'ridge'
+            self.fit_update_dict_dir = 'feature'
+            self.alpha = 1e-6
+        elif self.method == 'trans':
+            self.fit_algorithm = 'cd'
+            self.fit_update_dict_dir = 'component'
+            self.transform_algorithm = 'lasso_cd'
+            self.transform_alpha = self.alpha
+            self.l1_ratio = 0.
+        else:
+            raise ValueError("Method is not valid : expected 'enet' or 'trans', got %s" % self.method)
+
+        CanICA.fit(self, imgs, y=y, confounds=confounds)
+
+        self.data_flat_ = np.concatenate(self.data_flat_, axis=0)
+        if self.method is 'enet':
+            if self.verbose:
+                print('Learning dictionary')
+            self.dict_init = self.components_
+
+        if self.method is 'trans':
+            if self.verbose:
+                print('Learning time serie')
+            ridge = Ridge(alpha=1e-6, fit_intercept=None)
+            ridge.fit(self.components_.T, self.data_flat_.T)
+            self.dict_init = ridge.coef_.T
+            S = np.sqrt(np.sum(self.dict_init ** 2, axis=0))
+            self.dict_init /= S[np.newaxis, :]
+            if self.verbose:
+                print('Done')
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
@@ -164,47 +198,43 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
             This parameter is passed to nilearn.signal.clean. Please see the
             related documentation for details
         """
-        if self.method == 'enet':
-            self.fit_algorithm = 'ols'
-            self.update_dict_dir = 'feature'
-        elif self.method == 'trans':
-            self.fit_algorithm = 'cd'
-            self.fit_constraint = 'component'
-            self.transform_algorithm = 'lasso_cd'
-            self.transform_alpha = self.alpha
-        else:
-            raise ValueError("Method is not valid : expected 'enet' or 'trans', got %s" % self.method)
+        self._init_dict(imgs, y, confounds)
 
-        CanICA.fit(self, imgs, y=y, confounds=confounds)
-
-        data = np.concatenate(self.data_flat_, axis=0)
         if self.method is 'enet':
             if self.verbose:
                 print('Learning dictionary')
-            self.dict_init = self.components_
-            MiniBatchDictionaryLearning.fit(self, data)
+            MiniBatchDictionaryLearning.fit(self, self.data_flat_)
             if self.verbose:
                 print('Done')
 
         if self.method is 'trans':
             if self.verbose:
-                print('Learning time serie')
-            ridge = Ridge(alpha=1e-6, fit_intercept=None)
-            ridge.fit(self.components_.T, data.T)
-            self.dict_init = ridge.coef_.T
-            S = np.sqrt(np.sum(self.dict_init ** 2, axis=0))
-            self.dict_init /= S[np.newaxis, :]
-            if self.verbose:
-                print('Done')
                 print('Learning dictionary')
-            MiniBatchDictionaryLearning.fit(self, data.T)
+            MiniBatchDictionaryLearning.fit(self, self.data_flat_.T)
             if self.verbose:
                 print('Done')
             if self.verbose:
                 print('Learning code')
-            self.components_ = MiniBatchDictionaryLearning.transform(self, data.T).T
+            self.components_ = MiniBatchDictionaryLearning.transform(self, self.data_flat_.T).T
             if self.verbose:
                 print('Done')
+
+        self.components_ = as_ndarray(self.components_)
+        # flip signs in each component so that peak is +ve
+        for component in self.components_:
+            if np.sum(component[component > 0]) < - np.sum(component[component <= 0]):
+                component *= -1
+
+        return self
+
+    def incremental_fit(self, imgs, y=None):
+        if not hasattr(self, 'components_'):
+            self._init_dict(imgs, y=y)
+        if self.method is 'trans':
+            raise ValueError("Partial fit is not supported using 'trans' method")
+        data = self.masker_.transform(imgs)
+        data = np.concatenate(data, axis=0)
+        MiniBatchDictionaryLearning.incremental_fit(self, data, None, iter_offset=None)
 
         self.components_ = as_ndarray(self.components_)
         # flip signs in each component so that peak is +ve
