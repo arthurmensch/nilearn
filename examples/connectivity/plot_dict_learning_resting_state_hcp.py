@@ -63,12 +63,11 @@ dict_learning = DictLearning(mask="/home/parietal/amensch/HCP/mask_img.nii.gz", 
                              smoothing_fwhm=2.,
                              memory="nilearn_cache", memory_level=5, method='enet',
                              threshold=1., verbose=10, random_state=0,
-                             n_jobs=5, n_init=5, l1_ratio=0.5, alpha=3.7, n_iter=1000)
+                             n_jobs=5, n_init=5, l1_ratio=0.3, alpha=3.7, n_iter=1000)
 
-dict_learning.incremental_fit(func_filenames[0:1])
-dict_learning.incremental_fit(func_filenames[21:22])
-dict_learning.incremental_fit(func_filenames[121:122])
-
+dict_learning.incremental_fit([func_filenames[-0], func_filenames[-10], func_filenames[-20],
+                              func_filenames[-30], func_filenames[-40]])
+dict_learning.incremental_fit(func_filenames[0:10])
 # Retrieve the independent components in brain space
 components_img = dict_learning.masker_.inverse_transform(dict_learning.components_)
 # components_img is a Nifti Image object, and can be saved to a file with
