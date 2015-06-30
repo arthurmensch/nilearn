@@ -46,7 +46,7 @@ for subdir in ['S500-1', 'S500-2', 'S500-3', 'S500-4']:
 
 # print basic information on the dataset
 print('First functional nifti image (4D) is at: %s' %
-      adhd_dataset.func[0])  # 4D data
+       func_filenames[0])  # 4D data
 
 ### Apply DictLearning ########################################################
 from nilearn.decomposition.dict_learning import DictLearning
@@ -58,7 +58,8 @@ n_components = 50
 #                        threshold=0.5, verbose=10, random_state=0,
 #                        n_jobs=1, n_init=5)
 
-dict_learning = DictLearning(mask="/home/parietal/arthur.HCP_mask_img.nii.gz", n_components=n_components, smoothing_fwhm=6.,
+dict_learning = DictLearning(mask="/home/parietal/arthur.HCP_mask_img.nii.gz", n_components=n_components,
+                             smoothing_fwhm=2.,
                              memory="nilearn_cache", memory_level=5, method='enet',
                              threshold=1., verbose=10, random_state=0,
                              n_jobs=5, n_init=5, l1_ratio=0.5, alpha=3.7, n_iter=1000)
