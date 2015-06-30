@@ -33,6 +33,7 @@ except OSError:
 
 data_dir = '/storage/data/HCP'
 func_filenames = []
+print('Scanning tree')
 for subdir in ['S500-1', 'S500-2', 'S500-3', 'S500-4']:
     fulldir = os.path.join(data_dir, subdir)
     for subject_id in os.listdir(fulldir):
@@ -41,8 +42,8 @@ for subdir in ['S500-1', 'S500-2', 'S500-3', 'S500-4']:
             record_dir = os.path.join(subject_dir, record_id)
             filename = os.path.join(record_dir, record_id + '.nii.gz')
             if os.path.exists(filename):
-                func_filenames.append((subdir, subject_id, record_id,
-                                       filename))
+                func_filenames.append(filename)
+print('Done')
 
 # print basic information on the dataset
 print('First functional nifti image (4D) is at: %s' %
@@ -58,7 +59,7 @@ n_components = 50
 #                        threshold=0.5, verbose=10, random_state=0,
 #                        n_jobs=1, n_init=5)
 
-dict_learning = DictLearning(mask="/home/parietal/arthur.HCP_mask_img.nii.gz", n_components=n_components,
+dict_learning = DictLearning(mask="/home/parietal/arthur/HCP_mask_img.nii.gz", n_components=n_components,
                              smoothing_fwhm=2.,
                              memory="nilearn_cache", memory_level=5, method='enet',
                              threshold=1., verbose=10, random_state=0,
