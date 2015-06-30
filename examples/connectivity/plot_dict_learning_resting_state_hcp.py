@@ -59,7 +59,7 @@ n_components = 50
 #                        threshold=0.5, verbose=10, random_state=0,
 #                        n_jobs=1, n_init=5)
 
-dict_learning = DictLearning(mask="/home/parietal/arthur/HCP_mask_img.nii.gz", n_components=n_components,
+dict_learning = DictLearning(mask="/home/parietal/amensch/HCP/mask_img.nii.gz", n_components=n_components,
                              smoothing_fwhm=2.,
                              memory="nilearn_cache", memory_level=5, method='enet',
                              threshold=1., verbose=10, random_state=0,
