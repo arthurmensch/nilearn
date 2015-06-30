@@ -130,14 +130,14 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                  n_jobs=1, verbose=0,
                  ):
         CanICA.__init__(self,
-            mask=mask, memory=memory, memory_level=memory_level,
-            n_jobs=n_jobs, verbose=verbose, do_cca=do_cca,
-            threshold=threshold, n_init=n_init,
-            n_components=n_components, smoothing_fwhm=smoothing_fwhm,
-            target_affine=target_affine, target_shape=target_shape,
-            random_state=random_state, high_pass=high_pass, low_pass=low_pass,
-            t_r=t_r,
-            standardize=standardize
+                        mask=mask, memory=memory, memory_level=memory_level,
+                        n_jobs=n_jobs, verbose=verbose, do_cca=do_cca,
+                        threshold=threshold, n_init=n_init,
+                        n_components=n_components, smoothing_fwhm=smoothing_fwhm,
+                        target_affine=target_affine, target_shape=target_shape,
+                        random_state=random_state, high_pass=high_pass, low_pass=low_pass,
+                        t_r=t_r,
+                        standardize=standardize
         )
         self.method = method
         MiniBatchDictionaryLearning.__init__(self, n_components=n_components, alpha=alpha,
