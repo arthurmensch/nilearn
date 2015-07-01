@@ -54,20 +54,20 @@ from nilearn.decomposition.dict_learning import DictLearning
 from nilearn.decomposition.canica import CanICA
 
 n_components = 100
-dict_learning = CanICA(n_components=n_components, smoothing_fwhm=6.,
-                       memory="nilearn_cache", memory_level=5,
-                       threshold=0.5, verbose=10, random_state=0,
-                       n_jobs=1, n_init=5)
+# dict_learning = CanICA(n_components=n_components, smoothing_fwhm=6.,
+#                        memory="nilearn_cache", memory_level=0,
+#                        threshold=n_components, verbose=10, random_state=0,
+#                        n_jobs=1, n_init=5)
 
-# dict_learning = DictLearning(mask="/home/parietal/amensch/HCP/mask_img.nii.gz", n_components=n_components,
-#                              smoothing_fwhm=2.,
-#                              memory="nilearn_cache", memory_level=5, method='enet',
-#                              threshold=1., verbose=10, random_state=0,
-#                              n_jobs=5, n_init=5, l1_ratio=0.3, alpha=3.7, n_iter=1000)
+dict_learning = DictLearning(mask="/home/parietal/amensch/HCP/mask_img.nii.gz", n_components=n_components,
+                             smoothing_fwhm=2.,
+                             memory="nilearn_cache", memory_level=0, method='enet',
+                             threshold=1., verbose=10, random_state=0,
+                             n_jobs=5, n_init=5, l1_ratio=0.3, alpha=3.7, n_iter=1000)
 
-dict_learning.fit(func_filenames[0:10])
-# dict_learning.incremental_fit(func_filenames[0:10])
-# dict_learning.incremental_fit(func_filenames[0:10])
+dict_learning.fit(func_filenames[0:40:4])
+dict_learning.incremental_fit(func_filenames[0:10])
+dict_learning.incremental_fit(func_filenames[10:20])
 # Retrieve the independent components in brain space
 components_img = dict_learning.masker_.inverse_transform(dict_learning.components_)
 # components_img is a Nifti Image object, and can be saved to a file with
@@ -83,12 +83,20 @@ np.save(os.path.join(output_dir, 'density'), dict_learning.density_)
 # Show some interesting components
 import matplotlib.pyplot as plt
 from nilearn.plotting import plot_stat_map
-from nilearn.image import iter_img
+from nilearn.image import index_img
+from matplotlib.backends.backend_pdf import PdfPages
+import nibabel
+import os
 
-for i, cur_img in enumerate(iter_img(components_img)):
-    if i > 10:
-        break
-    plot_stat_map(cur_img, display_mode="z", title="Map %d" % i, cut_coords=1,
-                  colorbar=True)
+map_img = nibabel.load("dict_learning_resting_state.nii.gz")
 
-plt.show()
+fig = plt.figure()
+
+with PdfPages('output.pdf') as pdf:
+    for j in range(n_components):
+        plt.clf()
+        plot_stat_map(index_img(map_img, j), figure=fig, threshold="auto")
+        pdf.savefig()
+    plt.close()
+    d = pdf.infodict()
+    d['Title'] = 'Maps'

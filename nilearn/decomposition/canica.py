@@ -185,7 +185,7 @@ class CanICA(MultiPCA, CacheMixin):
             abs_ica_maps = np.abs(ica_maps)
             threshold = scoreatpercentile(
                 abs_ica_maps,
-                100. * (1 - ratio))
+                100. - (100. / len(ica_maps)) * ratio)
             ica_maps[abs_ica_maps < threshold] = 0.
         self.components_ = ica_maps
 
