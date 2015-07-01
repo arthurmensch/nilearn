@@ -31,8 +31,8 @@ try:
 except OSError:
     pass
 
-adhd_dataset = datasets.fetch_adhd()
-func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
+adhd_dataset = datasets.fetch_adhd(data_dir='/media/data/neuro')
+func_filenames = adhd_dataset.func[:10]  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
 print('First functional nifti image (4D) is at: %s' %
@@ -50,10 +50,9 @@ n_components = 50
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="nilearn_cache", memory_level=5, method='enet',
-                             threshold=1., verbose=10, random_state=0,
-                             n_jobs=5, n_init=5, l1_ratio=0.5, alpha=3.7, n_iter=1000)
+                             threshold=float(n_components), verbose=10, random_state=0,
+                             n_jobs=1, n_init=2, l1_ratio=0.5, alpha=3.7, n_iter=1000)
 
-dict_learning.incremental_fit(func_filenames)
 dict_learning.incremental_fit(func_filenames)
 
 # Retrieve the independent components in brain space
@@ -71,12 +70,20 @@ np.save(os.path.join(output_dir, 'density'), dict_learning.density_)
 # Show some interesting components
 import matplotlib.pyplot as plt
 from nilearn.plotting import plot_stat_map
-from nilearn.image import iter_img
+from nilearn.image import index_img
+from matplotlib.backends.backend_pdf import PdfPages
+import nibabel
+import os
 
-for i, cur_img in enumerate(iter_img(components_img)):
-    if i > 10:
-        break
-    plot_stat_map(cur_img, display_mode="z", title="Map %d" % i, cut_coords=1,
-                  colorbar=True)
+map_img = nibabel.load(os.path.join(output_dir, "dict_learning_resting_state.nii.gz"))
 
-plt.show()
+fig = plt.figure()
+
+with PdfPages(os.path.join(output_dir, 'output.pdf')) as pdf:
+    for j in range(n_components):
+        plt.clf()
+        plot_stat_map(index_img(map_img, j), figure=fig, threshold="auto")
+        pdf.savefig()
+    plt.close()
+    d = pdf.infodict()
+    d['Title'] = 'Maps'

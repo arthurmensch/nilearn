@@ -194,7 +194,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
     def __init__(self, n_components=20, smoothing_fwhm=None, mask=None,
                  do_cca=True, standardize=True, target_affine=None,
                  target_shape=None, low_pass=None, high_pass=None,
-                 keep_data_flat=True,
+                 keep_data_flat=False,
                  t_r=None, memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, verbose=0,
                  random_state=None

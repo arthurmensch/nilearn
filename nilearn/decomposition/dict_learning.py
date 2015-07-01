@@ -164,13 +164,11 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
             self.l1_ratio = 0.
         else:
             raise ValueError("Method is not valid : expected 'enet' or 'trans', got %s" % self.method)
-
+        self.keep_data_flat = True
         CanICA.fit(self, imgs, y=y, confounds=confounds)
-
+        self.keep_data_flat = False
         self.data_flat_ = np.concatenate(self.data_flat_, axis=0)
         if self.method is 'enet':
-            if self.verbose:
-                print('Learning dictionary')
             self.dict_init = self.components_
 
         if self.method is 'trans':
@@ -232,8 +230,14 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
             self._init_dict(imgs, y=y)
         if self.method is 'trans':
             raise ValueError("Partial fit is not supported using 'trans' method")
-        data = self.masker_.transform(imgs)
-        data = np.concatenate(data, axis=0)
+        # In case of first call, _init_dict ask MultiPCA to keep data_flat_
+        if not hasattr(self, 'data_flat_'):
+            print 'Blahs'
+            data = self.masker_.transform(imgs)
+            data = np.concatenate(data, axis=0)
+        else:
+            print('Reusing data_flat')
+            data = self.data_flat_
         MiniBatchDictionaryLearning.incremental_fit(self, data, None, iter_offset=None)
 
         self.components_ = as_ndarray(self.components_)
