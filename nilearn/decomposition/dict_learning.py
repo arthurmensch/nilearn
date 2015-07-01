@@ -149,7 +149,8 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                                              l1_ratio=l1_ratio,
                                              random_state=random_state,
                                              shuffle=True,
-                                             n_jobs=n_jobs)
+                                             n_jobs=n_jobs,
+                                             debug_info=True)
 
     def _init_dict(self, imgs, y=None, confounds=None):
         if self.method == 'enet':
@@ -238,12 +239,11 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
         else:
             print('Reusing data_flat')
             data = self.data_flat_
-        MiniBatchDictionaryLearning.incremental_fit(self, data, None, iter_offset=None)
+        MiniBatchDictionaryLearning.incremental_fit(self, data, None, iter_offset=0)
 
-        self.components_ = as_ndarray(self.components_)
+        # self.components_ = as_ndarray(self.components_)
         # flip signs in each component so that peak is +ve
         for component in self.components_:
             if np.sum(component[component > 0]) < - np.sum(component[component <= 0]):
                 component *= -1
-
         return self

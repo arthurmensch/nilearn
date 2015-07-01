@@ -63,11 +63,10 @@ dict_learning = DictLearning(mask="/home/parietal/amensch/HCP/mask_img.nii.gz", 
                              smoothing_fwhm=2.,
                              memory="nilearn_cache", memory_level=0, method='enet',
                              threshold=1., verbose=10, random_state=0,
-                             n_jobs=5, n_init=5, l1_ratio=0.3, alpha=3.7, n_iter=1000)
+                             n_jobs=5, n_init=5, l1_ratio=0.2, alpha=3.7, n_iter=1000)
 
 dict_learning.fit(func_filenames[0:40:4])
-dict_learning.incremental_fit(func_filenames[0:10])
-dict_learning.incremental_fit(func_filenames[10:20])
+dict_learning.incremental_fit(func_filenames[0:40:4])
 # Retrieve the independent components in brain space
 components_img = dict_learning.masker_.inverse_transform(dict_learning.components_)
 # components_img is a Nifti Image object, and can be saved to a file with
@@ -88,11 +87,11 @@ from matplotlib.backends.backend_pdf import PdfPages
 import nibabel
 import os
 
-map_img = nibabel.load("dict_learning_resting_state.nii.gz")
+map_img = nibabel.load(os.path.join(output_dir, "dict_learning_resting_state.nii.gz"))
 
 fig = plt.figure()
 
-with PdfPages('output.pdf') as pdf:
+with PdfPages(os.path.join(output_dir, 'output.pdf')) as pdf:
     for j in range(n_components):
         plt.clf()
         plot_stat_map(index_img(map_img, j), figure=fig, threshold="auto")

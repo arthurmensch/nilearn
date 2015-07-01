@@ -51,9 +51,11 @@ n_components = 50
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="nilearn_cache", memory_level=5, method='enet',
                              threshold=float(n_components), verbose=10, random_state=0,
-                             n_jobs=1, n_init=2, l1_ratio=0.5, alpha=3.7, n_iter=1000)
+                             n_jobs=3, n_init=2, l1_ratio=0.2, alpha=3.7, n_iter=1000)
 
 dict_learning.incremental_fit(func_filenames)
+
+print('Dumping')
 
 # Retrieve the independent components in brain space
 components_img = dict_learning.masker_.inverse_transform(dict_learning.components_)
