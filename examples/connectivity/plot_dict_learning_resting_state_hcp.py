@@ -62,8 +62,8 @@ n_components = 100
 dict_learning = DictLearning(mask="/home/parietal/amensch/HCP/mask_img.nii.gz", n_components=n_components,
                              smoothing_fwhm=2.,
                              memory="nilearn_cache", memory_level=0, method='enet',
-                             threshold=1., verbose=10, random_state=0,
-                             n_jobs=2, n_init=2, l1_ratio=0.2, alpha=3.7, n_iter=1000)
+                             threshold=n_components, verbose=10, random_state=0,
+                             n_jobs=2, n_init=2, l1_ratio=0.4, alpha=3.7, n_iter=1000)
 
 dict_learning.incremental_fit(func_filenames[0:1])
 # Retrieve the independent components in brain space
@@ -79,6 +79,8 @@ np.save(os.path.join(output_dir, 'density'), dict_learning.density_)
 
 ### Visualize the results #####################################################
 # Show some interesting components
+import matplotlib
+matplotlib.use('PDF')
 import matplotlib.pyplot as plt
 from nilearn.plotting import plot_stat_map
 from nilearn.image import index_img

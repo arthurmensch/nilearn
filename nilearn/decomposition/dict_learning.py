@@ -197,7 +197,7 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
             This parameter is passed to nilearn.signal.clean. Please see the
             related documentation for details
         """
-        self._init_dict(imgs, y, confounds)
+        self._init_dict(imgs, y, confounds)  # creates self.data_flat_
 
         if self.method is 'enet':
             if self.verbose:
@@ -233,7 +233,6 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
             raise ValueError("Partial fit is not supported using 'trans' method")
         # In case of first call, _init_dict ask MultiPCA to keep data_flat_
         if not hasattr(self, 'data_flat_'):
-            print 'Blahs'
             data = self.masker_.transform(imgs)
             data = np.concatenate(data, axis=0)
         else:
