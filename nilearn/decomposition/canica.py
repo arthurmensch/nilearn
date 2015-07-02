@@ -156,15 +156,15 @@ class CanICA(MultiPCA, CacheMixin):
         if (LooseVersion(sklearn.__version__).version > [0, 12]):
             # random_state in fastica was added in 0.13
             results = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
-                delayed(self._cache(fastica, func_memory_level=1))
-                       (self.components_.T,
-                        whiten=True, fun='cube', random_state=seed)
-                        for seed in seeds)
+                delayed(self._cache(fastica))
+                (self.components_.T,
+                 whiten=True, fun='cube', random_state=seed)
+                for seed in seeds)
         else:
             results = Parallel(n_jobs=1, verbose=self.verbose)(
-                delayed(self._cache(fastica, func_memory_level=1))
-                       (self.components_.T, whiten=True, fun='cube')
-                        for seed in seeds)
+                delayed(self._cache(fastica))
+                (self.components_.T, whiten=True, fun='cube')
+                for seed in seeds)
 
         ica_maps_gen_ = (result[2].T for result in results)
         ica_maps_and_sparsities = ((ica_map,
