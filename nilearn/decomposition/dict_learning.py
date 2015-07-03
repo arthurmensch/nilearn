@@ -132,7 +132,7 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                  ):
         CanICA.__init__(self,
                         mask=mask, memory=memory, memory_level=memory_level,
-                        n_jobs=n_jobs, verbose=verbose, do_cca=do_cca,
+                        n_jobs=n_jobs, verbose=max(0, verbose - 1), do_cca=do_cca,
                         threshold=threshold, n_init=n_init,
                         n_components=n_components, smoothing_fwhm=smoothing_fwhm,
                         target_affine=target_affine, target_shape=target_shape,
@@ -147,7 +147,7 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                                              tol=1e-4,
                                              fit_algorithm='<unknown>',
                                              fit_update_dict_dir='<unknown>',
-                                             verbose=verbose,
+                                             verbose=max(0, verbose - 1),
                                              l1_ratio=l1_ratio,
                                              random_state=random_state,
                                              shuffle=True,
@@ -176,14 +176,12 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
 
         if self.method is 'trans':
             if self.verbose:
-                print('Learning time serie')
+                print('[DictLearning] Learning time serie')
             ridge = Ridge(alpha=1e-6, fit_intercept=None)
             ridge.fit(self.components_.T, self.data_flat_.T)
             self.dict_init = ridge.coef_.T
             S = np.sqrt(np.sum(self.dict_init ** 2, axis=0))
             self.dict_init /= S[np.newaxis, :]
-            if self.verbose:
-                print('Done')
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
@@ -203,16 +201,16 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
 
         if self.method is 'enet':
             if self.verbose:
-                print('Learning dictionary')
+                print('[DictLearning] Learning dictionary')
             MiniBatchDictionaryLearning.fit(self, self.data_flat_)
-            if self.verbose:
-                print('Done')
 
         if self.method is 'trans':
             if self.verbose:
-                print('Learning dictionary')
+                print('[DictLearning] Learning dictionary')
             MiniBatchDictionaryLearning.fit(self, self.data_flat_.T)
             if self.verbose:
+                print('[DictLearning] Learning code')
+            self.components_ = MiniBatchDictionaryLearning.transform(self, self.data_flat_.T).T
                 print('Done')
             if self.verbose:
                 print('Learning code')

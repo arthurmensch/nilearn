@@ -322,8 +322,6 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
             )
             for img, confound in zip(imgs, confounds))
         subject_pcas, subject_svd_vals, subject_datas = zip(*subject_pcas)
-        if self.verbose:
-            print("Done")
 
         if self.verbose:
             print("[MultiPCA] Learning group level PCA")
