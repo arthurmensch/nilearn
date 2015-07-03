@@ -207,7 +207,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         self.low_pass = low_pass
         self.high_pass = high_pass
         self.t_r = t_r
-        self.keep_data_flat = keep_data_flat
+        self.keep_data_mem = keep_data_flat
 
         self.do_cca = do_cca
         self.n_components = n_components
@@ -314,7 +314,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
                 parameters,
                 n_components=self.n_components,
                 memory=self.memory,
-                return_data=self.keep_data_flat,
+                return_data=self.keep_data_mem,
                 memory_level=self.memory_level,
                 confounds=confound,
                 verbose=self.verbose,
@@ -350,7 +350,6 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
             variance = subject_svd_vals[0]
         self.components_ = data
         self.variance_ = variance
-
         if self.keep_data_flat:
             self.data_flat_ = subject_datas
         return self

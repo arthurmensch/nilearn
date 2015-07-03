@@ -167,9 +167,9 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
             self.l1_ratio = 0.
         else:
             raise ValueError("Method is not valid : expected 'enet' or 'trans', got %s" % self.method)
-        self.keep_data_flat = True
+        self.keep_data_mem = True
         CanICA.fit(self, imgs, y=y, confounds=confounds)
-        self.keep_data_flat = False
+        self.keep_data_mem = False
         self.data_flat_ = np.concatenate(self.data_flat_, axis=0)
         if self.method is 'enet':
             self.dict_init = self.components_
