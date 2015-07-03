@@ -43,17 +43,13 @@ from nilearn.decomposition.dict_learning import DictLearning
 from nilearn.decomposition.canica import CanICA
 
 n_components = 50
-# dict_learning = CanICA(n_components=n_components, smoothing_fwhm=6.,
-#                        memory="nilearn_cache", memory_level=5,
-#                        threshold=0.5, verbose=10, random_state=0,
-#                        n_jobs=1, n_init=5)
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="nilearn_cache", memory_level=5, method='enet',
                              threshold=float(n_components), verbose=10, random_state=0,
-                             n_jobs=3, n_init=2, l1_ratio=0.2, alpha=3.7, n_iter=1000)
+                             n_jobs=3, n_init=2, l1_ratio=0.5, alpha=3.7, n_iter=450)
 
-dict_learning.incremental_fit(func_filenames)
+dict_learning.fit(func_filenames)
 
 print('Dumping')
 

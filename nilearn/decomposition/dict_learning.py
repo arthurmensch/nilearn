@@ -22,7 +22,7 @@ from .._utils.cache_mixin import cache, CacheMixin
 from sklearn.linear_model import Ridge
 from sklearn.decomposition import MiniBatchDictionaryLearning
 from sklearn.utils import gen_batches
-
+from sklearn.decomposition.pca import RandomizedPCA
 
 class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
     """Perform Dictionary Learning analysis.
@@ -124,6 +124,7 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                  alpha=1,
                  batch_size=10,
                  method='enet',
+                 reduction=False,
                  n_iter=100,
                  # Common options
                  memory=Memory(cachedir=None), memory_level=0,
@@ -140,6 +141,7 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                         standardize=standardize
         )
         self.method = method
+        self.reduction = reduction
         MiniBatchDictionaryLearning.__init__(self, n_components=n_components, alpha=alpha,
                                              n_iter=n_iter, batch_size=batch_size,
                                              tol=1e-4,
@@ -214,7 +216,19 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                 print('Done')
             if self.verbose:
                 print('Learning code')
-            self.components_ = MiniBatchDictionaryLearning.transform(self, self.data_flat_.T).T
+            if self.reduction:
+                if self.verbose:
+                    print('Reducing the dictionary')
+                pca = RandomizedPCA(n_components=self.n_components, iterated_power=0,
+                                    random_state=self.random_state)
+                self.components_ = pca.fit_transform(self.components_)
+                data_trans = pca.transform(self.data_flat_.T)
+                if self.verbose:
+                    print('Done')
+            else:
+                data_trans = self.data_flat_.T
+
+            self.components_ = MiniBatchDictionaryLearning.transform(self, data_trans).T
             if self.verbose:
                 print('Done')
 
