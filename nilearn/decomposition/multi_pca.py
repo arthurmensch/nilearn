@@ -151,7 +151,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         This parameter is passed to signal.clean. Please see the related
         documentation for details
 
-    keep_data_flat: boolean,
+    keep_data_mem: boolean,
         Keep data in memory
 
     random_state: int or RandomState
@@ -194,7 +194,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
     def __init__(self, n_components=20, smoothing_fwhm=None, mask=None,
                  do_cca=True, standardize=True, target_affine=None,
                  target_shape=None, low_pass=None, high_pass=None,
-                 keep_data_flat=False,
+                 keep_data_mem=False,
                  t_r=None, memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, verbose=0,
                  random_state=None
@@ -207,7 +207,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         self.low_pass = low_pass
         self.high_pass = high_pass
         self.t_r = t_r
-        self.keep_data_mem = keep_data_flat
+        self.keep_data_mem = keep_data_mem
 
         self.do_cca = do_cca
         self.n_components = n_components
@@ -350,7 +350,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
             variance = subject_svd_vals[0]
         self.components_ = data
         self.variance_ = variance
-        if self.keep_data_flat:
+        if self.keep_data_mem:
             self.data_flat_ = subject_datas
         return self
 
