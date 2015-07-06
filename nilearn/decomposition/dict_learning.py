@@ -208,24 +208,17 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
             MiniBatchDictionaryLearning.fit(self, self.data_flat_.T)
-            if self.verbose:
-                print('[DictLearning] Learning code')
-            self.components_ = MiniBatchDictionaryLearning.transform(self, self.data_flat_.T).T
-                print('Done')
-            if self.verbose:
-                print('Learning code')
             if self.reduction:
                 if self.verbose:
-                    print('Reducing the dictionary')
+                    print('[DictLearning] Reducing the dictionary')
                 pca = RandomizedPCA(n_components=self.n_components, iterated_power=0,
                                     random_state=self.random_state)
                 self.components_ = pca.fit_transform(self.components_)
                 data_trans = pca.transform(self.data_flat_.T)
-                if self.verbose:
-                    print('Done')
             else:
                 data_trans = self.data_flat_.T
-
+            if self.verbose:
+                print('[DictLearning] Learning code')
             self.components_ = MiniBatchDictionaryLearning.transform(self, data_trans).T
             if self.verbose:
                 print('Done')

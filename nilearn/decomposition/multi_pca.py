@@ -72,8 +72,6 @@ def session_pca(imgs, mask_img, parameters,
 
     random_state: int or RandomState
         Pseudo number generator state used for random sampling.
-
-    random_state:
     """
 
     data, affine = cache(
