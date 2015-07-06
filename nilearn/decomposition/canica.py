@@ -14,6 +14,7 @@ import sklearn
 from sklearn.decomposition import fastica
 from sklearn.externals.joblib import Memory, delayed, Parallel
 from sklearn.utils import check_random_state
+from sklearn.covariance import EmpiricalCovariance
 
 from .multi_pca import MultiPCA
 from .._utils.cache_mixin import CacheMixin
@@ -194,5 +195,14 @@ class CanICA(MultiPCA, CacheMixin):
         for component in self.components_:
             if component.max() < -component.min():
                 component *= -1
+
+        # if self.verbose:
+        #     print('[CanICA] learning covariance')
+        # time_serie = MultiPCA.transform(self, imgs, confounds=confounds)
+        # cov_estimator = EmpiricalCovariance(assume_centered=False)
+        # cov_estimator.fit(time_serie)
+        # self.variance_ = cov_estimator.covariance_
+        # if self.verbose:
+        #     print(self.variance_)
 
         return self

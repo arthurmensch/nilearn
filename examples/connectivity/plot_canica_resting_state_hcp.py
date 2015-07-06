@@ -21,20 +21,12 @@ Pre-prints for both papers are available on hal
 """
 
 ### Load ADHD rest dataset ####################################################
-import os
+from nilearn.datasets import fetch_hcp_rest, fetch_adhd
+data_dir = '/volatile3'
 
-data_dir = '/volatile3/HCP/HCP_rest_subset'
-
-func_filenames = []
-print('Scanning tree')
-for subject_id in os.listdir(os.path.join(data_dir, 'data')):
-    record_dir = os.path.join(data_dir, 'data', subject_id)
-    for records in os.listdir(record_dir):
-        filename = os.path.join(record_dir, records)
-    func_filenames.append(filename)
-print('Done')
-
-func_filenames = func_filenames[:2]
+adhd_data = fetch_adhd(n_subjects=2)
+hcp_data = fetch_hcp_rest(data_dir, n_subjects=1)
+func_filenames = adhd_data.func
 
 # print basic information on the dataset
 print('First functional nifti image (4D) is at: %s' %
@@ -43,11 +35,11 @@ print('First functional nifti image (4D) is at: %s' %
 ### Apply CanICA ##############################################################
 from nilearn.decomposition.canica import CanICA
 
-n_components = 20
-canica = CanICA(mask=os.path.join(data_dir, 'mask', 'mask_img.nii.gz'),
+n_components = 10
+canica = CanICA(mask=hcp_data.mask,
                 n_components=n_components, smoothing_fwhm=2.,
-                memory="nilearn_cache", memory_level=5,
-                threshold=3., verbose=10, random_state=0)
+                memory="/volatile3/cache", memory_level=5,
+                threshold='auto', verbose=10, n_jobs=1, random_state=0)
 canica.fit(func_filenames)
 
 # Retrieve the independent components in brain space

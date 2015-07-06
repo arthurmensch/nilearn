@@ -19,6 +19,8 @@ from .._utils.cache_mixin import CacheMixin, cache
 from .._utils import as_ndarray
 from .._utils.compat import _basestring
 
+from sklearn.covariance import EmpiricalCovariance
+
 def session_pca(imgs, mask_img, parameters,
                 n_components=20,
                 confounds=None,
@@ -392,3 +394,10 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         # XXX: dealing properly with 2D/ list of 2D data?
         return [nifti_maps_masker.inverse_transform(signal)
                 for signal in component_signals]
+
+    def score(self, imgs):
+        cov_est = EmpiricalCovariance(assume_centered=False)
+        time_serie = MultiPCA.transform(self, imgs, confounds=confounds)
+        cov_estimator = EmpiricalCovariance(assume_centered=False)
+        cov_estimator.fit(time_serie)
+        self.variance_ = cov_estimator.covariance_

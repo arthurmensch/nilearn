@@ -32,7 +32,7 @@ except OSError:
     pass
 
 adhd_dataset = datasets.fetch_adhd()
-func_filenames = adhd_dataset.func[:10]  # list of 4D nifti files for each subject
+func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
 print('First functional nifti image (4D) is at: %s' %
@@ -45,13 +45,14 @@ from nilearn.decomposition.canica import CanICA
 n_components = 50
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
-                             memory="nilearn_cache", memory_level=5, method='trans',
-                             threshold=float(n_components), verbose=10, random_state=0,
-                             n_jobs=3, n_init=2, l1_ratio=0.5, alpha=3.7, n_iter=450)
+                             memory="nilearn_cache", memory_level=5, method='enet',
+                             threshold=float(n_components), verbose=2, random_state=0,
+                             n_jobs=8, n_init=2, l1_ratio=0.6, alpha=0.1, n_iter=600)
 
 dict_learning.fit(func_filenames)
 
-print('Dumping')
+print('')
+print('[Example] Dumping')
 
 # Retrieve the independent components in brain space
 components_img = dict_learning.masker_.inverse_transform(dict_learning.components_)
@@ -66,6 +67,8 @@ np.save(os.path.join(output_dir, 'density'), dict_learning.density_)
 
 ### Visualize the results #####################################################
 # Show some interesting components
+print('[Example] Saving PDF')
+
 import matplotlib.pyplot as plt
 from nilearn.plotting import plot_stat_map
 from nilearn.image import index_img
