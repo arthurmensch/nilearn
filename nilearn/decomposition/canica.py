@@ -14,7 +14,6 @@ import sklearn
 from sklearn.decomposition import fastica
 from sklearn.externals.joblib import Memory, delayed, Parallel
 from sklearn.utils import check_random_state
-from sklearn.covariance import EmpiricalCovariance
 
 from .multi_pca import MultiPCA
 from .._utils.cache_mixin import CacheMixin
@@ -114,6 +113,7 @@ class CanICA(MultiPCA, CacheMixin):
                  threshold='auto', n_init=10,
                  standardize=True,
                  random_state=0,
+                 keep_data_mem=False,
                  target_affine=None, target_shape=None,
                  low_pass=None, high_pass=None, t_r=None,
                  # Common options
@@ -125,7 +125,7 @@ class CanICA(MultiPCA, CacheMixin):
             n_jobs=n_jobs, verbose=max(0, verbose-1), do_cca=do_cca,
             n_components=n_components, smoothing_fwhm=smoothing_fwhm,
             target_affine=target_affine, target_shape=target_shape,
-            keep_data_mem=False,
+            keep_data_mem=keep_data_mem,
             random_state=random_state)
         self.threshold = threshold
         self.low_pass = low_pass
@@ -196,13 +196,10 @@ class CanICA(MultiPCA, CacheMixin):
             if component.max() < -component.min():
                 component *= -1
 
+        # # Override covariance XXX: disable in parent class
         # if self.verbose:
-        #     print('[CanICA] learning covariance')
-        # time_serie = MultiPCA.transform(self, imgs, confounds=confounds)
-        # cov_estimator = EmpiricalCovariance(assume_centered=False)
-        # cov_estimator.fit(time_serie)
-        # self.variance_ = cov_estimator.covariance_
-        # if self.verbose:
-        #     print(self.variance_)
+        #     print("[CanICA] Learning map covariance")
+        # time_serie = np.concatenate(self.transform(imgs, confounds=confounds))
+        # self.empirical_covariance.fit(time_serie)
 
         return self

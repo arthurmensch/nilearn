@@ -126,6 +126,7 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                  method='enet',
                  reduction=False,
                  n_iter=100,
+                 keep_data_mem=False,
                  # Common options
                  memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, verbose=0,
@@ -138,7 +139,8 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                         target_affine=target_affine, target_shape=target_shape,
                         random_state=random_state, high_pass=high_pass, low_pass=low_pass,
                         t_r=t_r,
-                        standardize=standardize
+                        keep_data_mem=keep_data_mem,
+                        standardize=standardize,
         )
         self.method = method
         self.reduction = reduction
@@ -167,9 +169,7 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
             self.l1_ratio = 0.
         else:
             raise ValueError("Method is not valid : expected 'enet' or 'trans', got %s" % self.method)
-        self.keep_data_mem = True
         CanICA.fit(self, imgs, y=y, confounds=confounds)
-        self.keep_data_mem = False
         self.data_flat_ = np.concatenate(self.data_flat_, axis=0)
         if self.method is 'enet':
             self.dict_init = self.components_

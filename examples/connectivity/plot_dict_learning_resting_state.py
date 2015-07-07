@@ -31,7 +31,7 @@ try:
 except OSError:
     pass
 
-adhd_dataset = datasets.fetch_adhd()
+adhd_dataset = datasets.fetch_adhd(n_subjects=10)
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
@@ -42,10 +42,11 @@ print('First functional nifti image (4D) is at: %s' %
 from nilearn.decomposition.dict_learning import DictLearning
 from nilearn.decomposition.canica import CanICA
 
-n_components = 50
+n_components = 10
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="nilearn_cache", memory_level=5, method='enet',
+                             keep_data_mem=True,
                              threshold=float(n_components), verbose=2, random_state=0,
                              n_jobs=8, n_init=2, l1_ratio=0.6, alpha=0.1, n_iter=600)
 
@@ -64,6 +65,10 @@ components_img.to_filename(os.path.join(output_dir, 'dict_learning_resting_state
 np.save(os.path.join(output_dir, 'values'), dict_learning.values_)
 np.save(os.path.join(output_dir, 'residuals'), dict_learning.residuals_)
 np.save(os.path.join(output_dir, 'density'), dict_learning.density_)
+score_training = np.array([dict_learning.score_training()])
+print(score_training)
+np.save(os.path.join(output_dir, 'score_training'), score_training)
+
 
 ### Visualize the results #####################################################
 # Show some interesting components

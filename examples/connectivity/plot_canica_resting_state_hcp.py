@@ -24,8 +24,8 @@ Pre-prints for both papers are available on hal
 from nilearn.datasets import fetch_hcp_rest, fetch_adhd
 data_dir = '/volatile3'
 
-adhd_data = fetch_adhd(n_subjects=2)
-hcp_data = fetch_hcp_rest(data_dir, n_subjects=1)
+adhd_data = fetch_adhd(n_subjects=10)
+# hcp_data = fetch_hcp_rest(data_dir, n_subjects=1)
 func_filenames = adhd_data.func
 
 # print basic information on the dataset
@@ -36,10 +36,12 @@ print('First functional nifti image (4D) is at: %s' %
 from nilearn.decomposition.canica import CanICA
 
 n_components = 10
-canica = CanICA(mask=hcp_data.mask,
-                n_components=n_components, smoothing_fwhm=2.,
+canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
                 memory="/volatile3/cache", memory_level=5,
-                threshold='auto', verbose=10, n_jobs=1, random_state=0)
+                n_init=1,
+                keep_data_mem=True,
+                threshold='auto', verbose=10, n_jobs=8, random_state=0,
+                )
 canica.fit(func_filenames)
 
 # Retrieve the independent components in brain space
@@ -48,14 +50,18 @@ components_img = canica.masker_.inverse_transform(canica.components_)
 # the following line:
 components_img.to_filename('canica_resting_state.nii.gz')
 
+print("Score")
+# print(canica.score(func_filenames, per_component=False))
+print(canica.score_training(per_component=False))
+
 ### Visualize the results #####################################################
 # Show some interesting components
-import matplotlib.pyplot as plt
-from nilearn.plotting import plot_stat_map
-from nilearn.image import iter_img
-
-for i, cur_img in enumerate(iter_img(components_img)):
-    plot_stat_map(cur_img, display_mode="z", title="IC %d" % i, cut_coords=1,
-                  colorbar=False)
-
-plt.show()
+# import matplotlib.pyplot as plt
+# from nilearn.plotting import plot_stat_map
+# from nilearn.image import iter_img
+#
+# for i, cur_img in enumerate(iter_img(components_img)):
+#     plot_stat_map(cur_img, display_mode="z", title="IC %d" % i, cut_coords=1,
+#                   colorbar=False)
+#
+# plt.show()
