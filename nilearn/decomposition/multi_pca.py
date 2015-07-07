@@ -442,6 +442,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
                                                   for this_data in data]))
         else:
             # Per-component score : residues of projection onto each map
+            # TODO: adapt this to online feeding
             residual_variance = np.array([lr.fit(self.components_[i].T[:, np.newaxis], data.T).residues_.sum()
                                          for i in range(self.n_components)])
         return 1. - residual_variance
