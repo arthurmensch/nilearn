@@ -164,6 +164,7 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
             self.alpha = 1e-6
         elif self.method == 'tspca':
             self.fit_algorithm = 'cd'
+            # In PR # 4775
             self.fit_update_dict_dir = 'component'
             self.transform_algorithm = 'lasso_cd'
             self.transform_alpha = self.alpha
@@ -198,7 +199,7 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
             This parameter is passed to nilearn.signal.clean. Please see the
             related documentation for details
         """
-        self._init_dict(imgs, y, confounds)  # creates self.data_flat_
+        self._init_dict(imgs, y, confounds)
 
         if self.method is 'spca':
             if self.verbose:

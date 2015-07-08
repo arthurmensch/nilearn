@@ -76,6 +76,7 @@ def test_multi_pca_score():
     multi_pca.fit(data)
     s = multi_pca.score(data, per_component=False)
     np.testing.assert_array_less(s, np.ones(6))
+    np.testing.assert_array_more(s, np.zeros(6))
 
     # Assert that score does not fail with single subject data
     multi_pca = MultiPCA(mask=mask_img, random_state=0, memory_level=0, n_components=3)
