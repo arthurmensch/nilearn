@@ -4,11 +4,12 @@ Test the multi-PCA module
 
 import numpy as np
 from nose.tools import assert_raises
-
 import nibabel
+from numpy.testing import assert_almost_equal
 
 from nilearn.decomposition.multi_pca import MultiPCA
 from nilearn.input_data import MultiNiftiMasker
+from nilearn._utils.testing import assert_raises_regex
 
 
 def test_multi_pca():
@@ -55,3 +56,9 @@ def test_multi_pca():
 
     # Smoke test to fit with no img
     assert_raises(TypeError, multi_pca.fit)
+
+    multi_pca = MultiPCA(mask=mask_img, n_components=3)
+    assert_raises_regex(ValueError,
+                        "Object has no components_ attribute. "
+                        "This is probably because fit has not been called",
+                        multi_pca.transform, data)
