@@ -196,10 +196,4 @@ class CanICA(MultiPCA, CacheMixin):
             if component.max() < -component.min():
                 component *= -1
 
-        # # Override covariance XXX: disable in parent class
-        # if self.verbose:
-        #     print("[CanICA] Learning map covariance")
-        # time_serie = np.concatenate(self.transform(imgs, confounds=confounds))
-        # self.empirical_covariance.fit(time_serie)
-
         return self

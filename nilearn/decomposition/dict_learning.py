@@ -123,7 +123,7 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                  l1_ratio=0.1,
                  alpha=1,
                  batch_size=10,
-                 method='enet',
+                 method='tspca',
                  reduction=False,
                  n_iter=100,
                  keep_data_mem=False,
@@ -157,24 +157,25 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                                              debug_info=True)
 
     def _init_dict(self, imgs, y=None, confounds=None):
-        if self.method == 'enet':
+        if self.method == 'spca':
+            raise NotImplementedError("Method %s requires PR #4775 of scikit-learn" % self.method)
             self.fit_algorithm = 'ridge'
             self.fit_update_dict_dir = 'feature'
             self.alpha = 1e-6
-        elif self.method == 'trans':
+        elif self.method == 'tspca':
             self.fit_algorithm = 'cd'
             self.fit_update_dict_dir = 'component'
             self.transform_algorithm = 'lasso_cd'
             self.transform_alpha = self.alpha
             self.l1_ratio = 0.
         else:
-            raise ValueError("Method is not valid : expected 'enet' or 'trans', got %s" % self.method)
+            raise ValueError("Method is not valid : expected 'spca' or 'tspca', got %s" % self.method)
         CanICA.fit(self, imgs, y=y, confounds=confounds)
         self.data_flat_ = np.concatenate(self.data_flat_, axis=0)
-        if self.method is 'enet':
+        if self.method is 'spca':
             self.dict_init = self.components_
 
-        if self.method is 'trans':
+        if self.method is 'tspca':
             if self.verbose:
                 print('[DictLearning] Learning time serie')
             ridge = Ridge(alpha=1e-6, fit_intercept=None)
@@ -199,12 +200,12 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
         """
         self._init_dict(imgs, y, confounds)  # creates self.data_flat_
 
-        if self.method is 'enet':
+        if self.method is 'spca':
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
             MiniBatchDictionaryLearning.fit(self, self.data_flat_)
 
-        if self.method is 'trans':
+        if self.method is 'tspca':
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
             MiniBatchDictionaryLearning.fit(self, self.data_flat_.T)
@@ -234,8 +235,8 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
     def incremental_fit(self, imgs, y=None):
         if not hasattr(self, 'components_'):
             self._init_dict(imgs, y=y)
-        if self.method is 'trans':
-            raise ValueError("Partial fit is not supported using 'trans' method")
+        if self.method is 'tspca':
+            raise ValueError("Partial fit is not supported using 'tspca' method")
         # In case of first call, _init_dict ask MultiPCA to keep data_flat_
         if not hasattr(self, 'data_flat_'):
             data = self.masker_.transform(imgs)
@@ -245,7 +246,6 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
             data = self.data_flat_
         MiniBatchDictionaryLearning.incremental_fit(self, data, None, iter_offset=0)
 
-        # self.components_ = as_ndarray(self.components_)
         # flip signs in each component so that peak is +ve
         for component in self.components_:
             if np.sum(component[component > 0]) < - np.sum(component[component <= 0]):

@@ -21,11 +21,10 @@ Pre-prints for both papers are available on hal
 """
 
 ### Load ADHD rest dataset ####################################################
-from nilearn.datasets import fetch_hcp_rest, fetch_adhd
+from nilearn.datasets import fetch_adhd
 data_dir = '/volatile3'
 
-adhd_data = fetch_adhd(n_subjects=10)
-# hcp_data = fetch_hcp_rest(data_dir, n_subjects=1)
+adhd_data = fetch_adhd(n_subjects=1)
 func_filenames = adhd_data.func
 
 # print basic information on the dataset
@@ -34,13 +33,14 @@ print('First functional nifti image (4D) is at: %s' %
 
 ### Apply CanICA ##############################################################
 from nilearn.decomposition.canica import CanICA
+from nilearn.decomposition.multi_pca import MultiPCA
 
 n_components = 10
 canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
                 memory="/volatile3/cache", memory_level=5,
-                n_init=1,
-                keep_data_mem=True,
-                threshold='auto', verbose=10, n_jobs=8, random_state=0,
+                keep_data_mem=True, n_init=1,
+                threshold=float(n_components),
+                verbose=10, n_jobs=1, random_state=0,
                 )
 canica.fit(func_filenames)
 
@@ -51,7 +51,7 @@ components_img = canica.masker_.inverse_transform(canica.components_)
 components_img.to_filename('canica_resting_state.nii.gz')
 
 print("Score")
-# print(canica.score(func_filenames, per_component=False))
+print(canica.score(func_filenames, per_component=False))
 print(canica.score_training(per_component=False))
 
 ### Visualize the results #####################################################

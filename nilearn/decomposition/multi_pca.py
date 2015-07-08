@@ -100,7 +100,7 @@ def session_pca(imgs, mask_img, parameters,
     if return_data:
         return U, S, data
     else:
-        return U, S, None
+        return U, S
 
 class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
     """Perform Multi Subject Principal Component Analysis.
@@ -215,11 +215,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         self.target_affine = target_affine
         self.target_shape = target_shape
         self.standardize = standardize
-
         self.random_state = random_state
-
-        self.empirical_covariance = EmpiricalCovariance(assume_centered=False)
-
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the components
@@ -298,14 +294,6 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
             self.masker_.fit()
         self.mask_img_ = self.masker_.mask_img_
 
-        parameters = get_params(MultiNiftiMasker, self)
-        # Remove non specific and redudent parameters
-        for param_name in ['memory', 'memory_level', 'confounds',
-                           'verbose', 'n_jobs']:
-            parameters.pop(param_name, None)
-
-        parameters['detrend'] = True
-
         # Now do the subject-level signal extraction (i.e. data-loading +
         # PCA)
         if self.verbose:
@@ -314,7 +302,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
             delayed(self._cache(session_pca, func_memory_level=1))(
                 img,
                 self.masker_.mask_img_,
-                parameters,
+                self._get_filter_and_mask_parameters(),
                 n_components=self.n_components,
                 memory=self.memory,
                 return_data=self.keep_data_mem,
@@ -324,7 +312,10 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
                 random_state=random_state
             )
             for img, confound in zip(imgs, confounds))
-        subject_pcas, subject_svd_vals, subject_datas = zip(*subject_pcas)
+        if self.keep_data_mem:
+            subject_pcas, subject_svd_vals, subject_datas = zip(*subject_pcas)
+        else:
+            subject_pcas, subject_svd_vals = zip(*subject_pcas)
 
         if self.verbose:
             print("[MultiPCA] Learning group level PCA")
@@ -343,14 +334,16 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
                                      'data size (%d).' % (self.n_components,
                                                           subject_pca.shape[0]))
                 data[index * self.n_components:
-                      (index + 1) * self.n_components] = subject_pca
-            data, variance, _ = self._cache(randomized_svd, func_memory_level=1)\
-                (data.T, n_components=self.n_components, random_state=random_state)
+                     (index + 1) * self.n_components] = subject_pca
+            data, variance, _ = self._cache(randomized_svd, func_memory_level=3)(
+                data.T, n_components=self.n_components, random_state=random_state)
             # as_ndarray is to get rid of memmapping
             data = as_ndarray(data.T)
         else:
             data = subject_pcas[0]
             variance = subject_svd_vals[0]
+            if self.keep_data_mem:
+                subject_datas = subject_datas[0]
         self.components_ = data
         self.variance_ = variance
         if self.keep_data_mem:
@@ -398,8 +391,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         return [nifti_maps_masker.inverse_transform(signal)
                 for signal in component_signals]
 
-    def score(self, imgs, confounds=None, per_component=False):
-        # This is a huge boiler plate, due to the fact that we dirtily embeb unmasking within multi_pca class
+    def _get_filter_and_mask_parameters(self):
         parameters = get_params(MultiNiftiMasker, self)
         # Remove non specific and redudent parameters
         for param_name in ['memory', 'memory_level', 'confounds',
@@ -407,43 +399,76 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
             parameters.pop(param_name, None)
 
         parameters['detrend'] = True
+        return parameters
 
+    def score(self, imgs, confounds=None, per_component=False):
+        """Score function based on explained variance
+
+        Parameters
+        ----------
+        gs: iterable of Niimg-like objects
+            See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
+            Data to be scored
+
+        confounds: CSV file path or 2D matrix
+            This parameter is passed to nilearn.signal.clean. Please see the
+            related documentation for details
+
+        per_component: boolean,
+            Specify whether the explained variance ratio is desired for each map or for the global set of components
+
+        Returns
+        -------
+        score: ndarray or float,
+            Holds the score for each subjects. Score is two dimensional if per_component = True. First dimension
+            is squeezed if the number of subjects is one
+        """
         data, affine = self._cache(
             filter_and_mask,
             func_memory_level=2,
             ignore=['verbose', 'copy'])(
-                imgs, self.mask_img_, parameters,
+                imgs, self.mask_img_, self._get_filter_and_mask_parameters(),
                 memory_level=self.memory_level,
                 memory=self.memory,
                 verbose=self.verbose,
                 confounds=confounds,
                 copy=True)
-
         return self._score(data, per_component=per_component)
 
     def score_training(self, per_component=False):
         if not self.keep_data_mem:
-            raise ValueError("Training data has already been collected")
-        else:
-            return self._score(self.data_flat_, per_component=per_component)
+            raise ValueError("Training data has already been kept in memory")
+        return self._score(self.data_flat_, per_component=per_component)
 
     def _score(self, data,
                per_component=False):
-        # XXX: This is memory intensive, should be adapted to scale with IncrementalPCA back-end
-        # XXX: Dictionary learning should score using Lasso if we enforce sparse code (which we won't do)
-        # TODO: write test
-        # if isinstance(data, list) or isinstance(data, tuple):
-        #     data = np.concatenate(data, axis=0)
-        lr = LinearRegression(fit_intercept=False)
+        """Score function based on explained variance
 
+        Parameters
+        ----------
+        data: (tuple or list),
+            Holds records (for each subject) to be tested against components_
+
+        per_component: boolean,
+            Specify whether the explained variance ratio is desired for each map or for the global set of components_
+
+        Returns
+        -------
+        score: ndarray,
+            Holds the score for each subjects. score is two dimensional if per_component = True
+        """
+        if not isinstance(data, list) and not isinstance(data, tuple):
+            data = [data]
+        full_var = np.array([np.sum(this_data ** 2) for this_data in data])
+        lr = LinearRegression(fit_intercept=False)
         if not per_component:
-            residual_variance = np.mean(np.array([lr.fit(self.components_.T, this_data.T).residues_.sum()
-                                                  / np.sum(this_data ** 2)
-                                                  for this_data in data]))
+            residual_variance = np.array([lr.fit(self.components_.T, this_data.T).residues_.sum()
+                                                  for this_data in data])
         else:
             # Per-component score : residues of projection onto each map
-            # TODO: adapt this to online feeding
-            residual_variance = np.array([lr.fit(self.components_[i].T[:, np.newaxis], data.T).residues_.sum()
-                                         for i in range(self.n_components)])
-        return 1. - residual_variance
+            residual_variance = np.array([[lr.fit(self.components_.T[:, i], this_data.T).residues_.sum()
+                                         for i in range(self.n_components)]
+                                 for this_data in data])
+        res = 1. - residual_variance / full_var
+        return res if len(res) > 1 else res[0]
 
