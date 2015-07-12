@@ -10,13 +10,16 @@ import nibabel
 from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.externals.joblib import Parallel, delayed, Memory
 from sklearn.utils.extmath import randomized_svd
+from sklearn.utils.validation import check_random_state
 
 from ..input_data import NiftiMasker, MultiNiftiMasker, NiftiMapsMasker
 from ..input_data.base_masker import filter_and_mask
 from .._utils.class_inspect import get_params
-from .._utils.cache_mixin import cache
+from .._utils.cache_mixin import CacheMixin, cache
 from .._utils import as_ndarray
 from .._utils.compat import _basestring
+
+from sklearn.linear_model import LinearRegression
 
 def session_pca(imgs, mask_img, parameters,
                 n_components=20,
@@ -65,6 +68,11 @@ def session_pca(imgs, mask_img, parameters,
 
     copy: boolean, optional
         Whether or not data should be copied
+
+    random_state: int or RandomState
+        Pseudo number generator state used for random sampling.
+
+    random_state:
     """
 
     data, affine = cache(
@@ -78,9 +86,13 @@ def session_pca(imgs, mask_img, parameters,
             confounds=confounds,
             copy=copy)
     if n_components <= data.shape[0] // 4:
-        U, S, _ = randomized_svd(data.T, n_components)
+        U, S, _ = cache(randomized_svd, memory, memory_level=memory_level,
+                        func_memory_level=2)(
+            data.T, n_components, random_state=random_state)
     else:
-        U, S, _ = linalg.svd(data.T, full_matrices=False)
+        U, S, _ = cache(linalg.svd, memory, memory_level=memory_level,
+                        func_memory_level=2)(
+            data.T, full_matrices=False)
     U = U.T[:n_components].copy()
     S = S[:n_components]
     if return_data:
@@ -89,7 +101,7 @@ def session_pca(imgs, mask_img, parameters,
         return U, S
 
 
-class MultiPCA(BaseEstimator, TransformerMixin):
+class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
     """Perform Multi Subject Principal Component Analysis.
 
     Perform a PCA on each subject and stack the results. An optional Canonical
@@ -141,6 +153,9 @@ class MultiPCA(BaseEstimator, TransformerMixin):
     keep_data_mem: boolean,
         Keep data in memory
 
+    random_state: int or RandomState
+        Pseudo number generator state used for random sampling.
+
     memory: instance of joblib.Memory or string
         Used to cache the masking process.
         By default, no caching is done. If a string is given, it is the
@@ -181,6 +196,7 @@ class MultiPCA(BaseEstimator, TransformerMixin):
                  keep_data_mem=False,
                  t_r=None, memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, verbose=0,
+                 random_state=None
                  ):
         self.mask = mask
         self.memory = memory
@@ -198,6 +214,7 @@ class MultiPCA(BaseEstimator, TransformerMixin):
         self.target_affine = target_affine
         self.target_shape = target_shape
         self.standardize = standardize
+        self.random_state = random_state
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the components
@@ -210,6 +227,7 @@ class MultiPCA(BaseEstimator, TransformerMixin):
             the affine is considered the same for all.
         """
 
+        random_state = check_random_state(self.random_state)
         # Hack to support single-subject data:
         if isinstance(imgs, (_basestring, nibabel.Nifti1Image)):
             imgs = [imgs]
@@ -275,28 +293,22 @@ class MultiPCA(BaseEstimator, TransformerMixin):
             self.masker_.fit()
         self.mask_img_ = self.masker_.mask_img_
 
-        parameters = get_params(MultiNiftiMasker, self)
-        # Remove non specific and redudent parameters
-        for param_name in ['memory', 'memory_level', 'confounds',
-                           'verbose', 'n_jobs']:
-            parameters.pop(param_name, None)
-
-        parameters['detrend'] = True
-
         # Now do the subject-level signal extraction (i.e. data-loading +
         # PCA)
-
+        if self.verbose:
+            print("[MultiPCA] Learning subject level PCAs")
         subject_pcas = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
-            delayed(session_pca)(
+            delayed(self._cache(session_pca, func_memory_level=1))(
                 img,
                 self.masker_.mask_img_,
-                parameters,
+                self._get_filter_and_mask_parameters(),
                 n_components=self.n_components,
                 memory=self.memory,
                 memory_level=self.memory_level,
                 return_data=self.keep_data_mem,
                 confounds=confound,
-                verbose=self.verbose
+                verbose=self.verbose,
+                random_state=random_state
             )
             for img, confound in zip(imgs, confounds))
         if self.keep_data_mem:
@@ -304,6 +316,8 @@ class MultiPCA(BaseEstimator, TransformerMixin):
         else:
             subject_pcas, subject_svd_vals = zip(*subject_pcas)
 
+        if self.verbose:
+            print("[MultiPCA] Learning group level PCA")
         if len(imgs) > 1:
             if not self.do_cca:
                 for subject_pca, subject_svd_val in \
@@ -320,11 +334,8 @@ class MultiPCA(BaseEstimator, TransformerMixin):
                                                           subject_pca.shape[0]))
                 data[index * self.n_components:
                      (index + 1) * self.n_components] = subject_pca
-            data, variance, _ = cache(randomized_svd,
-                                self.memory,
-                                func_memory_level=3,
-                                memory_level=self.memory_level)(
-                        data.T, n_components=self.n_components)
+            data, variance, _ = self._cache(randomized_svd, func_memory_level=3)(
+                data.T, n_components=self.n_components, random_state=random_state)
             # as_ndarray is to get rid of memmapping
             data = as_ndarray(data.T)
         else:
@@ -378,3 +389,85 @@ class MultiPCA(BaseEstimator, TransformerMixin):
         # XXX: dealing properly with 2D/ list of 2D data?
         return [nifti_maps_masker.inverse_transform(signal)
                 for signal in component_signals]
+
+    def _get_filter_and_mask_parameters(self):
+        parameters = get_params(MultiNiftiMasker, self)
+        # Remove non specific and redudent parameters
+        for param_name in ['memory', 'memory_level', 'confounds',
+                           'verbose', 'n_jobs']:
+            parameters.pop(param_name, None)
+
+        parameters['detrend'] = True
+        return parameters
+
+    def score(self, imgs, confounds=None, per_component=False):
+        """Score function based on explained variance
+
+        Parameters
+        ----------
+        gs: iterable of Niimg-like objects
+            See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
+            Data to be scored
+
+        confounds: CSV file path or 2D matrix
+            This parameter is passed to nilearn.signal.clean. Please see the
+            related documentation for details
+
+        per_component: boolean,
+            Specify whether the explained variance ratio is desired for each map or for the global set of components
+
+        Returns
+        -------
+        score: ndarray or float,
+            Holds the score for each subjects. Score is two dimensional if per_component = True. First dimension
+            is squeezed if the number of subjects is one
+        """
+        data, affine = self._cache(
+            filter_and_mask,
+            func_memory_level=2,
+            ignore=['verbose', 'copy'])(
+                imgs, self.mask_img_, self._get_filter_and_mask_parameters(),
+                memory_level=self.memory_level,
+                memory=self.memory,
+                verbose=self.verbose,
+                confounds=confounds,
+                copy=True)
+        return self._score(data, per_component=per_component)
+
+    def score_training(self, per_component=False):
+        if not self.keep_data_mem:
+            raise ValueError("Training data has already been kept in memory")
+        return self._score(self.data_flat_, per_component=per_component)
+
+    def _score(self, data,
+               per_component=False):
+        """Score function based on explained variance
+
+        Parameters
+        ----------
+        data: (tuple or list),
+            Holds records (for each subject) to be tested against components_
+
+        per_component: boolean,
+            Specify whether the explained variance ratio is desired for each map or for the global set of components_
+
+        Returns
+        -------
+        score: ndarray,
+            Holds the score for each subjects. score is two dimensional if per_component = True
+        """
+        if not isinstance(data, list) and not isinstance(data, tuple):
+            data = [data]
+        full_var = np.array([np.sum(this_data ** 2) for this_data in data])
+        lr = LinearRegression(fit_intercept=False)
+        if not per_component:
+            residual_variance = np.array([lr.fit(self.components_.T, this_data.T).residues_.sum()
+                                                  for this_data in data])
+        else:
+            # Per-component score : residues of projection onto each map
+            residual_variance = np.array([[lr.fit(self.components_.T[:, i], this_data.T).residues_.sum()
+                                         for i in range(self.n_components)]
+                                 for this_data in data])
+        res = 1. - residual_variance / full_var
+        return res if len(res) > 1 else res[0]
+
