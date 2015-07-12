@@ -2,10 +2,10 @@
 PCA dimension reduction on multiple subjects
 """
 import itertools
-import numpy as np
 import warnings
-from scipy import linalg
 
+import numpy as np
+from scipy import linalg
 import nibabel
 from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.externals.joblib import Parallel, delayed, Memory
@@ -17,6 +17,7 @@ from .._utils.class_inspect import get_params
 from .._utils.cache_mixin import cache
 from .._utils import as_ndarray
 from .._utils.compat import _basestring
+
 
 def session_pca(imgs, mask_img, parameters,
                 n_components=20,
@@ -139,7 +140,7 @@ class MultiPCA(BaseEstimator, TransformerMixin):
         documentation for details
 
     keep_data_mem: boolean,
-        Keep data in memory
+        Keep unmasked data in memory (useful to reuse unmasked data from super classes)
 
     memory: instance of joblib.Memory or string
         Used to cache the masking process.
