@@ -151,7 +151,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         documentation for details
 
     keep_data_mem: boolean,
-        Keep data in memory
+        Keep unmasked data in memory (useful for superclass call)
 
     random_state: int or RandomState
         Pseudo number generator state used for random sampling.
@@ -188,6 +188,9 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
     `components_`: 2D numpy array (n_components x n-voxels)
         Array of masked extracted components. They can be unmasked thanks to
         the `masker_` attribute.
+
+    `data_flat_`: 2D numpy array (n_samples * n_voxels)
+        Only exist is self.keep_data_mem is set to True. Array of unmasked data
     """
 
     def __init__(self, n_components=20, smoothing_fwhm=None, mask=None,

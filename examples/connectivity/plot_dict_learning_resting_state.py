@@ -35,18 +35,18 @@ n_components = 50
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="nilearn_cache", memory_level=5,
-                             threshold=1., verbose=1, random_state=0,
-                             l1_ratio=1, method='spca',
-                             n_jobs=1, n_init=1, alpha=0.1 * n_components, n_iter=150)
+                             threshold=1. * n_components, random_state=0,
+                             l1_ratio=1, method='spca', verbose=10,
+                             n_jobs=3, n_init=1, alpha=0.1 * n_components, n_iter=150)
 
-tuned_parameters = {'threshold': [1., n_components / 10., float(n_components)]}
-grid_search = GridSearchCV(dict_learning,
-                           tuned_parameters, scoring=DictLearning.score, cv=3)
-
-grid_search.fit(func_filenames)
-
-print(grid_search.grid_scores_)
-dict_learning = grid_search.best_estimator_
+# tuned_parameters = {'threshold': [1., n_components / 10., float(n_components)]}
+# grid_search = GridSearchCV(dict_learning,
+#                            tuned_parameters, scoring=DictLearning.score, cv=3, verbose=10)
+#
+dict_learning.fit(func_filenames)
+#
+# print(grid_search.grid_scores_)
+# dict_learning = grid_search.best_estimator_
 
 print('')
 print('[Example] Dumping results')

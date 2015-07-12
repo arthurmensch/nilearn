@@ -147,7 +147,7 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                                              n_iter=n_iter, batch_size=batch_size,
                                              tol=1e-4,
                                              fit_algorithm='<unknown>',
-                                             verbose=max(0, verbose - 1),
+                                             verbose=verbose,
                                              l1_ratio=l1_ratio,
                                              random_state=random_state,
                                              shuffle=True,
