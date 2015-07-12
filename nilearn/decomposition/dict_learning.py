@@ -120,17 +120,19 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                  random_state=0,
                  target_affine=None, target_shape=None,
                  low_pass=None, high_pass=None, t_r=None,
+                 l1_ratio=0.1,
                  alpha=1,
                  batch_size=10,
-                 n_iter=1000,
+                 method='tspca',
                  reduction=False,
+                 n_iter=100,
                  # Common options
                  memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, verbose=0,
                  ):
         CanICA.__init__(self,
                         mask=mask, memory=memory, memory_level=memory_level,
-                        n_jobs=n_jobs, verbose=max(0, verbose - 1), do_cca=do_cca,
+                        n_jobs=n_jobs, verbose=verbose, do_cca=do_cca,
                         threshold=threshold, n_init=n_init,
                         n_components=n_components, smoothing_fwhm=smoothing_fwhm,
                         target_affine=target_affine, target_shape=target_shape,
@@ -138,28 +140,44 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                         t_r=t_r,
                         keep_data_mem=True,
                         standardize=standardize)
+        self.method = method
         self.reduction = reduction
         # Setting n_jobs = 1 as it is slower otherwise
         MiniBatchDictionaryLearning.__init__(self, n_components=n_components, alpha=alpha,
                                              n_iter=n_iter, batch_size=batch_size,
-                                             fit_algorithm='lars',
-                                             transform_algorithm='lasso_lars',
-                                             transform_alpha=alpha,
+                                             tol=1e-4,
+                                             fit_algorithm='<unknown>',
                                              verbose=max(0, verbose - 1),
+                                             l1_ratio=l1_ratio,
                                              random_state=random_state,
                                              shuffle=True,
-                                             n_jobs=1)
+                                             n_jobs=n_jobs)
 
     def _init_dict(self, imgs, y=None, confounds=None):
+        if self.method == 'spca':
+            self.fit_algorithm = 'ridge'
+        elif self.method == 'tspca':
+            self.fit_algorithm = 'cd'
+            # In PR # 4775
+            self.fit_update_dict_dir = 'component'
+            self.transform_algorithm = 'lasso_cd'
+            self.transform_alpha = self.alpha
+            self.l1_ratio = 0.
+        else:
+            raise ValueError("Method is not valid : expected 'spca' or 'tspca', got %s" % self.method)
         CanICA.fit(self, imgs, y=y, confounds=confounds)
         self.data_flat_ = np.concatenate(self.data_flat_, axis=0)
-        if self.verbose:
-            print('[DictLearning] Learning time serie')
-        ridge = Ridge(alpha=1e-6, fit_intercept=None)
-        ridge.fit(self.components_.T, self.data_flat_.T)
-        self.dict_init = ridge.coef_.T
-        S = np.sqrt(np.sum(self.dict_init ** 2, axis=0))
-        self.dict_init /= S[np.newaxis, :]
+        if self.method is 'spca':
+            self.dict_init = self.components_
+
+        if self.method is 'tspca':
+            if self.verbose:
+                print('[DictLearning] Learning time serie')
+            ridge = Ridge(alpha=1e-6, fit_intercept=None)
+            ridge.fit(self.components_.T, self.data_flat_.T)
+            self.dict_init = ridge.coef_.T
+            S = np.sqrt(np.sum(self.dict_init ** 2, axis=0))
+            self.dict_init /= S[np.newaxis, :]
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
@@ -177,24 +195,32 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
         """
         self._init_dict(imgs, y, confounds)
 
-        if self.verbose:
-            print('[DictLearning] Learning dictionary')
-        MiniBatchDictionaryLearning.fit(self, self.data_flat_.T)
-        if self.reduction:
+        if self.method is 'spca':
             if self.verbose:
-                print('[DictLearning] Reducing the dictionary')
-            pca = RandomizedPCA(n_components=self.n_components, iterated_power=0,
-                                random_state=self.random_state)
-            self.components_ = pca.fit_transform(self.components_)
-            data_trans = pca.transform(self.data_flat_.T)
-        else:
-            data_trans = self.data_flat_.T
-        if self.verbose:
-            print('')
-            print('[DictLearning] Learning code')
-        self.components_ = MiniBatchDictionaryLearning.transform(self, data_trans).T
+                print('[DictLearning] Learning dictionary')
+            MiniBatchDictionaryLearning.fit(self, self.data_flat_)
+
+        if self.method is 'tspca':
+            if self.verbose:
+                print('[DictLearning] Learning dictionary')
+            MiniBatchDictionaryLearning.fit(self, self.data_flat_.T)
+            if self.reduction:
+                if self.verbose:
+                    print('[DictLearning] Reducing the dictionary')
+                pca = RandomizedPCA(n_components=self.n_components, iterated_power=0,
+                                    random_state=self.random_state)
+                self.components_ = pca.fit_transform(self.components_)
+                data_trans = pca.transform(self.data_flat_.T)
+            else:
+                data_trans = self.data_flat_.T
+            if self.verbose:
+                print('[DictLearning] Learning code')
+            self.components_ = MiniBatchDictionaryLearning.transform(self, data_trans).T
+            if self.verbose:
+                print('Done')
+
         self.components_ = as_ndarray(self.components_)
-        # flip signs in each component so that peak is +ve
+        # flip signs in each composant positive part is l1 larger than negative part
         for component in self.components_:
             if np.sum(component[component > 0]) < - np.sum(component[component <= 0]):
                 component *= -1

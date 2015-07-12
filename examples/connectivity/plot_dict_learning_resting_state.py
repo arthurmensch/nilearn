@@ -19,8 +19,10 @@ import numpy as np
 
 ### Load ADHD rest dataset ####################################################
 from nilearn import datasets
+from sklearn.grid_search import GridSearchCV
 
-adhd_dataset = datasets.fetch_adhd(n_subjects=10)
+
+adhd_dataset = datasets.fetch_adhd(n_subjects=6, data_dir='/media/data/neuro')
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
@@ -33,10 +35,18 @@ n_components = 50
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="nilearn_cache", memory_level=5,
-                             threshold=1., verbose=2, random_state=0,
-                             n_jobs=1, n_init=1, alpha=3, n_iter=1000)
+                             threshold=1., verbose=1, random_state=0,
+                             l1_ratio=1, method='spca',
+                             n_jobs=1, n_init=1, alpha=0.1 * n_components, n_iter=150)
 
-dict_learning.fit(func_filenames)
+tuned_parameters = {'threshold': [1., n_components / 10., float(n_components)]}
+grid_search = GridSearchCV(dict_learning,
+                           tuned_parameters, scoring=DictLearning.score, cv=3)
+
+grid_search.fit(func_filenames)
+
+print(grid_search.grid_scores_)
+dict_learning = grid_search.best_estimator_
 
 print('')
 print('[Example] Dumping results')
@@ -44,6 +54,8 @@ print('[Example] Dumping results')
 # Retrieve learned spatial maps in brain space
 components_img = dict_learning.masker_.inverse_transform(dict_learning.components_)
 components_img.to_filename('dict_learning_resting_state.nii.gz')
+
+
 
 ### Visualize the results #####################################################
 # Show some interesting components

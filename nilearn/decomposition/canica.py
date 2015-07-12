@@ -122,7 +122,7 @@ class CanICA(MultiPCA, CacheMixin):
                  ):
         super(CanICA, self).__init__(
             mask=mask, memory=memory, memory_level=memory_level,
-            n_jobs=n_jobs, verbose=max(0, verbose - 1), do_cca=do_cca,
+            n_jobs=n_jobs, verbose=verbose, do_cca=do_cca,
             n_components=n_components, smoothing_fwhm=smoothing_fwhm,
             target_affine=target_affine, target_shape=target_shape,
             keep_data_mem=keep_data_mem,
