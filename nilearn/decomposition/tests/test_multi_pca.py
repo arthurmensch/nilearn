@@ -72,13 +72,13 @@ def test_multi_pca_score():
     multi_pca = MultiPCA(mask=mask_img, random_state=0, memory_level=0, n_components=3)
     multi_pca.fit(data)
     s = multi_pca.score(data, per_component=False)
-    np.testing.assert_array_less(s, np.ones(6))
-    np.testing.assert_array_less(-s, np.ones(6))
+    np.testing.assert_array_less(s, np.ones(8))
+    np.testing.assert_array_less(-s, np.ones(8))
 
     # Assert that score does not fail with single subject data
     multi_pca = MultiPCA(mask=mask_img, random_state=0, memory_level=0, n_components=3)
     multi_pca.fit(data[0])
-    s = multi_pca.score(data, per_component=False)
+    s = multi_pca.score(data[0], per_component=False)
     assert_true(isinstance(s, float))
     assert(0. <= s <= 1.)
 
@@ -89,7 +89,7 @@ def test_multi_pca_score():
     single_data = nibabel.Nifti1Image(single_data, affine)
 
     # Assert that score is one for n_components == n_sample in single subject configuration
-    multi_pca = MultiPCA(mask=mask_img, random_state=0, memory_level=0, n_components=shape[0])
+    multi_pca = MultiPCA(mask=mask_img, random_state=0, memory_level=0, n_components=single_data.shape[3])
     multi_pca.fit(single_data)
     s = multi_pca.score(single_data, per_component=False)
     assert(s == 1.)

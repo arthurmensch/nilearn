@@ -26,6 +26,7 @@ def session_pca(imgs, mask_img, parameters,
                 confounds=None,
                 memory_level=0,
                 memory=Memory(cachedir=None),
+                return_data=False,
                 verbose=0,
                 copy=True,
                 random_state=0):
@@ -43,6 +44,9 @@ def session_pca(imgs, mask_img, parameters,
     mask_img: Niimg-like object
         See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
         Mask to apply on the data
+
+    return_data: boolean,
+        Return data
 
     parameters: dictionary
         Dictionary of parameters passed to `filter_and_mask`. Please see the
@@ -94,7 +98,10 @@ def session_pca(imgs, mask_img, parameters,
             data.T, full_matrices=False)
     U = U.T[:n_components].copy()
     S = S[:n_components]
-    return U, S
+    if return_data:
+        return U, S, data
+    else:
+        return U, S
 
 
 class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
@@ -146,6 +153,9 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         This parameter is passed to signal.clean. Please see the related
         documentation for details
 
+    keep_data_mem: boolean,
+        Keep data in memory
+
     random_state: int or RandomState
         Pseudo number generator state used for random sampling.
 
@@ -186,6 +196,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
     def __init__(self, n_components=20, smoothing_fwhm=None, mask=None,
                  do_cca=True, standardize=True, target_affine=None,
                  target_shape=None, low_pass=None, high_pass=None,
+                 keep_data_mem=True,
                  t_r=None, memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, verbose=0,
                  random_state=None
@@ -198,6 +209,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         self.low_pass = low_pass
         self.high_pass = high_pass
         self.t_r = t_r
+        self.keep_data_mem = keep_data_mem
 
         self.do_cca = do_cca
         self.n_components = n_components
@@ -295,13 +307,17 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
                 self._get_filter_and_mask_parameters(),
                 n_components=self.n_components,
                 memory=self.memory,
+                return_data=self.keep_data_mem,
                 memory_level=self.memory_level,
                 confounds=confound,
                 verbose=self.verbose,
                 random_state=random_state
             )
             for img, confound in zip(imgs, confounds))
-        subject_pcas, subject_svd_vals = zip(*subject_pcas)
+        if self.keep_data_mem:
+            subject_pcas, subject_svd_vals, subject_data_tuple = zip(*subject_pcas)
+        else:
+            subject_pcas, subject_svd_vals = zip(*subject_pcas)
 
         if self.verbose:
             print("[MultiPCA] Learning group level PCA")
@@ -328,8 +344,22 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         else:
             data = subject_pcas[0]
             variance = subject_svd_vals[0]
+            if self.keep_data_mem:
+                subject_data_tuple = subject_data_tuple[0]
+
         self.components_ = data
         self.variance_ = variance
+        if self.keep_data_mem:
+            self.data_flat_ = subject_data_tuple
+
+        # Sorting components_ per explained variance ratio
+        scores = self.score_training(per_component=True)
+        # # Several subjects
+        if scores.ndim == 2:
+            scores = scores.mean(axis=0)
+        #
+        self.components_ = self.components_[np.argsort(scores)]
+        self.variance_ = self.variance_[np.argsort(scores)]
 
         return self
 
@@ -406,17 +436,24 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
             Holds the score for each subjects. Score is two dimensional if per_component is True. First dimension
             is squeezed if the number of subjects is one
         """
-        data, affine = self._cache(
+        if not isinstance(imgs, tuple) and not isinstance(imgs, list):
+            imgs = [imgs]
+        data = [self._cache(
             filter_and_mask,
             func_memory_level=2,
             ignore=['verbose', 'copy'])(
-                imgs, self.mask_img_, self._get_filter_and_mask_parameters(),
+                img, self.mask_img_, self._get_filter_and_mask_parameters(),
                 memory_level=self.memory_level,
                 memory=self.memory,
                 verbose=self.verbose,
                 confounds=confounds,
-                copy=True)
+                copy=True)[0] for img in imgs]
         return self._score(data, per_component=per_component)
+
+    def score_training(self, per_component=False):
+        if not self.keep_data_mem:
+            raise ValueError("Training data has already been kept in memory")
+        return self._score(self.data_flat_, per_component=per_component)
 
     def _score(self, data,
                per_component=False):
@@ -435,18 +472,17 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         score: ndarray,
             Holds the score for each subjects. score is two dimensional if per_component = True
         """
-        if not isinstance(data, list) and not isinstance(data, tuple):
-            data = [data]
         full_var = np.array([np.sum(this_data ** 2) for this_data in data])
         lr = LinearRegression(fit_intercept=False)
         if not per_component:
             residual_variance = np.array([lr.fit(self.components_.T, this_data.T).residues_.sum()
                                                   for this_data in data])
+            res = 1. - residual_variance / full_var
         else:
             # Per-component score : residues of projection onto each map
-            residual_variance = np.array([[lr.fit(self.components_.T[:, i], this_data.T).residues_.sum()
+            residual_variance = np.array([[lr.fit(self.components_.T[:, i][:, np.newaxis], this_data.T).residues_.sum()
                                          for i in range(self.n_components)]
-                                 for this_data in data])
-        res = 1. - residual_variance / full_var
+                                         for this_data in data])
+            res = 1. - residual_variance / full_var[:, np.newaxis]
         return res if len(res) > 1 else res[0]
 
