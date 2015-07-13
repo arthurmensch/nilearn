@@ -21,7 +21,7 @@ from nilearn import datasets
 from sklearn.utils.linear_assignment_ import linear_assignment
 import numpy as np
 
-adhd_dataset = datasets.fetch_adhd(n_subjects=20, data_dir='/media/data/neuro')
+adhd_dataset = datasets.fetch_adhd(n_subjects=10, data_dir='/media/data/neuro')
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
@@ -32,17 +32,14 @@ print('First functional nifti image (4D) is at: %s' %
 from nilearn.decomposition.dict_learning import DictLearning
 from nilearn.decomposition.canica import CanICA
 from nilearn.decomposition.multi_pca import MultiPCA
-n_components = 50
+n_components = 10
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="/media/data/nilearn_cache", memory_level=5, verbose=2, random_state=0,
-                             n_jobs=1, alpha=7, n_iter=1000)
+                             n_jobs=1, alpha=10, n_iter=1000)
 canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
                 memory="/media/data/nilearn_cache", memory_level=5, verbose=2, random_state=0,
-                n_jobs=1, n_init=1, threshold=1.)
-
-multi_pca = MultiPCA(n_components=n_components, smoothing_fwhm=6.,
-                memory="/media/data/nilearn_cache", memory_level=5, verbose=2)
+                n_jobs=1, n_init=1, threshold=3.)
 
 estimators = [canica, dict_learning]
 
@@ -72,16 +69,21 @@ for i, estimator in enumerate(estimators):
 
 ### Visualize the results #####################################################
 # Show some interesting components
+import matplotlib
+matplotlib.use('PDF')
+
+from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 from nilearn.plotting import plot_stat_map, find_xyz_cut_coords
 from nilearn.image import index_img
 
-for i in range(n_components):
-    if i % 3 == 0:
-        fig, axes = plt.subplots(nrows=3)
+with PdfPages('output.pdf') as pdf:
+    for i in range(n_components):
+        plt.clf()
+        fig, axes = plt.subplots(nrows=2, figsize=(10, 8))
         cut_coords = find_xyz_cut_coords(index_img(components_imgs[0], i))
         for estimator, cur_img, ax in zip(estimators, components_imgs, axes):
             plot_stat_map(index_img(cur_img, i), title="Component %d" % i, axes=ax,
                           cut_coords=cut_coords, colorbar=False)
-
-plt.show()
+        pdf.savefig()
+    plt.close()
