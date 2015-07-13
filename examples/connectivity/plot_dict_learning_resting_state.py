@@ -69,12 +69,10 @@ components_img.to_filename(os.path.join(output_dir, 'dict_learning_resting_state
 
 ### Visualize the results #####################################################
 # Show some interesting components
-# import matplotlib.pyplot as plt
-# from nilearn.plotting import plot_stat_map
-# from nilearn.image import iter_img
-
 print('[Example] Saving PDF')
 
+import matplotlib
+matplotlib.use('PDF')
 import matplotlib.pyplot as plt
 from nilearn.plotting import plot_stat_map
 from nilearn.image import index_img
