@@ -21,8 +21,8 @@ import numpy as np
 from nilearn import datasets
 from sklearn.grid_search import GridSearchCV
 
-
-adhd_dataset = datasets.fetch_adhd(n_subjects=6, data_dir='/storage/data/nilearn_data')
+output_dir = os.path.expanduser('~/work/output')
+adhd_dataset = datasets.fetch_adhd(n_subjects=40, data_dir='/storage/data/nilearn_data')
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
@@ -59,13 +59,28 @@ components_img.to_filename('dict_learning_resting_state.nii.gz')
 
 ### Visualize the results #####################################################
 # Show some interesting components
+# import matplotlib.pyplot as plt
+# from nilearn.plotting import plot_stat_map
+# from nilearn.image import iter_img
+
+print('[Example] Saving PDF')
+
 import matplotlib.pyplot as plt
 from nilearn.plotting import plot_stat_map
-from nilearn.image import iter_img
+from nilearn.image import index_img
+from matplotlib.backends.backend_pdf import PdfPages
+import nibabel
+import os
 
-for i, cur_img in enumerate(iter_img(components_img)):
-    if i % 10 == 0:
-        plot_stat_map(cur_img, title="Component %d" % i,
-                      colorbar=False)
+map_img = nibabel.load(os.path.join(output_dir, "dict_learning_resting_state.nii.gz"))
 
-plt.show()
+fig = plt.figure()
+
+with PdfPages(os.path.join(output_dir, 'output.pdf')) as pdf:
+    for j in range(n_components):
+        plt.clf()
+        plot_stat_map(index_img(map_img, j), figure=fig, threshold="auto")
+        pdf.savefig()
+    plt.close()
+    d = pdf.infodict()
+    d['Title'] = 'Maps'
