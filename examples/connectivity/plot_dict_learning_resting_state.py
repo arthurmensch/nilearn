@@ -42,8 +42,8 @@ n_components = 50
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="nilearn_cache", memory_level=5,
                              threshold=1. * n_components, random_state=0,
-                             l1_ratio=1, method='spca', verbose=10,
-                             n_jobs=3, n_init=1, alpha=1., n_iter=710)
+                             l1_ratio=3, method='spca', verbose=10,
+                             n_jobs=3, n_init=1, alpha=5., n_iter=710)
 
 # tuned_parameters = {'threshold': [1., n_components / 10., float(n_components)]}
 # grid_search = GridSearchCV(dict_learning,
