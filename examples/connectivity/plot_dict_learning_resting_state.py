@@ -15,13 +15,11 @@ Pre-prints for paper is available on hal
 (http://hal.archives-ouvertes.fr)
 """
 
-import numpy as np
-
 ### Load ADHD rest dataset ####################################################
-from nilearn import datasets
-from sklearn.grid_search import GridSearchCV
 import os
 import datetime
+
+from nilearn import datasets
 
 output_dir = os.path.expanduser('~/work/output/nilearn/plot_dict_learning_resting_state')
 output_dir = os.path.join(output_dir, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
@@ -45,7 +43,7 @@ dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="nilearn_cache", memory_level=5,
                              threshold=1. * n_components, random_state=0,
                              l1_ratio=1, method='spca', verbose=10,
-                             n_jobs=3, n_init=1, alpha=10, n_iter=150)
+                             n_jobs=3, n_init=1, alpha=10, n_iter=710)
 
 # tuned_parameters = {'threshold': [1., n_components / 10., float(n_components)]}
 # grid_search = GridSearchCV(dict_learning,
