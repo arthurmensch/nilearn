@@ -20,6 +20,7 @@ import numpy as np
 ### Load ADHD rest dataset ####################################################
 from nilearn import datasets
 from sklearn.grid_search import GridSearchCV
+import os
 
 output_dir = os.path.expanduser('~/work/output')
 adhd_dataset = datasets.fetch_adhd(n_subjects=40, data_dir='/storage/data/nilearn_data')
