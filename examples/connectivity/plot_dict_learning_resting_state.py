@@ -22,7 +22,7 @@ from nilearn import datasets
 from sklearn.grid_search import GridSearchCV
 
 
-adhd_dataset = datasets.fetch_adhd(n_subjects=6, data_dir='/media/data/neuro')
+adhd_dataset = datasets.fetch_adhd(n_subjects=6, data_dir='/storage/data/nilearn_data')
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
