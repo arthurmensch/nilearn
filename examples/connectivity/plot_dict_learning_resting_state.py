@@ -21,9 +21,16 @@ import numpy as np
 from nilearn import datasets
 from sklearn.grid_search import GridSearchCV
 import os
+import datetime
 
-output_dir = os.path.expanduser('~/work/output')
-adhd_dataset = datasets.fetch_adhd(n_subjects=40, data_dir='/storage/data/nilearn_data')
+output_dir = os.path.expanduser('~/work/output/nilearn/plot_dict_learning_resting_state')
+output_dir = os.path.join(output_dir, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+try:
+    os.makedirs(output_dir)
+except OSError:
+    pass
+
+adhd_dataset = datasets.fetch_adhd(n_subjects=10)
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
@@ -54,7 +61,9 @@ print('[Example] Dumping results')
 
 # Retrieve learned spatial maps in brain space
 components_img = dict_learning.masker_.inverse_transform(dict_learning.components_)
-components_img.to_filename('dict_learning_resting_state.nii.gz')
+# components_img is a Nifti Image object, and can be saved to a file with
+# the following line:
+components_img.to_filename(os.path.join(output_dir, 'dict_learning_resting_state.nii.gz'))
 
 
 
