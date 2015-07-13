@@ -31,26 +31,21 @@ print('First functional nifti image (4D) is at: %s' %
 ### Apply DictLearning ########################################################
 from nilearn.decomposition.dict_learning import DictLearning
 from nilearn.decomposition.canica import CanICA
-from nilearn.decomposition.multi_pca import MultiPCA
+
 n_components = 10
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="/media/data/nilearn_cache", memory_level=5, verbose=2, random_state=0,
-                             n_jobs=1, alpha=10, n_iter=1000)
+                             n_jobs=1, alpha=6, n_iter=1000)
 canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
                 memory="/media/data/nilearn_cache", memory_level=5, verbose=2, random_state=0,
                 n_jobs=1, n_init=1, threshold=3.)
 
 estimators = [canica, dict_learning]
 
-
 for estimator in estimators:
     estimator.fit(func_filenames)
 
-
-# np.save('temp', np.concatenate([estimator.components_ for estimator in estimators]))
-# import numpy as np
-# from sklearn.utils.linear_assignment_ import linear_assignment
 print('[Example] Aligning maps')
 K = np.corrcoef(np.concatenate([estimator.components_ for estimator in estimators]))
 K[np.isinf(K)] = 0
