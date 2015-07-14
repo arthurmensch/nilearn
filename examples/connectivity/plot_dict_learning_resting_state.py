@@ -14,47 +14,47 @@ Dictionary learning is a sparsity based decomposition method for extracting spat
 Pre-prints for paper is available on hal
 (http://hal.archives-ouvertes.fr)
 """
+def generate_maps():
+    ### Load ADHD rest dataset ####################################################
+    from nilearn import datasets
+    # For linear assignment (should be moved in non user space...)
 
-### Load ADHD rest dataset ####################################################
-from nilearn import datasets
-# For linear assignment (should be moved in non user space...)
+    adhd_dataset = datasets.fetch_adhd(n_subjects=20, data_dir='/media/data/neuro')
+    func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
-adhd_dataset = datasets.fetch_adhd(n_subjects=20, data_dir='/media/data/neuro')
-func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
+    # print basic information on the dataset
+    print('First functional nifti image (4D) is at: %s' %
+          adhd_dataset.func[0])  # 4D data
 
-# print basic information on the dataset
-print('First functional nifti image (4D) is at: %s' %
-      adhd_dataset.func[0])  # 4D data
+    ### Apply DictLearning ########################################################
+    from nilearn.decomposition.dict_learning import DictLearning
+    from nilearn.decomposition.canica import CanICA
 
-### Apply DictLearning ########################################################
-from nilearn.decomposition.dict_learning import DictLearning
-from nilearn.decomposition.canica import CanICA
+    n_components = 10
 
-n_components = 10
+    dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
+                                 memory="/media/data/nilearn_cache", memory_level=5, verbose=2, random_state=0,
+                                 n_jobs=1, alpha=10, n_iter=1000, sorted=True)
+    canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
+                    memory="/media/data/nilearn_cache", memory_level=5, verbose=2, random_state=0,
+                    n_jobs=1, n_init=1, threshold=1., sorted=True)
 
-dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
-                             memory="/media/data/nilearn_cache", memory_level=5, verbose=2, random_state=0,
-                             n_jobs=1, alpha=10, n_iter=1000, sorted=True)
-canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
-                memory="/media/data/nilearn_cache", memory_level=5, verbose=2, random_state=0,
-                n_jobs=1, n_init=1, threshold=1., sorted=True)
+    estimators = [canica, dict_learning]
 
-estimators = [canica, dict_learning]
+    for estimator in estimators:
+        estimator.fit(func_filenames)
 
+    for estimator in estimators:
+        print(estimator.score_)
+    print('[Example] Dumping results')
 
-for estimator in estimators:
-    estimator.fit(func_filenames)
-
-for estimator in estimators:
-    print(estimator.score_)
-print('[Example] Dumping results')
-
-components_imgs = []
-# Retrieve learned spatial maps in brain space
-for i, estimator in enumerate(estimators):
-    components_img = estimator.masker_.inverse_transform(estimator.components_)
-    components_img.to_filename('%s_resting_state.nii.gz' % type(estimator).__name__)
-    components_imgs.append(components_img)
+    components_imgs = []
+    # Retrieve learned spatial maps in brain space
+    for i, estimator in enumerate(estimators):
+        components_img = estimator.masker_.inverse_transform(estimator.components_)
+        components_img.to_filename('%s_resting_state.nii.gz' % type(estimator).__name__)
+        components_imgs.append(components_img)
+    return estimators, components_imgs
 
 ### Visualize the results #####################################################
 # Show some interesting components
@@ -64,9 +64,15 @@ matplotlib.use('PDF')
 import matplotlib.pyplot as plt
 from nilearn.plotting import plot_prob_atlas
 
+from joblib import Memory
+
+mem= Memory(cachedir='/media/data/nilearn_data')
+
+estimators, components_imgs = mem.cache(generate_maps)()
+
 fig, axes = plt.subplots(nrows=2, figsize=(10, 8))
-for estimator, cur_img, ax in zip(estimators, components_imgs, axes):
-    plot_prob_atlas(components_imgs, axes=ax)
+for estimator, components_img, ax in zip(estimators, components_imgs, axes):
+    plot_prob_atlas(components_img, axes=ax)
 
 # with PdfPages('output.pdf') as pdf:
 #     for i in range(n_components):
