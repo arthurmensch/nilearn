@@ -28,7 +28,7 @@ def test_dict_learning():
 
     K = np.abs(components.dot(maps.T))
 
-    if False: # LooseVersion(sklearn.__version__).version > [0, 12]:
+    if LooseVersion(sklearn.__version__).version > [0, 12]:
         indices = linear_assignment(1-K)
         K = K[indices[:, 0], :][:, indices[:, 1]]
         assert_array_equal(np.abs(K), np.eye(4))
