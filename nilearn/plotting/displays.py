@@ -518,7 +518,6 @@ class BaseSlicer(object):
                 "colors", which is one color or a list of colors for
                 these contours.
         """
-        # Switches into contour filling function 'contourf'
         self._map_show(img, type='contour', **kwargs)
         if filled:
             colors = kwargs['colors']
