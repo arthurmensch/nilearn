@@ -17,6 +17,7 @@ from nilearn.masking import (compute_epi_mask, compute_multi_epi_mask,
                              compute_background_mask, unmask, _unmask_3d,
                              _unmask_4d, intersect_masks, MaskWarning)
 from nilearn._utils.testing import (write_tmp_imgs, assert_raises_regex)
+from nilearn._utils.exceptions import DimensionError
 
 np_version = (np.version.full_version if hasattr(np.version, 'full_version')
               else np.version.short_version)
@@ -132,7 +133,7 @@ def test_apply_mask():
 
     # veriy that 4D masks are rejected
     mask_img_4d = Nifti1Image(np.ones((40, 40, 40, 2)), np.eye(4))
-    assert_raises_regex(TypeError, "Data must be a 3D",
+    assert_raises_regex(DimensionError, "Data must be a 3D",
                         masking.apply_mask, data_img, mask_img_4d)
 
     # Check that 3D data is accepted
@@ -145,7 +146,7 @@ def test_apply_mask():
     assert_equal(sorted(data_3d.tolist()), [3., 4., 12.])
 
     # Check data shape and affine
-    assert_raises_regex(TypeError, "Data must be a 3D",
+    assert_raises_regex(DimensionError, "Data must be a 3D",
                         masking.apply_mask, data_img,
                         Nifti1Image(mask[20, ...], affine))
     assert_raises(ValueError, masking.apply_mask,
@@ -228,6 +229,44 @@ def test_unmask():
     transposed_vector = np.ones((np.sum(mask), 1), dtype=np.bool)
     assert_raises_regex(TypeError, 'X must be of shape',
                         unmask, transposed_vector, mask_img)
+
+
+def test_intersect_masks_filename():
+    # Create dummy masks
+    mask_a = np.zeros((4, 4, 1), dtype=np.bool)
+    mask_a[2:4, 2:4] = 1
+    mask_a_img = Nifti1Image(mask_a.astype(int), np.eye(4))
+
+    # +---+---+---+---+
+    # |   |   |   |   |
+    # +---+---+---+---+
+    # |   |   |   |   |
+    # +---+---+---+---+
+    # |   |   | X | X |
+    # +---+---+---+---+
+    # |   |   | X | X |
+    # +---+---+---+---+
+
+    mask_b = np.zeros((4, 4, 1), dtype=np.bool)
+    mask_b[1:3, 1:3] = 1
+    mask_b_img = Nifti1Image(mask_b.astype(int), np.eye(4))
+
+    # +---+---+---+---+
+    # |   |   |   |   |
+    # +---+---+---+---+
+    # |   | X | X |   |
+    # +---+---+---+---+
+    # |   | X | X |   |
+    # +---+---+---+---+
+    # |   |   |   |   |
+    # +---+---+---+---+
+
+    with write_tmp_imgs(mask_a_img, mask_b_img, create_files=True)\
+                     as filenames:
+        mask_ab = np.zeros((4, 4, 1), dtype=np.bool)
+        mask_ab[2, 2] = 1
+        mask_ab_ = intersect_masks(filenames, threshold=1.)
+        assert_array_equal(mask_ab, mask_ab_.get_data())
 
 
 def test_intersect_masks():

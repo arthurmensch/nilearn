@@ -3,9 +3,11 @@ Test the multi-PCA module
 """
 
 import numpy as np
-from nose.tools import assert_raises
+
+from numpy.testing import assert_almost_equal, assert_equal
+from nose.tools import assert_raises, assert_true
+
 import nibabel
-from numpy.testing import assert_almost_equal
 
 from nilearn.decomposition.multi_pca import MultiPCA
 from nilearn.input_data import MultiNiftiMasker
@@ -28,7 +30,7 @@ def test_multi_pca():
         data.append(nibabel.Nifti1Image(this_data, affine))
 
     mask_img = nibabel.Nifti1Image(np.ones(shape[:3], dtype=np.int8), affine)
-    multi_pca = MultiPCA(mask=mask_img, n_components=3)
+    multi_pca = MultiPCA(mask=mask_img, random_state=0, memory_level=0, n_components=3)
 
     # Test that the components are the same if we put twice the same data
     components1 = multi_pca.fit(data).components_
@@ -57,6 +59,7 @@ def test_multi_pca():
     # Smoke test to fit with no img
     assert_raises(TypeError, multi_pca.fit)
 
+
 def test_multi_pca_data_mem():
     data, mask_img, components, rng = _make_canica_test_data()
     multi_pca = MultiPCA(mask=mask_img, n_components=3)
@@ -64,3 +67,71 @@ def test_multi_pca_data_mem():
     multi_pca.fit(data)
     multi_pca.masker_.set_params(detrend=True)
     assert_almost_equal(multi_pca.data_flat_,  multi_pca.masker_.transform(data))
+
+
+def test_multi_pca_score():
+    shape = (6, 8, 10, 5)
+    affine = np.eye(4)
+    rng = np.random.RandomState(0)
+
+    # Create a "multi-subject" dataset
+    data = []
+    for i in range(8):
+        this_data = rng.normal(size=shape)
+        data.append(nibabel.Nifti1Image(this_data, affine))
+
+    mask_img = nibabel.Nifti1Image(np.ones(shape[:3], dtype=np.int8), affine)
+
+    # Assert that score is between zero and one
+    multi_pca = MultiPCA(mask=mask_img, random_state=0, memory_level=0, n_components=3)
+    multi_pca.fit(data)
+    s = multi_pca.score(data, per_component=False)
+    assert_true(np.all(s <= 1))
+    assert_true(np.all(0 <= s))
+
+    # Assert that score does not fail with single subject data
+    multi_pca = MultiPCA(mask=mask_img, random_state=0, memory_level=0, n_components=3)
+    multi_pca.fit(data[0])
+    s = multi_pca.score(data[0], per_component=False)
+    assert_true(isinstance(s, float))
+    assert(0. <= s <= 1.)
+
+    # Assert that score is one for n_components == n_sample in single subject configuration
+    multi_pca = MultiPCA(mask=mask_img, random_state=0, memory_level=0, n_components=5)
+    multi_pca.fit(data[0])
+    s = multi_pca.score(data[0], per_component=False)
+    assert(s == 1.)
+
+    # Per component score
+    multi_pca = MultiPCA(mask=mask_img, random_state=0, memory_level=0, n_components=5)
+    multi_pca.fit(data[0])
+    s = multi_pca.score(data[0], per_component=True)
+    assert_true(np.all(s <= 1))
+    assert_true(np.all(0 <= s))
+
+    # Per component score, multisubject
+    multi_pca = MultiPCA(mask=mask_img, random_state=0, memory_level=0, n_components=5)
+    multi_pca.fit(data)
+    s = multi_pca.score(data, per_component=True)
+    assert_true(s.shape == (8, 5))
+    assert_true(np.all(s <= 1))
+    assert_true(np.all(0 <= s))
+
+def test_sorted():
+    shape = (6, 8, 10, 5)
+    affine = np.eye(4)
+    rng = np.random.RandomState(0)
+
+    # Create a "multi-subject" dataset
+    data = []
+    for i in range(8):
+        this_data = rng.normal(size=shape)
+        data.append(nibabel.Nifti1Image(this_data, affine))
+
+    mask_img = nibabel.Nifti1Image(np.ones(shape[:3], dtype=np.int8), affine)
+
+    # Check that components_ are sorted in ascending order relating to training score
+    multi_pca = MultiPCA(mask=mask_img, random_state=0, memory_level=0, n_components=3, sorted=True)
+    multi_pca.fit(data)
+    score = multi_pca.score(data, per_component=True).mean(axis=0)
+    assert_equal(score, -np.sort(-score))

@@ -93,9 +93,9 @@ def test_get_dataset_dir():
     shutil.rmtree(data_dir)
 
     expected_base_dir = os.path.join(tmpdir, 'env_data')
-    os.environ['MY_DATA'] = expected_base_dir
-    data_dir = datasets._get_dataset_dir('test', env_vars=['MY_DATA'],
-                                         verbose=0)
+    expected_dataset_dir = os.path.join(expected_base_dir, 'test')
+    data_dir = datasets._get_dataset_dir(
+        'test', default_paths=[expected_dataset_dir], verbose=0)
     assert_equal(data_dir, os.path.join(expected_base_dir, 'test'))
     assert os.path.exists(data_dir)
     shutil.rmtree(data_dir)
@@ -104,20 +104,14 @@ def test_get_dataset_dir():
     os.makedirs(no_write)
     os.chmod(no_write, 0o400)
 
-    # Verify that default is used if non writeable dir
-    os.environ['MY_DATA'] = no_write
     expected_base_dir = os.path.join(tmpdir, 'nilearn_shared_data')
     os.environ['NILEARN_SHARED_DATA'] = expected_base_dir
-    data_dir = datasets._get_dataset_dir('test', env_vars=['MY_DATA'],
+    data_dir = datasets._get_dataset_dir('test', default_paths=[no_write],
                                          verbose=0)
-    assert_equal(data_dir, os.path.join(expected_base_dir, 'test'))
+    # Non writeable dir is returned because dataset may be in there.
+    assert_equal(data_dir, no_write)
     assert os.path.exists(data_dir)
     shutil.rmtree(data_dir)
-
-    # Verify exception is raised on read-only directories
-    assert_raises_regex(OSError, 'Permission denied',
-                        datasets._get_dataset_dir, 'test', no_write,
-                        verbose=0)
 
     # Verify exception for a path which exists and is a file
     test_file = os.path.join(tmpdir, 'some_file')
@@ -267,19 +261,19 @@ def test_fail_fetch_haxby_simple():
 
 
 @with_setup(setup_tmpdata, teardown_tmpdata)
-def test_fail_fetch_harvard_oxford():
+def test_fail_fetch_atlas_harvard_oxford():
     # specify non-existing atlas item
     assert_raises_regex(ValueError, 'Invalid atlas name',
-                        datasets.fetch_harvard_oxford, 'not_inside')
+                        datasets.fetch_atlas_harvard_oxford, 'not_inside')
 
     # specify existing atlas item
     target_atlas = 'cort-maxprob-thr0-1mm'
     target_atlas_fname = 'HarvardOxford-' + target_atlas + '.nii.gz'
 
-    HO_dir = os.path.join(tmpdir, 'harvard_oxford')
-    os.mkdir(HO_dir)
+    HO_dir = os.path.join(tmpdir, 'fsl', 'data', 'atlases')
+    os.makedirs(HO_dir)
     nifti_dir = os.path.join(HO_dir, 'HarvardOxford')
-    os.mkdir(nifti_dir)
+    os.makedirs(nifti_dir)
 
     target_atlas_nii = os.path.join(nifti_dir, target_atlas_fname)
     datasets.load_mni152_template().to_filename(target_atlas_nii)
@@ -290,11 +284,11 @@ def test_fail_fetch_harvard_oxford():
                 "</metadata>")
     dummy.close()
 
-    out_nii, arr = datasets.fetch_harvard_oxford(target_atlas, data_dir=tmpdir)
+    ho = datasets.fetch_atlas_harvard_oxford(target_atlas, data_dir=tmpdir)
 
-    assert_true(isinstance(nibabel.load(out_nii), nibabel.Nifti1Image))
-    assert_true(isinstance(arr, np.ndarray))
-    assert_true(len(arr) > 0)
+    assert_true(isinstance(nibabel.load(ho.maps), nibabel.Nifti1Image))
+    assert_true(isinstance(ho.labels, np.ndarray))
+    assert_true(len(ho.labels) > 0)
 
 
 # Smoke tests for the rest of the fetchers
@@ -302,8 +296,8 @@ def test_fail_fetch_harvard_oxford():
 
 @with_setup(setup_mock)
 @with_setup(setup_tmpdata, teardown_tmpdata)
-def test_fetch_craddock_2012_atlas():
-    bunch = datasets.fetch_craddock_2012_atlas(data_dir=tmpdir, verbose=0)
+def test_fetch_atlas_craddock_2012():
+    bunch = datasets.fetch_atlas_craddock_2012(data_dir=tmpdir, verbose=0)
 
     keys = ("scorr_mean", "tcorr_mean",
             "scorr_2level", "tcorr_2level",
@@ -322,8 +316,8 @@ def test_fetch_craddock_2012_atlas():
 
 @with_setup(setup_mock)
 @with_setup(setup_tmpdata, teardown_tmpdata)
-def test_fetch_smith_2009_atlas():
-    bunch = datasets.fetch_smith_2009(data_dir=tmpdir, verbose=0)
+def test_fetch_atlas_smith_2009():
+    bunch = datasets.fetch_atlas_smith_2009(data_dir=tmpdir, verbose=0)
 
     keys = ("rsn20", "rsn10", "rsn70",
             "bm20", "bm10", "bm70")
@@ -339,6 +333,11 @@ def test_fetch_smith_2009_atlas():
     assert_equal(len(url_request.urls), 6)
     for key, fn in zip(keys, filenames):
         assert_equal(bunch[key], os.path.join(tmpdir, 'smith_2009', fn))
+
+
+def test_fetch_atlas_power_2011_atlas():
+    bunch = datasets.fetch_atlas_power_2011()
+    assert_equal(len(bunch.rois), 264)
 
 
 @with_setup(setup_mock)
@@ -357,6 +356,33 @@ def test_fetch_haxby():
         assert_equal(len(haxby.mask_face_little), i)
         assert_equal(len(haxby.mask_house_little), i)
         url_request.reset()
+
+
+@with_setup(setup_mock)
+@with_setup(setup_tmpdata, teardown_tmpdata)
+def test_fetch_atlas_destrieux_2009_atlas():
+    datadir = os.path.join(tmpdir, 'destrieux_2009')
+    os.mkdir(datadir)
+    dummy = open(os.path.join(
+        datadir, 'destrieux2009_rois_labels_lateralized.csv'), 'w')
+    dummy.write("name,index")
+    dummy.close()
+    bunch = datasets.fetch_atlas_destrieux_2009(data_dir=tmpdir, verbose=0)
+
+    assert_equal(len(url_request.urls), 1)
+    assert_equal(bunch['maps'], os.path.join(
+        tmpdir, 'destrieux_2009', 'destrieux2009_rois_lateralized.nii.gz'))
+
+    dummy = open(os.path.join(
+        datadir, 'destrieux2009_rois_labels.csv'), 'w')
+    dummy.write("name,index")
+    dummy.close()
+    bunch = datasets.fetch_atlas_destrieux_2009(
+        lateralized=False, data_dir=tmpdir, verbose=0)
+
+    assert_equal(len(url_request.urls), 1)
+    assert_equal(bunch['maps'], os.path.join(
+        tmpdir, 'destrieux_2009', 'destrieux2009_rois.nii.gz'))
 
 
 @with_setup(setup_mock)
@@ -412,7 +438,7 @@ def test_fetch_adhd():
                                n_subjects=12, verbose=0)
     assert_equal(len(adhd.func), 12)
     assert_equal(len(adhd.confounds), 12)
-    assert_equal(len(url_request.urls), 2)
+    assert_equal(len(url_request.urls), 13)  # Subjects + phenotypic
 
 
 @with_setup(setup_mock)
@@ -428,8 +454,8 @@ def test_miyawaki2008():
 
 @with_setup(setup_mock)
 @with_setup(setup_tmpdata, teardown_tmpdata)
-def test_fetch_msdl_atlas():
-    dataset = datasets.fetch_msdl_atlas(data_dir=tmpdir, verbose=0)
+def test_fetch_atlas_msdl():
+    dataset = datasets.fetch_atlas_msdl(data_dir=tmpdir, verbose=0)
     assert_true(isinstance(dataset.labels, _basestring))
     assert_true(isinstance(dataset.maps, _basestring))
     assert_equal(len(url_request.urls), 1)
@@ -454,8 +480,8 @@ def test_fetch_icbm152_2009():
 
 @with_setup(setup_mock)
 @with_setup(setup_tmpdata, teardown_tmpdata)
-def test_fetch_yeo_2011_atlas():
-    dataset = datasets.fetch_yeo_2011_atlas(data_dir=tmpdir, verbose=0)
+def test_fetch_atlas_yeo_2011():
+    dataset = datasets.fetch_atlas_yeo_2011(data_dir=tmpdir, verbose=0)
     assert_true(isinstance(dataset.anat, _basestring))
     assert_true(isinstance(dataset.colors_17, _basestring))
     assert_true(isinstance(dataset.colors_7, _basestring))

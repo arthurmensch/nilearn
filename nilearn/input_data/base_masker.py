@@ -18,8 +18,9 @@ from .. import signal
 from .. import _utils
 from .._utils.cache_mixin import CacheMixin, cache
 from .._utils.class_inspect import enclosing_scope_name, get_params
-from .._utils.compat import _basestring
-from nilearn._utils.niimg_conversions import _iter_check_niimg
+from .._utils.compat import _basestring, izip
+from nilearn._utils.niimg_conversions import (
+    _iter_check_niimg, _check_same_fov)
 
 
 def filter_and_mask(imgs, mask_img_,
@@ -51,17 +52,12 @@ def filter_and_mask(imgs, mask_img_,
 
     # Check whether resampling is truly necessary. If so, crop mask
     # as small as possible in order to speed up the process
-
-    resampling_is_necessary = (
-            (not np.allclose(imgs.get_affine(), mask_img_.get_affine()))
-        or np.any(np.array(imgs.shape[:3]) != np.array(mask_img_.shape)))
-
-    if resampling_is_necessary:
+    if not _check_same_fov(imgs, mask_img_):
         # now we can crop
         mask_img_ = image.crop_img(mask_img_, copy=False)
 
-        imgs = cache(image.resample_img, memory, memory_level=memory_level,
-                     func_memory_level=2, ignore=['copy'])(
+        imgs = cache(image.resample_img, memory, func_memory_level=2,
+                     memory_level=memory_level, ignore=['copy'])(
                         imgs,
                         target_affine=mask_img_.get_affine(),
                         target_shape=mask_img_.shape,
@@ -148,7 +144,7 @@ class BaseMasker(BaseEstimator, TransformerMixin, CacheMixin):
         # just invalid the cache for no good reason
         for name in ('mask_img', 'mask_args'):
             params.pop(name, None)
-        data, _ = self._cache(filter_and_mask, func_memory_level=1,
+        data, _ = self._cache(filter_and_mask,
                               ignore=['verbose', 'memory', 'copy'])(
                                   imgs, self.mask_img_,
                                   params,
@@ -190,20 +186,19 @@ class BaseMasker(BaseEstimator, TransformerMixin, CacheMixin):
                              % self.__class__.__name__)
         params = get_params(self.__class__, self)
 
-        reference_affine = None
+        target_fov = None
         if self.target_affine is None:
-            # Load the first image and use it as a reference for all other
-            # subjects
-            reference_affine = _utils.check_niimg(imgs_list[0]).get_affine()
+            # Force resampling on first image
+            target_fov = 'first'
 
-        fov = (self.mask_img_.get_affine(), self.mask_img_.shape)
         niimg_iter = _iter_check_niimg(imgs_list, ensure_ndim=None,
                                        atleast_4d=False,
-                                       target_fov=fov, memory=self.memory,
+                                       target_fov=target_fov,
+                                       memory=self.memory,
                                        memory_level=self.memory_level,
                                        verbose=self.verbose)
 
-        func = self._cache(filter_and_mask, func_memory_level=1,
+        func = self._cache(filter_and_mask,
                            ignore=['verbose', 'memory', 'copy'])
         if confounds is None:
             confounds = itertools.repeat(None, len(imgs_list))
@@ -215,7 +210,7 @@ class BaseMasker(BaseEstimator, TransformerMixin, CacheMixin):
                                 verbose=self.verbose,
                                 confounds=confounds,
                                 copy=copy)
-                          for imgs, confounds in zip(niimg_iter, confounds))
+                          for imgs, confounds in izip(niimg_iter, confounds))
         return list(zip(*data))[0]
 
     def fit_transform(self, X, y=None, confounds=None, **fit_params):
@@ -261,8 +256,7 @@ class BaseMasker(BaseEstimator, TransformerMixin, CacheMixin):
                 return self.fit(**fit_params).transform(X, confounds=confounds)
 
     def inverse_transform(self, X):
-        img = self._cache(masking.unmask, func_memory_level=1,
-            )(X, self.mask_img_)
+        img = self._cache(masking.unmask)(X, self.mask_img_)
         # Be robust again memmapping that will create read-only arrays in
         # internal structures of the header: remove the memmaped array
         try:

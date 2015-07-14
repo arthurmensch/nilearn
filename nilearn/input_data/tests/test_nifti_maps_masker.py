@@ -5,7 +5,7 @@ not the underlying functions (clean(), img_to_signals_labels(), etc.). See
 test_masking.py and test_signal.py for details.
 """
 
-from nose.tools import assert_raises, assert_equal, assert_true
+from nose.tools import assert_raises, assert_equal
 import numpy as np
 
 import nibabel
@@ -13,6 +13,8 @@ import nibabel
 from nilearn.input_data.nifti_labels_masker import NiftiLabelsMasker
 from nilearn.input_data.nifti_maps_masker import NiftiMapsMasker
 from nilearn._utils import testing, as_ndarray
+from nilearn._utils.exceptions import DimensionError
+from nilearn._utils.testing import assert_less
 
 
 def generate_random_img(shape, length=1, affine=np.eye(4),
@@ -141,7 +143,7 @@ def test_nifti_maps_masker_2():
 
     # verify that 4D mask arguments are refused
     masker = NiftiMapsMasker(maps33_img, mask_img=mask_img_4d)
-    testing.assert_raises_regex(TypeError, "Data must be a 3D",
+    testing.assert_raises_regex(DimensionError, "Data must be a 3D",
                                 masker.fit)
 
     # Test error checking
@@ -225,7 +227,7 @@ def test_nifti_maps_masker_2():
     transformed = masker.transform(fmri11_img)
     assert_equal(transformed.shape, (length, n_regions))
     # Some regions have been clipped. Resulting signal must be zero
-    assert_true((transformed.var(axis=0) == 0).sum() < n_regions)
+    assert_less((transformed.var(axis=0) == 0).sum(), n_regions)
 
     fmri11_img_r = masker.inverse_transform(transformed)
     np.testing.assert_almost_equal(fmri11_img_r.get_affine(),
