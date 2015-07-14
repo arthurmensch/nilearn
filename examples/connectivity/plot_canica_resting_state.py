@@ -23,7 +23,7 @@ Pre-prints for both papers are available on hal
 ### Load ADHD rest dataset ####################################################
 from nilearn import datasets
 
-adhd_dataset = datasets.fetch_adhd()
+adhd_dataset = datasets.fetch_adhd(n_subjects=5, data_dir='/media/data/neuro')
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
@@ -38,6 +38,8 @@ canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
                 memory="nilearn_cache", memory_level=5,
                 threshold=3., verbose=10, random_state=0)
 canica.fit(func_filenames)
+
+print(canica.explained_variance_ratio_)
 
 # Retrieve the independent components in brain space
 components_img = canica.masker_.inverse_transform(canica.components_)

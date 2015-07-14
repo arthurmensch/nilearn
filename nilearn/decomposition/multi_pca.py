@@ -348,7 +348,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
                 subject_data_tuple = subject_data_tuple[0]
 
         self.components_ = data
-        self.variance_ = variance
+        self.explained_variance_ratio_ = variance ** 2 / np.sum(variance ** 2)
         if self.keep_data_mem:
             self.data_flat_ = subject_data_tuple
 
@@ -357,9 +357,9 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         # # Several subjects
         if scores.ndim == 2:
             scores = scores.mean(axis=0)
-        #
-        self.components_ = self.components_[np.argsort(scores)]
-        self.variance_ = self.variance_[np.argsort(scores)]
+
+        # self.components_ = self.components_[np.argsort(scores)]
+        # self.explained_variance_ratio_ = self.explained_variance_ratio_[np.argsort(scores)]
 
         return self
 
@@ -483,6 +483,6 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
             residual_variance = np.array([[lr.fit(self.components_.T[:, i][:, np.newaxis], this_data.T).residues_.sum()
                                          for i in range(self.n_components)]
                                          for this_data in data])
-            res = 1. - residual_variance / full_var[:, np.newaxis]
+            res = np.maximum(0., 1. - residual_variance / full_var[:, np.newaxis])
         return res if len(res) > 1 else res[0]
 

@@ -5,11 +5,10 @@ CanICA
 # Author: Alexandre Abraham, Gael Varoquaux,
 # License: BSD 3 clause
 from distutils.version import LooseVersion
-
 from operator import itemgetter
+
 import numpy as np
 from scipy.stats import scoreatpercentile
-
 import sklearn
 from sklearn.decomposition import fastica
 from sklearn.externals.joblib import Memory, delayed, Parallel
@@ -193,5 +192,15 @@ class CanICA(MultiPCA, CacheMixin):
         for component in self.components_:
             if component.max() < -component.min():
                 component *= -1
+
+
+        # # Sorting components_ per explained variance ratio
+        # scores = self.score_training(per_component=True)
+        # # # Several subjects
+        # if scores.ndim == 2:
+        #     scores = scores.mean(axis=0)
+        # #
+        # self.components_ = self.components_[np.argsort(scores)]
+        # self.variance_ = self.variance_[np.argsort(scores)]
 
         return self
