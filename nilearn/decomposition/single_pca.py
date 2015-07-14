@@ -1,11 +1,95 @@
 """
 PCA dimension reduction on single subjects
 """
+import warnings
 
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.externals.joblib import Memory
+from scipy import linalg
+import nibabel
+from sklearn.base import BaseEstimator, TransformerMixin, clone
+from sklearn.externals.joblib import Parallel, delayed, Memory
+from sklearn.utils.extmath import randomized_svd
+from sklearn.utils.validation import check_random_state
 
-from .._utils.cache_mixin import CacheMixin
+from ..input_data import NiftiMasker, MultiNiftiMasker
+from ..input_data.base_masker import filter_and_mask
+from .._utils.cache_mixin import CacheMixin, cache
+from .._utils.compat import _basestring
+
+
+def session_pca(imgs, mask_img, parameters,
+                n_components=20,
+                confounds=None,
+                memory_level=0,
+                memory=Memory(cachedir=None),
+                verbose=0,
+                copy=True,
+                random_state=0):
+    """Filter, mask and compute PCA on Niimg-like objects
+
+    This is an helper function whose first call `base_masker.filter_and_mask`
+    and then apply a PCA to reduce the number of time series.
+
+    Parameters
+    ----------
+    imgs: list of Niimg-like objects
+        See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
+        List of subject data
+
+    mask_img: Niimg-like object
+        See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
+        Mask to apply on the data
+
+    parameters: dictionary
+        Dictionary of parameters passed to `filter_and_mask`. Please see the
+        documentation of the `NiftiMasker` for more informations.
+
+    confounds: CSV file path or 2D matrix
+        This parameter is passed to signal.clean. Please see the
+        corresponding documentation for details.
+
+    n_components: integer, optional
+        Number of components to be extracted by the PCA
+
+    memory_level: integer, optional
+        Integer indicating the level of memorization. The higher, the more
+        function calls are cached.
+
+    memory: joblib.Memory
+        Used to cache the function calls.
+
+    verbose: integer, optional
+        Indicate the level of verbosity (0 means no messages).
+
+    copy: boolean, optional
+        Whether or not data should be copied
+
+    random_state: int or RandomState
+        Pseudo number generator state used for random sampling.
+
+    random_state:
+    """
+
+    data, affine = cache(
+        filter_and_mask, memory,
+        func_memory_level=2, memory_level=memory_level,
+        ignore=['verbose', 'memory', 'memory_level', 'copy'])(
+            imgs, mask_img, parameters,
+            memory_level=memory_level,
+            memory=memory,
+            verbose=verbose,
+            confounds=confounds,
+            copy=copy)
+    if n_components <= data.shape[0] // 4:
+        U, S, _ = cache(randomized_svd, memory, memory_level=memory_level,
+                        func_memory_level=2)(
+            data.T, n_components, random_state=random_state)
+    else:
+        U, S, _ = cache(linalg.svd, memory, memory_level=memory_level,
+                        func_memory_level=2)(
+            data.T, full_matrices=False)
+    U = U.T[:n_components].copy()
+    S = S[:n_components]
+    return U, S
 
 
 class SinglePCA(BaseEstimator, TransformerMixin, CacheMixin):
@@ -33,4 +117,98 @@ class SinglePCA(BaseEstimator, TransformerMixin, CacheMixin):
         self.standardize = standardize
         self.random_state = random_state
 
-    def fit(selfself, imgs, y=None, confounds=None):
+    def fit(self, imgs, y=None, confounds=None):
+        """Compute the mask and the components
+
+        Parameters
+        ----------
+        imgs: list of Niimg-like objects
+            See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
+            Data on which the PCA must be calculated. If this is a list,
+            the affine is considered the same for all.
+        """
+
+        random_state = check_random_state(self.random_state)
+        # Hack to support single-subject data:
+        if isinstance(imgs, (_basestring, nibabel.Nifti1Image)):
+            imgs = [imgs]
+            # This is a very incomplete hack, as it won't work right for
+            # single-subject list of 3D filenames
+        if len(imgs) == 0:
+            # Common error that arises from a null glob. Capture
+            # it early and raise a helpful message
+            raise ValueError('Need one or more Niimg-like objects as input, '
+                             'an empty list was given.')
+        if confounds is None:
+            confounds = [None] * len(imgs)  # itertools.repeat(None, len(imgs))
+
+        # First, learn the mask
+        if not isinstance(self.mask, (NiftiMasker, MultiNiftiMasker)):
+            self.masker_ = MultiNiftiMasker(mask_img=self.mask,
+                                            smoothing_fwhm=self.smoothing_fwhm,
+                                            target_affine=self.target_affine,
+                                            target_shape=self.target_shape,
+                                            standardize=self.standardize,
+                                            low_pass=self.low_pass,
+                                            high_pass=self.high_pass,
+                                            mask_strategy='epi',
+                                            t_r=self.t_r,
+                                            memory=self.memory,
+                                            memory_level=self.memory_level,
+                                            n_jobs=self.n_jobs,
+                                            verbose=max(0, self.verbose - 1))
+        else:
+            try:
+                self.masker_ = clone(self.mask)
+            except TypeError as e:
+                # Workaround for a joblib bug: in joblib 0.6, a Memory object
+                # with cachedir = None cannot be cloned.
+                masker_memory = self.mask.memory
+                if masker_memory.cachedir is None:
+                    self.mask.memory = None
+                    self.masker_ = clone(self.mask)
+                    self.mask.memory = masker_memory
+                    self.masker_.memory = Memory(cachedir=None)
+                else:
+                    # The error was raised for another reason
+                    raise e
+
+            for param_name in ['target_affine', 'target_shape',
+                               'smoothing_fwhm', 'low_pass', 'high_pass',
+                               't_r', 'memory', 'memory_level']:
+                our_param = getattr(self, param_name)
+                if our_param is None:
+                    # Default value
+                    continue
+                if getattr(self.masker_, param_name) is not None:
+                    warnings.warn('Parameter %s of the masker overriden'
+                                  % param_name)
+                setattr(self.masker_, param_name, our_param)
+
+        # Masker warns if it has a mask_img and is passed
+        # imgs to fit().  Avoid the warning by being careful
+        # when calling fit.
+        if self.masker_.mask_img is None:
+            self.masker_.fit(imgs)
+        else:
+            self.masker_.fit()
+        self.mask_img_ = self.masker_.mask_img_
+
+        # Now do the subject-level signal extraction (i.e. data-loading +
+        # PCA)
+        if self.verbose:
+            print("[SinglePCA] Learning subject level PCAs")
+        subject_pcas = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
+            delayed(self._cache(session_pca, func_memory_level=1))(
+                img,
+                self.masker_.mask_img_,
+                self._get_filter_and_mask_parameters(),
+                n_components=self.n_components,
+                memory=self.memory,
+                memory_level=self.memory_level,
+                confounds=confound,
+                verbose=self.verbose,
+                random_state=random_state
+            )
+            for img, confound in zip(imgs, confounds))
+        self.subject_pcas_, self.subject_svd_vals_ = zip(*subject_pcas)

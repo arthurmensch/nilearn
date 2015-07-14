@@ -2,27 +2,20 @@
 PCA dimension reduction on multiple subjects
 """
 import itertools
-import warnings
 
 import numpy as np
 from scipy import linalg
-import nibabel
-from sklearn.base import BaseEstimator, TransformerMixin, clone
-
-from sklearn.externals.joblib import Parallel, delayed, Memory
-
+from sklearn.base import clone
+from sklearn.externals.joblib import Memory
 from sklearn.utils.extmath import randomized_svd
-
-from sklearn.utils.validation import check_random_state
 
 from sklearn.linear_model import LinearRegression
 
-from ..input_data import NiftiMasker, MultiNiftiMasker, NiftiMapsMasker
+from ..input_data import NiftiMapsMasker
 from ..input_data.base_masker import filter_and_mask
-from .._utils.class_inspect import get_params
 from .._utils.cache_mixin import CacheMixin, cache
 from .._utils import as_ndarray
-from .._utils.compat import _basestring
+from .single_pca import SinglePCA
 
 
 def session_pca(imgs, mask_img, parameters,
@@ -101,7 +94,7 @@ def session_pca(imgs, mask_img, parameters,
     return U, S
 
 
-class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
+class MultiPCA(CacheMixin):
     """Perform Multi Subject Principal Component Analysis.
 
     Perform a PCA on each subject and stack the results. An optional Canonical
@@ -192,6 +185,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
                  target_shape=None, low_pass=None, high_pass=None,
                  t_r=None, memory=Memory(cachedir=None), memory_level=0,
                  sorted=False,
+                 single_pca=None,
                  n_jobs=1, verbose=0,
                  random_state=None
                  ):
@@ -204,13 +198,15 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         self.high_pass = high_pass
         self.t_r = t_r
 
-        self.do_cca = do_cca
         self.n_components = n_components
         self.smoothing_fwhm = smoothing_fwhm
         self.target_affine = target_affine
         self.target_shape = target_shape
         self.standardize = standardize
         self.random_state = random_state
+
+        self.single_pca = single_pca
+        self.do_cca = do_cca
         self.sorted = sorted
 
     def fit(self, imgs, y=None, confounds=None):
@@ -223,91 +219,33 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
             Data on which the PCA must be calculated. If this is a list,
             the affine is considered the same for all.
         """
-
-        random_state = check_random_state(self.random_state)
-        # Hack to support single-subject data:
-        if isinstance(imgs, (_basestring, nibabel.Nifti1Image)):
-            imgs = [imgs]
-            # This is a very incomplete hack, as it won't work right for
-            # single-subject list of 3D filenames
-        if len(imgs) == 0:
-            # Common error that arises from a null glob. Capture
-            # it early and raise a helpful message
-            raise ValueError('Need one or more Niimg-like objects as input, '
-                             'an empty list was given.')
-        if confounds is None:
-            confounds = [None] * len(imgs)  # itertools.repeat(None, len(imgs))
-
-        # First, learn the mask
-        if not isinstance(self.mask, (NiftiMasker, MultiNiftiMasker)):
-            self.masker_ = MultiNiftiMasker(mask_img=self.mask,
-                                            smoothing_fwhm=self.smoothing_fwhm,
-                                            target_affine=self.target_affine,
-                                            target_shape=self.target_shape,
-                                            standardize=self.standardize,
-                                            low_pass=self.low_pass,
-                                            high_pass=self.high_pass,
-                                            mask_strategy='epi',
-                                            t_r=self.t_r,
-                                            memory=self.memory,
-                                            memory_level=self.memory_level,
-                                            n_jobs=self.n_jobs,
-                                            verbose=max(0, self.verbose - 1))
+        if not isinstance(self.single_pca, SinglePCA):
+            self.subject_pca_ = SinglePCA(n_components=self.n_components,
+                                          smoothing_fwhm=self.smoothing_fwhm,
+                                          mask=self.mask,
+                                          standardize=self.standardize, target_affine=self.target_affine,
+                                          target_shape=self.target_shape,
+                                          low_pass=self.low_pass, high_pass=self.high_pass,
+                                          t_r=self.t_r, memory=self.memory, memory_level=self.memory_level,
+                                          n_jobs=self.n_jobs, verbose=self.verbose,
+                                          random_state=self.random_state)
         else:
             try:
-                self.masker_ = clone(self.mask)
+                self.subject_pca_ = clone(self.subject_pca)
             except TypeError as e:
                 # Workaround for a joblib bug: in joblib 0.6, a Memory object
                 # with cachedir = None cannot be cloned.
-                masker_memory = self.mask.memory
-                if masker_memory.cachedir is None:
-                    self.mask.memory = None
-                    self.masker_ = clone(self.mask)
-                    self.mask.memory = masker_memory
-                    self.masker_.memory = Memory(cachedir=None)
+                subject_pca_memory = self.subject_pca.memory
+                if subject_pca_memory.cachedir is None:
+                    self.subject_pca.memory = None
+                    self.subject_pca_ = clone(self.subject_pca)
+                    self.subject_pca.memory = subject_pca_memory
+                    self.subject_pca_.memory = Memory(cachedir=None)
                 else:
                     # The error was raised for another reason
                     raise e
-
-            for param_name in ['target_affine', 'target_shape',
-                               'smoothing_fwhm', 'low_pass', 'high_pass',
-                               't_r', 'memory', 'memory_level']:
-                our_param = getattr(self, param_name)
-                if our_param is None:
-                    # Default value
-                    continue
-                if getattr(self.masker_, param_name) is not None:
-                    warnings.warn('Parameter %s of the masker overriden'
-                                  % param_name)
-                setattr(self.masker_, param_name, our_param)
-
-        # Masker warns if it has a mask_img and is passed
-        # imgs to fit().  Avoid the warning by being careful
-        # when calling fit.
-        if self.masker_.mask_img is None:
-            self.masker_.fit(imgs)
-        else:
-            self.masker_.fit()
-        self.mask_img_ = self.masker_.mask_img_
-
-        # Now do the subject-level signal extraction (i.e. data-loading +
-        # PCA)
-        if self.verbose:
-            print("[MultiPCA] Learning subject level PCAs")
-        subject_pcas = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
-            delayed(self._cache(session_pca, func_memory_level=1))(
-                img,
-                self.masker_.mask_img_,
-                self._get_filter_and_mask_parameters(),
-                n_components=self.n_components,
-                memory=self.memory,
-                memory_level=self.memory_level,
-                confounds=confound,
-                verbose=self.verbose,
-                random_state=random_state
-            )
-            for img, confound in zip(imgs, confounds))
-        subject_pcas, subject_svd_vals = zip(*subject_pcas)
+        subject_pcas = self.subject_pca_.subject_pcas__
+        subject_svd_vals = self.subject_pca_.subject_svd_vals_
 
         if self.verbose:
             print("[MultiPCA] Learning group level PCA")
@@ -383,16 +321,6 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
         # XXX: dealing properly with 2D/ list of 2D data?
         return [nifti_maps_masker.inverse_transform(signal)
                 for signal in component_signals]
-
-    def _get_filter_and_mask_parameters(self):
-        parameters = get_params(MultiNiftiMasker, self)
-        # Remove non specific and redudent parameters
-        for param_name in ['memory', 'memory_level', 'confounds',
-                           'verbose', 'n_jobs']:
-            parameters.pop(param_name, None)
-
-        parameters['detrend'] = True
-        return parameters
 
     def _sort_components(self, imgs, confounds=None):
         """ Sort components by score obtained on test set imgs
