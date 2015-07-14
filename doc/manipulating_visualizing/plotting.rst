@@ -223,7 +223,7 @@ plot, and has methods to add overlays, contours or edge maps::
                   |hack|
                   Add a new overlay on the existing figure
                    |hack|
-                   **Example:** :ref:`example_manipulating_visualizing_plot_probabilistic_atlas.py`
+                   **Example:** :ref:`example_manipulating_visualizing_plot_overlay.py`
 
 
 ================= =========================================================
