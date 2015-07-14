@@ -4,7 +4,6 @@ Test the multi-PCA module
 
 import numpy as np
 import nibabel
-
 from nose.tools import assert_raises, assert_true
 from numpy.testing import assert_equal, assert_almost_equal
 

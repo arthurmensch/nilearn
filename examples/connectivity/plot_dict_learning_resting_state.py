@@ -37,7 +37,7 @@ dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              n_jobs=1, alpha=6, n_iter=1000)
 canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
                 memory="/media/data/nilearn_cache", memory_level=5, verbose=2, random_state=0,
-                n_jobs=1, n_init=1, threshold=3.)
+                n_jobs=1, n_init=1, threshold=3., sorted=True)
 
 estimators = [canica, dict_learning]
 

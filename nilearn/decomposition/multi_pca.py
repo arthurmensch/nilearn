@@ -8,11 +8,8 @@ import numpy as np
 from scipy import linalg
 import nibabel
 from sklearn.base import BaseEstimator, TransformerMixin, clone
-
 from sklearn.externals.joblib import Parallel, delayed, Memory
-
 from sklearn.utils.extmath import randomized_svd
-
 from sklearn.utils.validation import check_random_state
 
 from sklearn.linear_model import LinearRegression
