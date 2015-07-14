@@ -4,6 +4,7 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 from nose.tools import assert_true, assert_raises
 import nibabel
+
 from nilearn._utils.testing import assert_less_equal
 from nilearn.decomposition.canica import CanICA
 from nilearn.image import iter_img

@@ -6,7 +6,9 @@ DictLearning
 # License: BSD 3 clause
 
 import numpy as np
+
 from sklearn.externals.joblib import Memory
+
 from sklearn.linear_model import Ridge
 
 from sklearn.decomposition import MiniBatchDictionaryLearning
@@ -98,6 +100,7 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                  target_affine=None, target_shape=None,
                  low_pass=None, high_pass=None, t_r=None,
                  alpha=1,
+                 sorted=False,
                  n_iter=1000,
                  # Common options
                  memory=Memory(cachedir=None), memory_level=0,
@@ -108,6 +111,7 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                         n_jobs=n_jobs, verbose=verbose, do_cca=True,
                         threshold=float(n_components), n_init=1,
                         n_components=n_components, smoothing_fwhm=smoothing_fwhm,
+                        sorted=sorted,
                         target_affine=target_affine, target_shape=target_shape,
                         random_state=random_state, high_pass=high_pass, low_pass=low_pass,
                         t_r=t_r,
@@ -125,7 +129,12 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
                                              n_jobs=1)
 
     def _init_dict(self, imgs, y=None, confounds=None):
+        # Fit CanICA without sorting
+        sorted = self.sorted
+        self.sorted = False
         CanICA.fit(self, imgs, y=y, confounds=confounds)
+        self.sorted = sorted
+
         if isinstance(self.data_flat_, tuple):  # several subjects
             self.data_flat_ = np.concatenate(self.data_flat_, axis=0)
         if self.n_iter == 'auto':
@@ -167,5 +176,8 @@ class DictLearning(CanICA, MiniBatchDictionaryLearning, CacheMixin):
         for component in self.components_:
             if np.sum(component[component > 0]) < - np.sum(component[component <= 0]):
                 component *= -1
+
+        if self.sorted:
+            self._sort_components(imgs, confounds)
 
         return self

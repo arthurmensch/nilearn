@@ -11,7 +11,9 @@ import numpy as np
 from scipy.stats import scoreatpercentile
 import sklearn
 from sklearn.decomposition import fastica
+
 from sklearn.externals.joblib import Memory, delayed, Parallel
+
 from sklearn.utils import check_random_state
 
 from .multi_pca import MultiPCA
