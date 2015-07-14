@@ -7,7 +7,6 @@ test_masking.py and test_signal.py for details.
 
 from nose.tools import assert_raises, assert_equal
 import numpy as np
-
 import nibabel
 
 from nilearn.input_data.nifti_labels_masker import NiftiLabelsMasker

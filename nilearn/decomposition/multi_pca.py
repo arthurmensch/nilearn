@@ -9,7 +9,9 @@ from scipy import linalg
 import nibabel
 from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.externals.joblib import Parallel, delayed, Memory
+
 from sklearn.utils.extmath import randomized_svd
+
 from sklearn.utils.validation import check_random_state
 
 from sklearn.linear_model import LinearRegression
@@ -491,7 +493,7 @@ class MultiPCA(BaseEstimator, TransformerMixin, CacheMixin):
                     residual_variance[i] = lr.fit(self.components_.T[:, i][:, np.newaxis], data.T).residues_.sum()
                 else:
                     # Setting score to 0 is component is empty
-                    residual_variance = full_var
+                    residual_variance[i] = full_var
         res = np.maximum(0., 1. - residual_variance / full_var)
         return res
 

@@ -22,7 +22,6 @@ from .. import masking
 from . import logger
 from .compat import _basestring, _urllib
 
-
 try:
     from nose.tools import assert_raises_regex
 except ImportError:

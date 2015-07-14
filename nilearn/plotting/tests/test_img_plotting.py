@@ -7,15 +7,11 @@ from functools import partial
 
 import numpy as np
 from scipy import sparse
-
 from nose.tools import assert_raises, assert_true, assert_equal
-
 import matplotlib.pyplot as plt
-
 import nibabel
 
 from nilearn.image.resampling import coord_transform
-
 from nilearn.plotting.img_plotting import (MNI152TEMPLATE, plot_anat, plot_img,
                                            plot_roi, plot_stat_map, plot_epi,
                                            plot_glass_brain, plot_connectome,

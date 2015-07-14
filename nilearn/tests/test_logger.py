@@ -4,9 +4,10 @@ This test file is in nilearn/tests because nosetests ignores modules whose
 name starts with an underscore.
 """
 import contextlib
-from nose.tools import assert_equal
 
+from nose.tools import assert_equal
 from sklearn.base import BaseEstimator
+
 from nilearn._utils.logger import log
 
 

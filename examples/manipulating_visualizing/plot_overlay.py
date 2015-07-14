@@ -20,6 +20,7 @@ The tools that we need to leverage are:
 """
 
 import matplotlib.pyplot as plt
+
 from nilearn import datasets, plotting, image
 
 atlas_data = datasets.fetch_msdl_atlas()

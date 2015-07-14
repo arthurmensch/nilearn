@@ -3,9 +3,7 @@
 import tempfile
 
 import numpy as np
-
 from nose.tools import assert_true
-
 import matplotlib.pyplot as plt
 
 from nilearn.plotting.displays import OrthoSlicer, XSlicer, OrthoProjector

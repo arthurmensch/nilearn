@@ -6,6 +6,7 @@
 import inspect
 
 from sklearn.base import BaseEstimator
+
 from .compat import _basestring
 
 

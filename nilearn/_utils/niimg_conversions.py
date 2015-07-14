@@ -4,9 +4,9 @@ Conversion utilities.
 # Author: Gael Varoquaux, Alexandre Abraham, Philippe Gervais
 # License: simplified BSD
 import warnings
+import itertools
 
 import numpy as np
-import itertools
 from sklearn.externals.joblib import Memory
 
 from .cache_mixin import cache

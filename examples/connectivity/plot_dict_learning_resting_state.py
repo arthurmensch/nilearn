@@ -30,7 +30,7 @@ print('First functional nifti image (4D) is at: %s' %
 from nilearn.decomposition.dict_learning import DictLearning
 from nilearn.decomposition.canica import CanICA
 
-n_components = 20
+n_components = 10
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="/media/data/nilearn_cache", memory_level=5, verbose=2, random_state=0,
@@ -61,18 +61,20 @@ for i, estimator in enumerate(estimators):
 import matplotlib
 matplotlib.use('PDF')
 
-from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
-from nilearn.plotting import plot_stat_map, find_xyz_cut_coords
-from nilearn.image import index_img
+from nilearn.plotting import plot_prob_atlas
 
-with PdfPages('output.pdf') as pdf:
-    for i in range(n_components):
-        plt.clf()
-        fig, axes = plt.subplots(nrows=2, figsize=(10, 8))
-        cut_coords = find_xyz_cut_coords(index_img(components_imgs[1], i))
-        for estimator, cur_img, ax in zip(estimators, components_imgs, axes):
-            plot_stat_map(index_img(cur_img, i), title="Component %d" % i, axes=ax,
-                          cut_coords=cut_coords, colorbar=False)
-        pdf.savefig()
-    plt.close()
+fig, axes = plt.subplots(nrows=2, figsize=(10, 8))
+for estimator, cur_img, ax in zip(estimators, components_imgs, axes):
+    plot_prob_atlas(components_imgs, axes=ax)
+
+# with PdfPages('output.pdf') as pdf:
+#     for i in range(n_components):
+#         plt.clf()
+#         fig, axes = plt.subplots(nrows=2, figsize=(10, 8))
+#         cut_coords = find_xyz_cut_coords(index_img(components_imgs[1], i))
+#         for estimator, cur_img, ax in zip(estimators, components_imgs, axes):
+#             plot_stat_map(index_img(cur_img, i), title="Component %d" % i, axes=ax,
+#                           cut_coords=cut_coords, colorbar=False)
+#         pdf.savefig()
+#     plt.close()
