@@ -1,3 +1,7 @@
+from distutils.version import LooseVersion
+
+import sklearn
+
 from sklearn.utils.linear_assignment_ import linear_assignment
 from numpy.testing import assert_array_almost_equal
 import numpy as np
@@ -27,10 +31,17 @@ def test_dict_learning():
 
     K = np.abs(components.dot(maps.T))
 
-    indices = linear_assignment(1-K)
-    K = K[indices[:, 0], :][:, indices[:, 1]]
-    assert_array_almost_equal(np.abs(K), np.eye(4), 1)
-
+    if LooseVersion(sklearn.__version__).version > [0, 12]:
+        indices = linear_assignment(1-K)
+        K = K[indices[:, 0], :][:, indices[:, 1]]
+        assert_array_almost_equal(np.abs(K), np.eye(4), 1)
+    else:
+        a = np.sum(K, axis=1)
+        b = np.sum(K, axis=0)
+        c = np.sum(np.abs(K) > 1e-6)
+        assert_array_almost_equal(a, np.ones(4) * 4.)
+        assert_array_almost_equal(b, np.ones(4) * 4.)
+        assert(c == 4)
 
 def test_component_sign():
     # Regression test
