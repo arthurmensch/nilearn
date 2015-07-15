@@ -4,14 +4,12 @@ PCA dimension reduction on multiple subjects
 import itertools
 
 import numpy as np
-import nibabel
 from scipy import linalg
 from sklearn.externals.joblib import Memory
 from sklearn.utils.extmath import randomized_svd
 from sklearn.utils.validation import check_random_state
 from sklearn.linear_model import LinearRegression
 
-from .._utils.compat import _basestring
 from ..input_data import NiftiMapsMasker
 from ..input_data.base_masker import filter_and_mask
 from .._utils.cache_mixin import CacheMixin, cache
@@ -95,7 +93,7 @@ def session_pca(imgs, mask_img, parameters,
     return U, S
 
 
-class MultiPCA(CacheMixin):
+class MultiPCA(SinglePCA, CacheMixin):
     """Perform Multi Subject Principal Component Analysis.
 
     Perform a PCA on each subject and stack the results. An optional Canonical
@@ -186,27 +184,19 @@ class MultiPCA(CacheMixin):
                  target_shape=None, low_pass=None, high_pass=None,
                  t_r=None, memory=Memory(cachedir=None), memory_level=0,
                  sorted=False,
-                 single_pca=None,
                  n_jobs=1, verbose=0,
                  random_state=None
                  ):
-        self.mask = mask
-        self.memory = memory
-        self.memory_level = memory_level
-        self.n_jobs = n_jobs
-        self.verbose = verbose
-        self.low_pass = low_pass
-        self.high_pass = high_pass
-        self.t_r = t_r
 
-        self.n_components = n_components
-        self.smoothing_fwhm = smoothing_fwhm
-        self.target_affine = target_affine
-        self.target_shape = target_shape
-        self.standardize = standardize
-        self.random_state = random_state
-
-        self.single_pca = single_pca
+        SinglePCA.__init__(self, n_components=n_components,
+                           smoothing_fwhm=smoothing_fwhm,
+                           mask=mask,
+                           standardize=standardize, target_affine=target_affine,
+                           target_shape=target_shape,
+                           low_pass=low_pass, high_pass=high_pass,
+                           t_r=t_r, memory=memory, memory_level=memory_level,
+                           n_jobs=n_jobs, verbose=verbose,
+                           random_state=random_state)
         self.do_cca = do_cca
         self.sorted = sorted
 
@@ -221,41 +211,15 @@ class MultiPCA(CacheMixin):
             the affine is considered the same for all.
         """
         random_state = check_random_state(self.random_state)
-        # Hack to support single-subject data:
-        if isinstance(imgs, (_basestring, nibabel.Nifti1Image)):
-            imgs = [imgs]
-            # This is a very incomplete hack, as it won't work right for
-            # single-subject list of 3D filenames
-        if len(imgs) == 0:
-            # Common error that arises from a null glob. Capture
-            # it early and raise a helpful message
-            raise ValueError('Need one or more Niimg-like objects as input, '
-                             'an empty list was given.')
 
-        if not isinstance(self.single_pca, SinglePCA):
-            self.single_pca_ = SinglePCA(n_components=self.n_components,
-                                          smoothing_fwhm=self.smoothing_fwhm,
-                                          mask=self.mask,
-                                          standardize=self.standardize, target_affine=self.target_affine,
-                                          target_shape=self.target_shape,
-                                          low_pass=self.low_pass, high_pass=self.high_pass,
-                                          t_r=self.t_r, memory=self.memory, memory_level=self.memory_level,
-                                          n_jobs=self.n_jobs, verbose=self.verbose,
-                                          random_state=self.random_state)
-        else:
-            # trty:
-            self.single_pca_ = self.single_pca
-                
-        if not hasattr(self.single_pca_, 'subject_pcas_'):
-            self.single_pca_.fit(imgs, confounds=confounds)
+        SinglePCA.fit(self, imgs, confounds=confounds)
 
-        subject_pcas = self.single_pca_.subject_pcas_
-        subject_svd_vals = self.single_pca_.subject_svd_vals_
-        self.masker_ = self.single_pca_.masker_
+        subject_pcas = self.components_list_
+        subject_svd_vals = self.variance_list_
 
         if self.verbose:
             print("[MultiPCA] Learning group level PCA")
-        if len(imgs) > 1:
+        if len(subject_pcas) > 1:
             if not self.do_cca:
                 for subject_pca, subject_svd_val in \
                         zip(subject_pcas, subject_svd_vals):
@@ -280,7 +244,8 @@ class MultiPCA(CacheMixin):
             variance = subject_svd_vals[0]
 
         self.components_ = data
-        self.explained_variance_ratio_ = variance ** 2 / np.sum(variance ** 2)
+        self.variance_ = variance
+        self.explained_variance_ratio_ = variance ** 2 / np.sum(self.variance_ ** 2)
 
         if self.sorted:
             self._sort_components(imgs, confounds)
@@ -370,7 +335,7 @@ class MultiPCA(CacheMixin):
                 filter_and_mask,
                 func_memory_level=2,
                 ignore=['verbose', 'copy'])(
-                    img, self.single_pca_.mask_img_, self.single_pca_._get_filter_and_mask_parameters(),
+                    img, self.mask_img_, self._get_filter_and_mask_parameters(),
                     memory_level=self.memory_level,
                     memory=self.memory,
                     verbose=self.verbose,

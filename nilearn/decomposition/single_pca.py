@@ -5,7 +5,7 @@ import warnings
 
 from scipy import linalg
 import nibabel
-from sklearn.base import BaseEstimator, TransformerMixin, clone
+from sklearn.base import BaseEstimator, clone
 from sklearn.externals.joblib import Parallel, delayed, Memory
 from sklearn.utils.extmath import randomized_svd
 from sklearn.utils.validation import check_random_state
@@ -93,7 +93,7 @@ def session_pca(imgs, mask_img, parameters,
     return U, S
 
 
-class SinglePCA(BaseEstimator, TransformerMixin, CacheMixin):
+class SinglePCA(BaseEstimator, CacheMixin):
 
     def __init__(self, n_components=20, smoothing_fwhm=None, mask=None,
                  standardize=True, target_affine=None,
@@ -212,7 +212,7 @@ class SinglePCA(BaseEstimator, TransformerMixin, CacheMixin):
                 random_state=random_state
             )
             for img, confound in zip(imgs, confounds))
-        self.subject_pcas_, self.subject_svd_vals_ = zip(*subject_pcas)
+        self.components_list_, self.variance_list_ = zip(*subject_pcas)
 
     def _get_filter_and_mask_parameters(self):
         parameters = get_params(MultiNiftiMasker, self)
