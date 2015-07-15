@@ -10,6 +10,7 @@ from sklearn.externals.joblib import Parallel, delayed, Memory
 from sklearn.utils.extmath import randomized_svd
 from sklearn.utils.validation import check_random_state
 
+from .._utils.class_inspect import get_params
 from ..input_data import NiftiMasker, MultiNiftiMasker
 from ..input_data.base_masker import filter_and_mask
 from .._utils.cache_mixin import CacheMixin, cache
@@ -212,3 +213,14 @@ class SinglePCA(BaseEstimator, TransformerMixin, CacheMixin):
             )
             for img, confound in zip(imgs, confounds))
         self.subject_pcas_, self.subject_svd_vals_ = zip(*subject_pcas)
+
+    def _get_filter_and_mask_parameters(self):
+        parameters = get_params(MultiNiftiMasker, self)
+        # Remove non specific and redudent parameters
+        for param_name in ['memory', 'memory_level', 'confounds',
+                           'verbose', 'n_jobs']:
+            parameters.pop(param_name, None)
+
+        parameters['detrend'] = True
+        return parameters
+

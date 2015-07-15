@@ -4,13 +4,14 @@ PCA dimension reduction on multiple subjects
 import itertools
 
 import numpy as np
+import nibabel
 from scipy import linalg
-from sklearn.base import clone
 from sklearn.externals.joblib import Memory
 from sklearn.utils.extmath import randomized_svd
-
+from sklearn.utils.validation import check_random_state
 from sklearn.linear_model import LinearRegression
 
+from .._utils.compat import _basestring
 from ..input_data import NiftiMapsMasker
 from ..input_data.base_masker import filter_and_mask
 from .._utils.cache_mixin import CacheMixin, cache
@@ -219,8 +220,20 @@ class MultiPCA(CacheMixin):
             Data on which the PCA must be calculated. If this is a list,
             the affine is considered the same for all.
         """
+        random_state = check_random_state(self.random_state)
+        # Hack to support single-subject data:
+        if isinstance(imgs, (_basestring, nibabel.Nifti1Image)):
+            imgs = [imgs]
+            # This is a very incomplete hack, as it won't work right for
+            # single-subject list of 3D filenames
+        if len(imgs) == 0:
+            # Common error that arises from a null glob. Capture
+            # it early and raise a helpful message
+            raise ValueError('Need one or more Niimg-like objects as input, '
+                             'an empty list was given.')
+
         if not isinstance(self.single_pca, SinglePCA):
-            self.subject_pca_ = SinglePCA(n_components=self.n_components,
+            self.single_pca_ = SinglePCA(n_components=self.n_components,
                                           smoothing_fwhm=self.smoothing_fwhm,
                                           mask=self.mask,
                                           standardize=self.standardize, target_affine=self.target_affine,
@@ -230,22 +243,15 @@ class MultiPCA(CacheMixin):
                                           n_jobs=self.n_jobs, verbose=self.verbose,
                                           random_state=self.random_state)
         else:
-            try:
-                self.subject_pca_ = clone(self.subject_pca)
-            except TypeError as e:
-                # Workaround for a joblib bug: in joblib 0.6, a Memory object
-                # with cachedir = None cannot be cloned.
-                subject_pca_memory = self.subject_pca.memory
-                if subject_pca_memory.cachedir is None:
-                    self.subject_pca.memory = None
-                    self.subject_pca_ = clone(self.subject_pca)
-                    self.subject_pca.memory = subject_pca_memory
-                    self.subject_pca_.memory = Memory(cachedir=None)
-                else:
-                    # The error was raised for another reason
-                    raise e
-        subject_pcas = self.subject_pca_.subject_pcas__
-        subject_svd_vals = self.subject_pca_.subject_svd_vals_
+            # trty:
+            self.single_pca_ = self.single_pca
+                
+        if not hasattr(self.single_pca_, 'subject_pcas_'):
+            self.single_pca_.fit(imgs, confounds=confounds)
+
+        subject_pcas = self.single_pca_.subject_pcas_
+        subject_svd_vals = self.single_pca_.subject_svd_vals_
+        self.masker_ = self.single_pca_.masker_
 
         if self.verbose:
             print("[MultiPCA] Learning group level PCA")
@@ -364,7 +370,7 @@ class MultiPCA(CacheMixin):
                 filter_and_mask,
                 func_memory_level=2,
                 ignore=['verbose', 'copy'])(
-                    img, self.mask_img_, self._get_filter_and_mask_parameters(),
+                    img, self.single_pca_.mask_img_, self.single_pca_._get_filter_and_mask_parameters(),
                     memory_level=self.memory_level,
                     memory=self.memory,
                     verbose=self.verbose,
