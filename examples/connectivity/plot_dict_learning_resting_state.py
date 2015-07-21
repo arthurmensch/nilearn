@@ -23,7 +23,7 @@ from sklearn.externals.joblib import Memory
 from nilearn import datasets
 # For linear assignment (should be moved in non user space...)
 
-adhd_dataset = datasets.fetch_adhd(n_subjects=20)
+adhd_dataset = datasets.fetch_adhd(n_subjects=1)
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
@@ -38,9 +38,11 @@ n_components = 10
 dict_learning = DictLearning(n_components=n_components, alpha=6,
                              smoothing_fwhm=6.,
                              memory="nilearn_cache",
+                             memory_level=2,
                              verbose=10, random_state=0)
 canica = CanICA(n_components=n_components, n_init=1, smoothing_fwhm=6.,
                 memory="nilearn_cache",
+                memory_level=2,
                 verbose=10, random_state=0)
 
 estimators = [canica, dict_learning]

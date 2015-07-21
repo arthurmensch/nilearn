@@ -273,7 +273,8 @@ class PCAMultiNiftiMasker(MultiNiftiMasker, CacheMixin):
         for name in ('mask_img', 'mask_args'):
             params.pop(name, None)
         data, _ = self._cache(session_pca, func_memory_level=2,
-                              ignore=['verbose', 'memory', 'copy'])(
+                              ignore=['verbose', 'memory', 'copy',
+                                      'random_state'])(
             imgs, self.mask_img_,
             params,
             memory_level=self.memory_level,
@@ -328,7 +329,8 @@ class PCAMultiNiftiMasker(MultiNiftiMasker, CacheMixin):
                                        verbose=self.verbose)
 
         func = self._cache(session_pca, func_memory_level=2,
-                           ignore=['verbose', 'memory', 'copy'])
+                           ignore=['verbose', 'memory', 'copy',
+                                   'random_state'])
         if confounds is None:
             confounds = itertools.repeat(None, len(imgs_list))
         data = Parallel(n_jobs=n_jobs)(delayed(func)(

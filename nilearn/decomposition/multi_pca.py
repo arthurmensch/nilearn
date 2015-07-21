@@ -11,6 +11,7 @@ from .._utils import fast_same_size_concatenation
 from .._utils.cache_mixin import CacheMixin
 from ._base import DecompositionEstimator, make_pca_masker
 
+
 class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
     """Perform Multi Subject Principal Component Analysis.
     This is a good initialization method for ICA.
@@ -24,6 +25,13 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
     n_components: int
         Number of components to extract
 
+    do_cca: boolean, optional
+        Indicate if a Canonical Correlation Analysis must be run after the
+        PCA.
+
+    random_state: int or RandomState
+        Pseudo number generator state used for random sampling.
+
     smoothing_fwhm: float, optional
         If smoothing_fwhm is not None, it gives the size in millimeters of the
         spatial smoothing to apply to the signal.
@@ -34,10 +42,6 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         then its mask will be used. If no mask is given,
         it will be computed automatically by a MultiNiftiMasker with default
         parameters.
-
-    do_cca: boolean, optional
-        Indicate if a Canonical Correlation Analysis must be run after the
-        PCA.
 
     standardize : boolean, optional
         If standardize is True, the time-series are centered and normed:
@@ -77,7 +81,7 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         'all CPUs', -2 'all CPUs but one', and so on.
 
     verbose: integer, optional
-        Indicate the level of verbosity. By default, nothing is printed
+        Indicate the level of verbosity. By default, nothing is printed.
 
     Attributes
     ----------
@@ -158,7 +162,8 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         data, variance, _ = self._cache(
             randomized_svd, func_memory_level=2)(
-                data.T, n_components=self.n_components)
+                data.T, n_components=self.n_components, random_state=
+            self.random_state)
 
         self.components_ = data.T
         self.variance_ = variance
