@@ -6,6 +6,8 @@ component sparsity
 # Author: Arthur Mensch
 # License: BSD 3 clause
 
+from __future__ import division
+
 import numpy as np
 from sklearn.externals.joblib import Memory
 from sklearn.linear_model import Ridge
@@ -18,7 +20,6 @@ from .._utils import as_ndarray, fast_same_size_concatenation
 from .canica import CanICA
 from .._utils.cache_mixin import CacheMixin
 from ._base import DecompositionEstimator, make_pca_masker
-
 
 class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
     """Perform a map learning algorithm based on component sparsity,
@@ -190,8 +191,10 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         if self.n_iter == 'auto':
             # We do a third of an epoch on voxels
             # self.n_iter = ceil(self.data_fat.shape[1] / self.batch_size)
-            self.n_iter = (data.shape[1] - 1) / 10 + 1
-            self.n_iter /= 3
+            n_iter = (data.shape[1] - 1) // 10 + 1
+            n_iter //= 1
+        else:
+            n_iter = self.n_iter
 
         if self.verbose:
             print('[DictLearning] Learning dictionary')
@@ -200,7 +203,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             data.T,
             self.n_components,
             alpha=self.alpha,
-            n_iter=self.n_iter,
+            n_iter=n_iter,
             batch_size=10,
             method='lars',
             return_code=True,

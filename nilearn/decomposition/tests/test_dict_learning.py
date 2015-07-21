@@ -16,7 +16,7 @@ def test_dict_learning():
 
     dict_learning = DictLearning(n_components=4, random_state=rng,
                                  mask=mask_img,
-                                 smoothing_fwhm=0., n_iter=200, alpha=2)
+                                 smoothing_fwhm=0., n_iter=200, alpha=2.)
     dict_learning.fit(data)
     maps = dict_learning.masker_.inverse_transform(dict_learning.components_)\
         .get_data()
@@ -44,6 +44,12 @@ def test_dict_learning():
         assert_array_equal(a, np.ones(4))
         assert_array_equal(b, np.ones(4))
         assert_true(c == 4)
+
+    # Smoke test n_iter="auto"
+    dict_learning = DictLearning(n_components=4, random_state=rng,
+                                 mask=mask_img,
+                                 smoothing_fwhm=0., n_iter="auto", alpha=2)
+    dict_learning.fit(data)
 
 
 def test_component_sign():
