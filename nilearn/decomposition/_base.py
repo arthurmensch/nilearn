@@ -271,7 +271,7 @@ class PCAMultiNiftiMasker(MultiNiftiMasker, CacheMixin):
         params = get_params(self.__class__, self)
         # Remove the mask-computing params: they are not useful and will
         # just invalid the cache for no good reason
-        for name in ('mask_img', 'mask_args'):
+        for name in ('mask_img', 'mask_args', 'mask_strategy'):
             params.pop(name, None)
 
         data, _ = self._cache(session_pca, func_memory_level=2,
@@ -320,7 +320,7 @@ class PCAMultiNiftiMasker(MultiNiftiMasker, CacheMixin):
         # Remove the mask-computing params: they are not useful and will
 
         # just invalid the cache for no good reason
-        for name in ('mask_img', 'mask_args'):
+        for name in ('mask_img', 'mask_args', 'mask_strategy'):
             params.pop(name, None)
 
         target_fov = None
