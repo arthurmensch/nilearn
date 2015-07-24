@@ -54,9 +54,9 @@ def check_embedded_nifti_masker(estimator, multi_subject=True):
     conflict_string = ""
     for param_key in estimator_params.keys():
         if new_masker_params[param_key] != estimator_params[param_key]:
-            conflict_string += "Parameter {!r} :\n" \
-                               "    Masker parameter {!r}" \
-                               " - overriding estimator parameter {!r}\n" \
+            conflict_string += "Parameter {0:!r} :\n" \
+                               "    Masker parameter {1:!r}" \
+                               " - overriding estimator parameter {2:!r}\n" \
                 .format(param_key, new_masker_params[param_key],
                         estimator_params[param_key])
 
