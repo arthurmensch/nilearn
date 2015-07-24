@@ -16,7 +16,7 @@ def test_dict_learning():
 
     dict_learning = DictLearning(n_components=4, random_state=rng,
                                  mask=mask_img,
-                                 smoothing_fwhm=0., n_iter=200, alpha=2.)
+                                 smoothing_fwhm=0., n_iter=200, alpha=2)
     dict_learning.fit(data)
     maps = dict_learning.masker_.inverse_transform(dict_learning.components_)\
         .get_data()

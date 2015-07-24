@@ -125,12 +125,13 @@ def session_pca(imgs, mask_img, parameters,
         U, S, _ = cache(randomized_svd, memory, memory_level=memory_level,
                         func_memory_level=3)(
             data.T, n_components, random_state=random_state)
+        U = U.T
     else:
         U, S, _ = cache(linalg.svd, memory, memory_level=memory_level,
                         func_memory_level=3)(
             data.T, full_matrices=False)
-    U = U.T[:n_components].copy()
-    S = S[:n_components]
+        U = U.T[:n_components].copy()
+        S = S[:n_components]
     return U * S[:, np.newaxis], affine
 
 
@@ -272,6 +273,7 @@ class PCAMultiNiftiMasker(MultiNiftiMasker, CacheMixin):
         # just invalid the cache for no good reason
         for name in ('mask_img', 'mask_args'):
             params.pop(name, None)
+
         data, _ = self._cache(session_pca, func_memory_level=2,
                               ignore=['verbose', 'memory', 'copy',
                                       'random_state'])(
@@ -314,7 +316,12 @@ class PCAMultiNiftiMasker(MultiNiftiMasker, CacheMixin):
             raise ValueError('It seems that %s has not been fitted. '
                              'You must call fit() before calling transform().'
                              % self.__class__.__name__)
-        params = get_params(self.__class__, self)
+        params = get_params(MultiNiftiMasker, self)
+        # Remove the mask-computing params: they are not useful and will
+
+        # just invalid the cache for no good reason
+        for name in ('mask_img', 'mask_args'):
+            params.pop(name, None)
 
         target_fov = None
         if self.target_affine is None:
