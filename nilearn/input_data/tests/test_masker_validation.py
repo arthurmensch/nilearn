@@ -1,7 +1,10 @@
+from nose.tools import assert_true
+
 import nibabel
 import numpy as np
 
-from nose.tools import assert_true
+from nilearn._utils.testing import assert_warns
+
 from sklearn.base import BaseEstimator
 from sklearn.externals.joblib import Memory
 
@@ -43,9 +46,11 @@ def test_check_embedded_nifti_masker():
     masker = check_embedded_nifti_masker(owner)
     assert_true(type(masker) == MultiNiftiMasker)
 
-    for mask, multi in ((MultiNiftiMasker(), True), (NiftiMasker(), False)):
-        owner = OwningClass(mask=masker)
-        masker = check_embedded_nifti_masker(owner, multi=multi)
+    for mask, multi_subject in\
+            ((MultiNiftiMasker(), True), (NiftiMasker(), False)):
+        owner = OwningClass(mask=mask)
+        masker = check_embedded_nifti_masker(owner,
+                                             multi_subject=multi_subject)
         assert_true(type(masker) == mask.__class__)
         for param_key in masker.get_params():
             if param_key not in ['memory', 'memory_level', 'n_jobs',
@@ -56,6 +61,7 @@ def test_check_embedded_nifti_masker():
                 assert_true(getattr(masker, param_key) ==
                             getattr(owner, param_key))
 
+    # Check use of mask as mask_img
     shape = (6, 8, 10, 5)
     affine = np.eye(4)
     mask = nibabel.Nifti1Image(np.ones(shape[:3], dtype=np.int8), affine)
@@ -63,6 +69,7 @@ def test_check_embedded_nifti_masker():
     masker = check_embedded_nifti_masker(owner)
     assert_true(masker.mask_img is mask)
 
+    # Check attribute forwarding
     data = np.zeros((9, 9, 9))
     data[2:-2, 2:-2, 2:-2] = 10
     imgs = nibabel.Nifti1Image(data, np.eye(4))
@@ -71,3 +78,8 @@ def test_check_embedded_nifti_masker():
     owner = OwningClass(mask=mask)
     masker = check_embedded_nifti_masker(owner)
     assert_true(masker.mask_img == mask.mask_img_)
+
+    # Check conflict warning
+    mask = NiftiMasker(mask_strategy='epi')
+    owner = OwningClass(mask=mask)
+    assert_warns(UserWarning, check_embedded_nifti_masker, owner)
