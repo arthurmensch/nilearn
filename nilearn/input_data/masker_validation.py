@@ -4,7 +4,7 @@ from .._utils.class_inspect import get_params
 from . import MultiNiftiMasker, NiftiMasker
 
 
-def check_embedded_nifti_masker(estimator, multi=True):
+def check_embedded_nifti_masker(estimator, multi_subject=True):
     """Base function for using a masker within a BaseEstimator class :
     This creates a masker from instance parameters :
     - If instance contains a mask image in mask parameter,
@@ -29,39 +29,47 @@ def check_embedded_nifti_masker(estimator, multi=True):
         masker: MultiNiftiMasker, NiftiMasker
             New masker
     """
-    masker_type = MultiNiftiMasker if multi else NiftiMasker
-    parameters = get_params(masker_type, estimator)
+    masker_type = MultiNiftiMasker if multi_subject else NiftiMasker
+    estimator_params = get_params(masker_type, estimator)
     mask = getattr(estimator, 'mask', None)
 
     if isinstance(mask, (NiftiMasker, MultiNiftiMasker)):
-        # Creating (Multi)NiftiMasker from mask
-        params = get_params(masker_type, mask)
-        if multi and hasattr(estimator, 'n_jobs'):
-            params['n_jobs'] = estimator.n_jobs
-        masker = masker_type(memory=estimator.memory,
-                             memory_level=estimator.memory_level,
-                             verbose=estimator.verbose,
-                             **params
-                             )
-        # Raising warning if user has provided a masker and diverging
-        # masker arguments
-        for param_key in masker.get_params():
-            if param_key in parameters and getattr(masker, param_key)\
-                    != parameters[param_key]:
-                warnings.warn("Provided mask overrides"
-                              " default/provided parameter %s" % param_key)
-        # Forwarding potential attribute
-        if hasattr(mask, 'mask_img_'):
-            # Allow free fit of returned mask
-            masker.mask_img = mask.mask_img_
+        # Creating (Multi)NiftiMasker from provided masker
+        masker_params = get_params(masker_type, mask)
+        new_masker_params = masker_params
     else:
         # Creating (Multi)NiftiMasker
         # with parameters extracted from estimator
-        if multi and hasattr(estimator, 'n_jobs'):
-            parameters['n_jobs'] = estimator.n_jobs
-        masker = masker_type(memory=estimator.memory,
-                             memory_level=estimator.memory_level,
-                             verbose=estimator.verbose,
-                             mask_img=mask, **parameters)
+        new_masker_params = estimator_params
+        new_masker_params['mask_img'] = mask
+    # Forwarding system parameters of instance to new masker in all case
+    if multi_subject and hasattr(estimator, 'n_jobs'):
+        # For MultiNiftiMasker only
+        new_masker_params['n_jobs'] = estimator.n_jobs
+    new_masker_params['memory'] = estimator.memory
+    new_masker_params['memory_level'] = estimator.memory_level
+    new_masker_params['verbose'] = estimator.verbose
+
+    # Raising warning if masker override parameters
+    conflict_string = ""
+    for param_key in estimator_params.keys():
+        if new_masker_params[param_key] != estimator_params[param_key]:
+            conflict_string += "Parameter `{0:s}` :\n" \
+                               "    Masker parameter `{1:s}`" \
+                               " - overriding estimator parameter `{2:s}`" \
+                .format(param_key, new_masker_params[param_key],
+                        estimator_params[param_key])
+
+    if conflict_string != "":
+        warn_str = "Overriding provided-default estimator parameters with"\
+                   " provided masker parameters :\n"\
+                   + conflict_string
+        warnings.warn(warn_str)
+    masker = masker_type(**new_masker_params)
+
+    # Forwarding potential attribute of provided masker
+    if hasattr(mask, 'mask_img_'):
+        # Allow free fit of returned mask
+        masker.mask_img = mask.mask_img_
 
     return masker
