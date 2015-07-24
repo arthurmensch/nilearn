@@ -17,8 +17,6 @@ for extracting spatial maps.
 Pre-prints for paper is available on hal
 https://hal.inria.fr/inria-00588898/en/
 """
-from sklearn.externals.joblib import Memory
-
 ### Load ADHD rest dataset ####################################################
 from nilearn import datasets
 # For linear assignment (should be moved in non user space...)
@@ -64,8 +62,6 @@ for estimator in estimators:
 import matplotlib.pyplot as plt
 from nilearn.plotting import plot_prob_atlas, find_xyz_cut_coords
 from nilearn.image import index_img
-
-mem = Memory(cachedir='~/nilearn_cache')
 
 print('[Example] Displaying')
 
