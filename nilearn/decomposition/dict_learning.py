@@ -12,7 +12,7 @@ import numpy as np
 from sklearn.externals.joblib import Memory
 from sklearn.linear_model import Ridge
 
-from sklearn.decomposition import dict_learning_online
+from sklearn.decomposition import dict_learning_online, sparse_encode
 
 from sklearn.base import TransformerMixin
 
@@ -193,26 +193,33 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         if self.verbose:
             print('[DictLearning] Learning dictionary')
-        self.components_, _ = self._cache(dict_learning_online,
-                                          func_memory_level=2)(
+        time_series, self.debug_info_ = self._cache(dict_learning_online,
+                                                     func_memory_level=2)(
             data.T,
             self.n_components,
             alpha=self.alpha,
             n_iter=n_iter,
             batch_size=10,
-            method='lars',
-            return_code=True,
+            method='cd',
+            return_code=False,
             dict_init=self.dict_init_,
             verbose=max(0, self.verbose - 1),
             random_state=self.random_state,
             shuffle=True,
+            return_debug_info=True,
             n_jobs=1)
-        self.components_ = self.components_.T
         if self.verbose:
             print('')
             print('[DictLearning] Learning code')
 
-        self.components_ = as_ndarray(self.components_)
+        print(data.shape)
+        print(time_series.shape)
+        self.components_ = self._cache(sparse_encode, func_memory_level=2,
+                                       ignore=['n_jobs'])(data.T, time_series,
+                                         algorithm='lasso_cd',
+                                         alpha=self.alpha,
+                                         n_jobs=self.n_jobs)
+        self.components_ = self.components_.T
         # flip signs in each composant positive part is l1 larger
         #  than negative part
         for component in self.components_:

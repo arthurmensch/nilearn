@@ -273,7 +273,6 @@ class PCAMultiNiftiMasker(MultiNiftiMasker, CacheMixin):
         # just invalid the cache for no good reason
         for name in ('mask_img', 'mask_args', 'mask_strategy'):
             params.pop(name, None)
-
         data, _ = self._cache(session_pca, func_memory_level=2,
                               ignore=['verbose', 'memory', 'copy',
                                       'random_state'])(
