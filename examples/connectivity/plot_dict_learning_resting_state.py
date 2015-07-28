@@ -37,7 +37,7 @@ dict_learning = DictLearning(n_components=n_components, alpha=6.,
                              smoothing_fwhm=6.,
                              memory="nilearn_cache",
                              memory_level=2,
-                             n_jobs=2,
+                             n_jobs=4,
                              verbose=10, random_state=0)
 canica = CanICA(n_components=n_components, n_init=1, smoothing_fwhm=6.,
                 memory="nilearn_cache",
@@ -71,6 +71,7 @@ cut_coords = find_xyz_cut_coords(index_img(components_imgs[1], 6))
 for estimator, cur_img, ax in zip(estimators, components_imgs, axes):
     plot_prob_atlas(cur_img, title="%s" % estimator.__class__.__name__,
                     axes=ax,
-                    cut_coords=cut_coords, colorbar=False)
+                    cut_coords=cut_coords, colorbar=False,
+                    view_type='continuous')
 
 plt.show()

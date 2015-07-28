@@ -131,28 +131,26 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         if self.dict_init is not None:
             self.dict_init_ = self.dict_init
-            return
         else:
-            self.dict_init_ = self.dict_init
-            return
-        # else:
-        #     canica = CanICA(n_components=self.n_components,
-        #                     # CanICA specific parameters
-        #                     do_cca=True, threshold=float(self.n_components),
-        #                     n_init=1, mask=self.masker_,
-        #                     random_state=self.random_state,
-        #                     memory=self.memory,
-        #                     memory_level=self.memory_level,
-        #                     n_jobs=self.n_jobs,
-        #                     verbose=self.verbose
-        #                     )
-        #     canica.fit(imgs, confounds=confounds)
-        #
-        #     ridge = Ridge(alpha=self.alpha, fit_intercept=None)
-        #     ridge.fit(canica.components_.T, data.T)
-        #     self.dict_init_ = ridge.coef_.T
-        #     S = np.sqrt(np.sum(self.dict_init_ ** 2, axis=0))
-        #     self.dict_init_ /= S[np.newaxis, :]
+            # self.dict_init_ = self.dict_init
+            # return
+            canica = CanICA(n_components=self.n_components,
+                            # CanICA specific parameters
+                            do_cca=True, threshold=float(self.n_components),
+                            n_init=1, mask=self.masker_,
+                            random_state=self.random_state,
+                            memory=self.memory,
+                            memory_level=self.memory_level,
+                            n_jobs=self.n_jobs,
+                            verbose=self.verbose
+                            )
+            canica.fit(imgs, confounds=confounds)
+
+            ridge = Ridge(alpha=1e-10, fit_intercept=None)
+            ridge.fit(canica.components_.T, data.T)
+            self.dict_init_ = ridge.coef_.T
+            S = np.sqrt(np.sum(self.dict_init_ ** 2, axis=0))
+            self.dict_init_ /= S[np.newaxis, :]
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
@@ -169,22 +167,25 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             related documentation for details
         """
         # Base logic for decomposition estimators
-        DecompositionEstimator.fit(self, imgs)
-
-        if self.verbose:
-            print('[DictLearning] Loading data')
-        data = make_pca_masker(self.masker_, n_components=self.n_components,
-                               random_state=self.random_state)\
-            .transform(imgs, confounds=confounds)
-        if isinstance(data, list) or isinstance(data, tuple):
-            try:
-                data = fast_same_size_concatenation(data, self.n_components)
-            except ValueError:
-                raise ValueError('One of the subjects has less samples than'
-                                 'desired number of components %i.' %
-                                 self.n_components)
-        if self.verbose:
-            print('[DictLearning] Initializating dictionary')
+        if not hasattr(imgs, 'shape'):
+            DecompositionEstimator.fit(self, imgs)
+            if self.verbose:
+                print('[DictLearning] Loading data')
+            data = make_pca_masker(self.masker_, n_components=self.n_components,
+                                   random_state=self.random_state)\
+                .transform(imgs, confounds=confounds)
+            if isinstance(data, list) or isinstance(data, tuple):
+                try:
+                    data = fast_same_size_concatenation(data, self.n_components)
+                except ValueError:
+                    raise ValueError('One of the subjects has less samples than'
+                                     'desired number of components %i.' %
+                                     self.n_components)
+            if self.verbose:
+                print('[DictLearning] Initializating dictionary')
+        else:
+            DecompositionEstimator.fit(self)
+            data = imgs
         self._init_dict(imgs, data)
 
         batch_size = 100
