@@ -194,7 +194,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         if self.verbose:
             print('[DictLearning] Learning dictionary')
         dictionary = self._cache(dict_learning_online,
-                                          func_memory_level=2)(
+                                 func_memory_level=2)(
             data.T,
             self.n_components,
             alpha=self.alpha,
@@ -209,7 +209,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             n_jobs=1)
         self.components_ = self._cache(sparse_encode,
                                        func_memory_level=2,
-                                       ignore=['verbose', 'n_jobs'])\
+                                       ignore=['n_jobs'])\
             (data.T, dictionary, algorithm='lasso_lars', n_jobs=self.n_jobs).T
         self.components_ = as_ndarray(self.components_)
 
