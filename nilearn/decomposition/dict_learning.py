@@ -131,24 +131,28 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         if self.dict_init is not None:
             self.dict_init_ = self.dict_init
+            return
         else:
-            canica = CanICA(n_components=self.n_components,
-                            # CanICA specific parameters
-                            do_cca=True, threshold=float(self.n_components),
-                            n_init=1, mask=self.masker_,
-                            random_state=self.random_state,
-                            memory=self.memory,
-                            memory_level=self.memory_level,
-                            n_jobs=self.n_jobs,
-                            verbose=self.verbose
-                            )
-            canica.fit(imgs, confounds=confounds)
-
-            ridge = Ridge(alpha=self.alpha, fit_intercept=None)
-            ridge.fit(canica.components_.T, data.T)
-            self.dict_init_ = ridge.coef_.T
-            S = np.sqrt(np.sum(self.dict_init_ ** 2, axis=0))
-            self.dict_init_ /= S[np.newaxis, :]
+            self.dict_init_ = self.dict_init
+            return
+        # else:
+        #     canica = CanICA(n_components=self.n_components,
+        #                     # CanICA specific parameters
+        #                     do_cca=True, threshold=float(self.n_components),
+        #                     n_init=1, mask=self.masker_,
+        #                     random_state=self.random_state,
+        #                     memory=self.memory,
+        #                     memory_level=self.memory_level,
+        #                     n_jobs=self.n_jobs,
+        #                     verbose=self.verbose
+        #                     )
+        #     canica.fit(imgs, confounds=confounds)
+        #
+        #     ridge = Ridge(alpha=self.alpha, fit_intercept=None)
+        #     ridge.fit(canica.components_.T, data.T)
+        #     self.dict_init_ = ridge.coef_.T
+        #     S = np.sqrt(np.sum(self.dict_init_ ** 2, axis=0))
+        #     self.dict_init_ /= S[np.newaxis, :]
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
@@ -183,10 +187,11 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             print('[DictLearning] Initializating dictionary')
         self._init_dict(imgs, data)
 
+        batch_size = 100
         if self.n_iter == 'auto':
             # We do a third of an epoch on voxels
             # self.n_iter = ceil(self.data_fat.shape[1] / self.batch_size)
-            n_iter = (data.shape[1] - 1) // 10 + 1
+            n_iter = (data.shape[1] - 1) // batch_size + 1
             n_iter //= 1
         else:
             n_iter = self.n_iter
@@ -199,14 +204,14 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             self.n_components,
             alpha=self.alpha,
             n_iter=n_iter,
-            batch_size=10,
-            method='lars',
+            batch_size=batch_size,
+            method='cd',
             return_code=True,
             dict_init=self.dict_init_,
             verbose=max(0, self.verbose - 1),
             random_state=self.random_state,
             shuffle=True,
-            n_jobs=1)
+            n_jobs=self.n_jobs)
         self.components_ = self.components_.T
         if self.verbose:
             print('')
