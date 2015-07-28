@@ -210,7 +210,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.components_ = self._cache(sparse_encode,
                                        func_memory_level=2,
                                        ignore=['n_jobs'])\
-            (data.T, dictionary, algorithm='lasso_lars', n_jobs=self.n_jobs).T
+            (data.T, dictionary, algorithm='lasso_cd', n_jobs=self.n_jobs).T
         self.components_ = as_ndarray(self.components_)
 
         # flip signs in each composant positive part is l1 larger

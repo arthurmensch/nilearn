@@ -162,8 +162,8 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         data, variance, _ = self._cache(
             randomized_svd, func_memory_level=2)(
-                data.T, n_components=self.n_components, random_state=
-            self.random_state)
+                data.T, n_components=self.n_components,
+            random_state=self.random_state)
 
         self.components_ = data.T
         self.variance_ = variance

@@ -154,8 +154,9 @@ class CanICA(MultiPCA, CacheMixin):
 
         seeds = random_state.randint(np.iinfo(np.int32).max, size=self.n_init)
         results = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
-                delayed(fastica)(self.components_.T,
-                                 whiten=True, fun='cube', random_state=seed)
+                delayed(self._cache(fastica, func_memory_level=2))(
+                    self.components_.T,
+                    whiten=True, fun='cube', random_state=seed)
                 for seed in seeds)
 
         ica_maps_gen_ = (result[2].T for result in results)
