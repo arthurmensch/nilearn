@@ -21,7 +21,7 @@ https://hal.inria.fr/inria-00588898/en/
 from nilearn import datasets
 # For linear assignment (should be moved in non user space...)
 
-adhd_dataset = datasets.fetch_adhd(n_subjects=1)
+adhd_dataset = datasets.fetch_adhd(n_subjects=10)
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
