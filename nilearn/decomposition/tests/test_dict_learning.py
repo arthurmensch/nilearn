@@ -20,7 +20,7 @@ def test_dict_learning():
                                  mask=mask_img,
                                  dict_init=noisy_components_,
                                  verbose=10,
-                                 smoothing_fwhm=0., n_iter=10, l1_gamma=0.5)
+                                 smoothing_fwhm=0., epochs=3, l1_gamma=0.5)
     dict_learning.fit(data)
     maps = dict_learning.masker_.inverse_transform(dict_learning.components_)\
         .get_data()
@@ -49,10 +49,10 @@ def test_dict_learning():
         assert_array_equal(b, np.ones(4))
         assert_true(c == 4)
 
-    # Smoke test n_iter="auto"
+    # Smoke test epochs > 1
     dict_learning = DictLearning(n_components=4, random_state=rng,
                                  mask=mask_img,
-                                 smoothing_fwhm=0., n_iter="auto", alpha=2)
+                                 smoothing_fwhm=0., epochs=2, alpha=2)
     dict_learning.fit(data)
 
 
@@ -67,10 +67,9 @@ def test_component_sign():
     for mp in components:
         assert_less_equal(-mp.min(), mp.max())
 
-    # run CanICA many times (this is known to produce different results)
     dict_learning = DictLearning(n_components=4, random_state=rng,
                                  mask=mask_img,
-                                 smoothing_fwhm=0., n_iter=100, alpha=1)
+                                 smoothing_fwhm=0., epochs=1, l1_gamma=0.5)
     dict_learning.fit(data)
     for mp in iter_img(dict_learning.masker_.inverse_transform(
             dict_learning.components_)):

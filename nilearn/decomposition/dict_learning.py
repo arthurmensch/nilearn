@@ -11,16 +11,18 @@ from __future__ import division
 # from sandbox.spams_sklearn_mkpatch.dict_learning import dict_learning_online
 # import sklearn
 # sklearn.decomposition.dict_learning_online = dict_learning_online
-
+from copy import copy
 import itertools
+
 import numpy as np
 from sklearn.externals.joblib import Memory
 from sklearn.decomposition import dict_learning_online
 
 
 from sklearn.base import TransformerMixin
+from sklearn.utils import check_random_state
 
-from .._utils import as_ndarray, fast_same_size_concatenation
+from .._utils import as_ndarray
 from .canica import CanICA
 from .._utils.cache_mixin import CacheMixin
 from ._base import DecompositionEstimator, make_pca_masker
@@ -106,7 +108,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
     """
 
     def __init__(self, n_components=20,
-                 n_iter='auto', alpha=1., l1_gamma=1., dict_init=None,
+                 epochs='auto', alpha=0., l1_gamma=0., dict_init=None,
                  reduction=True,
                  random_state=None,
                  shuffle=False,
@@ -135,7 +137,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                                         n_jobs=n_jobs, verbose=verbose,
                                         )
 
-        self.n_iter = n_iter
+        self.epochs = epochs
         self.alpha = alpha
         self.l1_gamma = l1_gamma
         self.dict_init = dict_init
@@ -187,6 +189,12 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         # Base logic for decomposition estimators
         DecompositionEstimator.fit(self, imgs)
 
+        random_state = check_random_state(self.random_state)
+
+        if self.epochs < 1:
+            raise ValueError('Number of epochs should be at least one,'
+                             ' got {r}'.format(self.epochs))
+
         if self.verbose:
             print('[DictLearning] Initializating dictionary')
         self._init_dict(imgs)
@@ -194,27 +202,29 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         if self.verbose:
             print('[DictLearning] Loading data')
         masker = make_pca_masker(self.masker_,
-                               n_components=self.n_components
-                               if self.reduction else None,
-                               random_state=self.random_state)
+                                 n_components=self.n_components
+                                 if self.reduction else None,
+                                 random_state=self.random_state)
 
         if confounds is None:
             confounds = [None] * len(imgs)
         inner_stats = None
         iter_offset = 0
         dict_init = self.dict_init_
+        # First initial projection of initial dictionary
         project_dict = True
-        if self.n_iter == 'auto':
-            iter_list = zip(imgs, confounds)
-        else:
-            iter_list = itertools.cycle(zip(imgs, confounds))
-        for record, (img, confound) in enumerate(iter_list):
+
+        imgs_confounds = zip(imgs, confounds)
+        imgs_confounds_list = []
+
+        imgs_confounds_list = itertools.chain(*[random_state.permutation(
+            imgs_confounds) for _ in range(self.epochs)])
+
+        for record, (img, confound) in enumerate(imgs_confounds_list):
             data = masker.transform(img, confound)
             # self.n_iter = ceil(self.data_fat.shape[1] / self.batch_size)
             n_iter = (data.shape[0] - 1) // 10 + 1
-            if self.n_iter != 'auto' and iter_offset >= self.n_iter:
-                break
-
+            print(n_iter)
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
 
@@ -253,9 +263,9 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                                                          time_serie), axis=0))
                 self.debug_info_ = tuple(debug_info_list)
 
-            masker.inverse_transform(self.components_)\
-                .to_filename('/volatile3/output/shuffle/components_%i.nii.gz'
-                             % record)
+            # masker.inverse_transform(self.components_)\
+            #     .to_filename('/volatile3/output/shuffle/components_%i.nii.gz'
+            #                  % record)
 
 
         self.components_ = as_ndarray(self.components_)
