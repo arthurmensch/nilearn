@@ -9,8 +9,11 @@ import os
 import tempfile
 
 from nose.tools import assert_true, assert_raises
+from numpy.testing import assert_array_equal
+from nilearn._utils.testing import assert_raises_regex
 
 from nilearn._utils.numpy_conversions import as_ndarray, csv_to_array
+from nilearn._utils.numpy_conversions import fast_same_size_concatenation
 
 
 def are_arrays_identical(arr1, arr2):
@@ -241,3 +244,19 @@ def test_csv_to_array():
         assert_true(np.allclose(csv_to_array(csv_file.name),
                     np.asarray([1., 2., 3., 4., 5.])))
         assert_raises(TypeError, csv_to_array, csv_file.name, delimiters='?!')
+
+
+def test_concatenate_pca_data():
+    shape = (5, 20)
+    rng = np.random.RandomState(0)
+    data = []
+    for i in range(8):
+        this_data = rng.normal(size=shape)
+        # Create fake activation to get non empty mask
+        data.append(this_data)
+    data_c = fast_same_size_concatenation(data, 5)
+    assert_array_equal(data_c, np.concatenate(data, axis=0))
+    assert_raises_regex(ValueError,
+                        'Concatenation of data failed as one of the array'
+                        ' in list has an unexpected length: 8 != 5',
+                        fast_same_size_concatenation, data, 8)
