@@ -1,0 +1,78 @@
+from distutils.version import LooseVersion
+
+import sklearn
+from nose.tools import assert_true
+from numpy.testing import assert_array_equal, assert_array_almost_equal
+import numpy as np
+
+from nilearn.decomposition.tests.test_canica import _make_canica_test_data
+from nilearn.decomposition.dict_learning import DictLearning
+from nilearn._utils.testing import assert_less_equal
+from nilearn.image import iter_img
+
+
+def test_dict_learning():
+    data, mask_img, components, rng = _make_canica_test_data()
+
+    noisy_components_ = components + rng.randn(4,400)
+
+    dict_learning = DictLearning(n_components=4, random_state=rng,
+                                 mask=mask_img,
+                                 dict_init=noisy_components_,
+                                 verbose=10,
+                                 smoothing_fwhm=0., n_iter=10, l1_gamma=0.5)
+    dict_learning.fit(data)
+    maps = dict_learning.masker_.inverse_transform(dict_learning.components_)\
+        .get_data()
+    maps = np.reshape(np.rollaxis(maps, 3, 0), (4, 400))
+
+    S = np.sqrt(np.sum(components ** 2, axis=1))
+    S[S == 0] = 1
+    components /= S[:, np.newaxis]
+
+    S = np.sqrt(np.sum(maps ** 2, axis=1))
+    S[S == 0] = 1
+    maps /= S[:, np.newaxis]
+
+    K = np.abs(components.dot(maps.T))
+
+    if LooseVersion(sklearn.__version__).version >= [0, 14]:
+        from sklearn.utils.linear_assignment_ import linear_assignment
+        indices = linear_assignment(1-K)
+        K = K[indices[:, 0], :][:, indices[:, 1]]
+        assert_array_almost_equal(np.abs(K), np.eye(4), 1)
+    else:
+        a = np.sum(np.abs(K) > 1e-1, axis=1)
+        b = np.sum(np.abs(K) > 1e-1, axis=0)
+        c = np.sum(np.abs(K) > 1e-1)
+        assert_array_equal(a, np.ones(4))
+        assert_array_equal(b, np.ones(4))
+        assert_true(c == 4)
+
+    # Smoke test n_iter="auto"
+    dict_learning = DictLearning(n_components=4, random_state=rng,
+                                 mask=mask_img,
+                                 smoothing_fwhm=0., n_iter="auto", alpha=2)
+    dict_learning.fit(data)
+
+
+def test_component_sign():
+    # Regression test
+    # We should have a heuristic that flips the sign of components in
+    # DictLearning to have more positive values than negative values, for
+    # instance by making sure that the largest value is positive.
+
+    data, mask_img, components, rng = _make_canica_test_data(n_subjects=2,
+                                                             noisy=True)
+    for mp in components:
+        assert_less_equal(-mp.min(), mp.max())
+
+    # run CanICA many times (this is known to produce different results)
+    dict_learning = DictLearning(n_components=4, random_state=rng,
+                                 mask=mask_img,
+                                 smoothing_fwhm=0., n_iter=100, alpha=1)
+    dict_learning.fit(data)
+    for mp in iter_img(dict_learning.masker_.inverse_transform(
+            dict_learning.components_)):
+        mp = mp.get_data()
+        assert_less_equal(np.sum(mp[mp <= 0] ** 2), np.sum(mp[mp > 0] ** 2))
