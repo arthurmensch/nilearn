@@ -20,17 +20,17 @@ def check_embedded_nifti_masker(estimator, multi_subject=True):
 
     Parameters
     ----------
-        instance: object, instance of BaseEstimator
-            The object that gives us the values of the parameters
+    instance: object, instance of BaseEstimator
+        The object that gives us the values of the parameters
 
-        multi_subject: boolean
-            Indicates whether to return a MultiNiftiMasker or a NiftiMasker
-            (the default is True)
+    multi_subject: boolean
+        Indicates whether to return a MultiNiftiMasker or a NiftiMasker
+        (the default is True)
 
     Returns
-    ----------
-        masker: MultiNiftiMasker, NiftiMasker
-            New masker
+    -------
+    masker: MultiNiftiMasker or NiftiMasker
+        New masker
     """
     masker_type = MultiNiftiMasker if multi_subject else NiftiMasker
     estimator_params = get_params(masker_type, estimator)
