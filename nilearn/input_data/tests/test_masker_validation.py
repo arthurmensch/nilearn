@@ -1,13 +1,11 @@
-from nose.tools import assert_true
-
+from nose.tools import assert_true, assert_equal
 import nibabel
 import numpy as np
-
-from nilearn._utils.testing import assert_warns
 
 from sklearn.base import BaseEstimator
 from sklearn.externals.joblib import Memory
 
+from nilearn._utils.testing import assert_warns
 from nilearn.input_data.masker_validation import check_embedded_nifti_masker
 from nilearn.input_data import MultiNiftiMasker, NiftiMasker
 
@@ -44,21 +42,21 @@ class OwningClass(BaseEstimator):
 def test_check_embedded_nifti_masker():
     owner = OwningClass()
     masker = check_embedded_nifti_masker(owner)
-    assert_true(type(masker) == MultiNiftiMasker)
+    assert_true(type(masker) is MultiNiftiMasker)
 
-    for mask, multi_subject in\
-            ((MultiNiftiMasker(), True), (NiftiMasker(), False)):
+    for mask, multi_subject in (
+            (MultiNiftiMasker(), True), (NiftiMasker(), False)):
         owner = OwningClass(mask=mask)
         masker = check_embedded_nifti_masker(owner,
                                              multi_subject=multi_subject)
-        assert_true(type(masker) == mask.__class__)
+        assert_equal(type(masker), type(mask))
         for param_key in masker.get_params():
             if param_key not in ['memory', 'memory_level', 'n_jobs',
                                  'verbose']:
-                assert_true(getattr(masker, param_key) ==
+                assert_equal(getattr(masker, param_key),
                             getattr(mask, param_key))
             else:
-                assert_true(getattr(masker, param_key) ==
+                assert_equal(getattr(masker, param_key),
                             getattr(owner, param_key))
 
     # Check use of mask as mask_img
@@ -77,7 +75,7 @@ def test_check_embedded_nifti_masker():
     mask.fit([[imgs]])
     owner = OwningClass(mask=mask)
     masker = check_embedded_nifti_masker(owner)
-    assert_true(masker.mask_img == mask.mask_img_)
+    assert_true(masker.mask_img is mask.mask_img_)
 
     # Check conflict warning
     mask = NiftiMasker(mask_strategy='epi')

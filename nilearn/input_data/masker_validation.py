@@ -1,33 +1,36 @@
 import warnings
 
 from .._utils.class_inspect import get_params
-from . import MultiNiftiMasker, NiftiMasker
+from .multi_nifti_masker import MultiNiftiMasker
+from .nifti_masker import NiftiMasker
 
 
 def check_embedded_nifti_masker(estimator, multi_subject=True):
-    """Base function for using a masker within a BaseEstimator class :
+    """Base function for using a masker within a BaseEstimator class
+
     This creates a masker from instance parameters :
     - If instance contains a mask image in mask parameter,
     we use this image as new masker mask_img, forwarding instance parameters to
     new masker : smoothing_fwhm, standardize, detrend, low_pass= high_pass,
     t_r, target_affine, target_shape, mask_strategy, mask_args,
     - If instance contains a masker in mask parameter, we use a copy of
-    this masker, overidding all instance masker related parameters.
+    this masker, overriding all instance masker related parameters.
     In all case, we forward system parameters of instance to new masker :
     memory, memory_level, vebose, n_jobs
 
     Parameters
-    ==========
-        instance: object, instance of BaseEstimator
-            The object that gives us the values of the parameters
+    ----------
+    instance: object, instance of BaseEstimator
+        The object that gives us the values of the parameters
 
-        multi: boolean, default=True,
-            Indicates whether to return a MultiNiftiMasker or a NiftiMasker
+    multi_subject: boolean
+        Indicates whether to return a MultiNiftiMasker or a NiftiMasker
+        (the default is True)
 
     Returns
-    ==========
-        masker: MultiNiftiMasker, NiftiMasker
-            New masker
+    -------
+    masker: MultiNiftiMasker or NiftiMasker
+        New masker
     """
     masker_type = MultiNiftiMasker if multi_subject else NiftiMasker
     estimator_params = get_params(masker_type, estimator)
@@ -52,18 +55,19 @@ def check_embedded_nifti_masker(estimator, multi_subject=True):
 
     # Raising warning if masker override parameters
     conflict_string = ""
-    for param_key in estimator_params.keys():
+    for param_key in sorted(estimator_params):
         if new_masker_params[param_key] != estimator_params[param_key]:
-            conflict_string += "Parameter {!r} :\n" \
-                               "    Masker parameter {!r}" \
-                               " - overriding estimator parameter {!r}\n" \
-                .format(param_key, str(new_masker_params[param_key]),
-                        str(estimator_params[param_key]))
+            conflict_string += ("Parameter {0:s} :\n"
+                                "    Masker parameter {1:s}"
+                                " - overriding estimator parameter {2:s}\n"
+                                ).format(param_key,
+                                         new_masker_params[param_key],
+                                         estimator_params[param_key])
 
     if conflict_string != "":
-        warn_str = "Overriding provided-default estimator parameters with"\
-                   " provided masker parameters :\n"\
-                   + conflict_string
+        warn_str = ("Overriding provided-default estimator parameters with"
+                    " provided masker parameters :\n"
+                    "{0:s}").format(conflict_string)
         warnings.warn(warn_str)
     masker = masker_type(**new_masker_params)
 
