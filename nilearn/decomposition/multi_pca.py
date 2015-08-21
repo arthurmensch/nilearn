@@ -144,17 +144,23 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
             This parameter is passed to nilearn.signal.clean. Please see the
             related documentation for details
         """
-        DecompositionEstimator.fit(self, imgs)
+        # HACK!!!!!
+        if hasattr(imgs, 'shape'):
+            DecompositionEstimator.fit(self)
+            data = imgs
 
-        data = make_pca_masker(self.masker_, n_components=self.n_components,
-                               random_state=self.random_state).transform(imgs)
-        if isinstance(data, list) or isinstance(data, tuple):
-            try:
-                data = fast_same_size_concatenation(data, self.n_components)
-            except ValueError:
-                raise ValueError('One of the subjects has less samples than'
-                                 'desired number of components %i.' %
-                                 self.n_components)
+        else:
+            DecompositionEstimator.fit(self, imgs)
+
+            data = make_pca_masker(self.masker_, n_components=self.n_components,
+                                   random_state=self.random_state).transform(imgs)
+            if isinstance(data, list) or isinstance(data, tuple):
+                try:
+                    data = fast_same_size_concatenation(data, self.n_components)
+                except ValueError:
+                    raise ValueError('One of the subjects has less samples than'
+                                     'desired number of components %i.' %
+                                     self.n_components)
         if self.do_cca:
             S = np.sqrt(np.sum(data ** 2, axis=1))
             S[S == 0] = 1
