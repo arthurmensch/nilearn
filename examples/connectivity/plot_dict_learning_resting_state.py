@@ -17,37 +17,50 @@ for extracting spatial maps.
 Pre-prints for paper is available on hal
 https://hal.inria.fr/inria-00588898/en/
 """
+from os.path import join
+import os
+
 import numpy as np
 
 ### Load ADHD rest dataset ####################################################
+import pickle
 from nilearn import datasets
 # For linear assignment (should be moved in non user space...)
 
-hcp_dataset = datasets.fetch_hcp_rest(data_dir='/volatile3',
-                                      n_subjects=2)
-# hcp_dataset = datasets.fetch_adhd(n_subjects=40)
-mask = hcp_dataset.mask
-func_filenames = hcp_dataset.func  # list of 4D nifti files for each subject
+output = '/volatile/arthur/output/hcp_fast'
+try:
+    os.makedirs(join(output, 'intermediary'))
+except:
+    pass
 
-from sandbox.utils import output
+dataset = datasets.fetch_hcp_rest(data_dir='/volatile3', n_subjects=20)
+# dataset = datasets.fetch_adhd(n_subjects=40)
+mask = dataset.mask if hasattr(dataset, 'mask') else None
+rsn70 = '/volatile/arthur/work/data/rsn70.nii.gz'
+func_filenames = dataset.func  # list of 4D nifti files for each subject
+
+# from sandbox.utils import output
 # print basic information on the dataset
 print('First functional nifti image (4D) is at: %s' %
-      hcp_dataset.func[0])  # 4D data
+      dataset.func[0])  # 4D data
 
 ### Apply DictLearning ########################################################
 from nilearn.decomposition import DictLearning
 
-n_components = 30
+n_components = 70
 
 dict_learning = DictLearning(n_components=n_components, alpha=0.0,
-                             l1_gamma=0.3,
+                             l1_ratio=0.4,
                              smoothing_fwhm=4.,
                              mask=mask,
+                             reduction_ratio=0.25,
+                             batch_size=10,
+                             epochs=1,
+                             dict_init=rsn70,
                              memory="nilearn_cache",
                              memory_level=3,
-                             n_iter=1920,
                              shuffle=True,
-                             verbose=10, random_state=0, n_jobs=1,
+                             verbose=10, random_state=0,
                              reduction=None)
 
 estimator = dict_learning
@@ -56,16 +69,21 @@ components_imgs = []
 
 print('[Example] Learning maps using %s model'
       % type(estimator).__name__)
-estimator.fit(func_filenames[:40])
+estimator.fit(func_filenames,
+              intermediary_directory=join(output, 'intermediary'))
 print('[Example] Dumping results')
 components_img = estimator.masker_.inverse_transform(estimator.components_)
-components_img.to_filename(output('dict_learning_resting_state.nii.gz'))
-np.save(output('score'), estimator.score_)
+components_img.to_filename(join(output, 'dict_learning_resting_state.nii.gz'))
+np.save(join(output, 'score'), estimator.score_)
 # Debug info
 (residual, sparsity, values) = estimator.debug_info_
-np.save(output('residual'), residual)
-np.save(output('sparsity'), sparsity)
-np.save(output('values'), values)
+np.save(join(output, 'residual'), residual)
+np.save(join(output, 'sparsity'), sparsity)
+np.save(join(output, 'values'), values)
+with open(join(output, 'parameters'), mode='w+') as f:
+    pickle.dump(dict_learning.get_params(), f)
+with open(join(output, 'dataset'), mode='w+') as f:
+    pickle.dump(dataset, f)
 ### Visualize the results #####################################################
 # Show some interesting components
 import matplotlib.pyplot as plt

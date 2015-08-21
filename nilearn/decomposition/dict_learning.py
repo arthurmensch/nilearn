@@ -7,20 +7,20 @@ component sparsity
 # License: BSD 3 clause
 from __future__ import division
 
-# Monkey-patching spams implementation over scikit-learn
-# from sandbox.spams_sklearn_mkpatch.dict_learning import dict_learning_online
-# import sklearn
-# sklearn.decomposition.dict_learning_online = dict_learning_online
-from copy import copy
 import itertools
+import os
+from math import ceil
 
 import numpy as np
+import pickle
 from sklearn.externals.joblib import Memory
 from sklearn.decomposition import dict_learning_online
 
 
 from sklearn.base import TransformerMixin
 from sklearn.utils import check_random_state
+from sklearn.utils.extmath import randomized_range_finder
+import time
 
 from .._utils import as_ndarray
 from .canica import CanICA
@@ -108,10 +108,12 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
     """
 
     def __init__(self, n_components=20,
-                 epochs='auto', alpha=0., l1_gamma=0., dict_init=None,
+                 epochs=1, alpha=0., l1_ratio=0., dict_init=None,
                  reduction=True,
                  random_state=None,
                  shuffle=False,
+                 batch_size=10,
+                 reduction_ratio=1.,
                  mask=None, smoothing_fwhm=None,
                  standardize=True, detrend=True,
                  low_pass=None, high_pass=None, t_r=None,
@@ -139,20 +141,19 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         self.epochs = epochs
         self.alpha = alpha
-        self.l1_gamma = l1_gamma
+        self.l1_ratio = l1_ratio
         self.dict_init = dict_init
         self.reduction = reduction
+        self.batch_size = batch_size
+        self.reduction_ratio = reduction_ratio
         self.shuffle = shuffle
 
-        self.dictionary_estimator_ = None
-
     def _init_dict(self, imgs, confounds=None):
-        self.dict_init_ = None
-        return
         if self.dict_init is not None:
-            self.dict_init_ = self.dict_init
-            self.dict_init_ = None
+            self.dict_init_ = self.masker_.transform(self.dict_init)
         else:
+            self.dict_init_ = None
+            return
             canica = CanICA(n_components=self.n_components,
                             # CanICA specific parameters
                             do_cca=True, threshold=float(self.n_components),
@@ -169,10 +170,9 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                             verbose=self.verbose
                             )
             canica.fit(imgs, confounds=confounds)
-
             self.dict_init_ = canica.components_
 
-    def fit(self, imgs, y=None, confounds=None):
+    def fit(self, imgs, y=None, confounds=None, intermediary_directory=None):
         """Compute the mask and the ICA maps across subjects
 
         Parameters
@@ -195,47 +195,53 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             raise ValueError('Number of epochs should be at least one,'
                              ' got {r}'.format(self.epochs))
 
-        if self.verbose:
-            print('[DictLearning] Initializating dictionary')
-        self._init_dict(imgs)
+        masker = self.masker_
+        # make_pca_masker(self.masker_,
+        #                          n_components=self.n_components
+        #                          if self.reduction else None,
+        #                          random_state=self.random_state)
 
         if self.verbose:
-            print('[DictLearning] Loading data')
-        masker = make_pca_masker(self.masker_,
-                                 n_components=self.n_components
-                                 if self.reduction else None,
-                                 random_state=self.random_state)
+            print('[DictLearning] Initializating dictionary')
+        self._init_dict(imgs, masker)
 
         if confounds is None:
             confounds = [None] * len(imgs)
+
         inner_stats = None
         iter_offset = 0
         dict_init = self.dict_init_
         # First initial projection of initial dictionary
-        project_dict = True
 
         imgs_confounds = zip(imgs, confounds)
-        imgs_confounds_list = []
 
         imgs_confounds_list = itertools.chain(*[random_state.permutation(
             imgs_confounds) for _ in range(self.epochs)])
 
         for record, (img, confound) in enumerate(imgs_confounds_list):
             data = masker.transform(img, confound)
-            # self.n_iter = ceil(self.data_fat.shape[1] / self.batch_size)
-            n_iter = (data.shape[0] - 1) // 10 + 1
-            print(n_iter)
+            t1 = time.time()  # REMOVE
+            if self.reduction_ratio < 1:
+                dim = int(ceil(data.shape[0] * self.reduction_ratio))
+                Q = randomized_range_finder(data, dim, 3,
+                                            random_state=random_state)
+                data = Q.T.dot(data)
+            print('Time spent in `randomized_range_finder`: {}'.
+                  format(time.time() - t1))  # REMOVE
+            # self.n_iter = ceil(data.shape[0] / self.batch_size)
+            n_iter = (data.shape[0] - 1) // self.batch_size + 1
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
-
+            t1 = time.time()  # REMOVE
             (self.components_, inner_stats), debug_info = \
                 self._cache(dict_learning_online, func_memory_level=2)(
                 data,
                 self.n_components,
                 alpha=self.alpha,
-                l1_gamma=self.l1_gamma,
+                l1_ratio=self.l1_ratio,
                 n_iter=n_iter,
-                batch_size=10,
+                slowing=0.001 if not record else 0.,
+                batch_size=self.batch_size,
                 method='ridge',
                 dict_init=dict_init,
                 return_code=False,
@@ -247,13 +253,13 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 iter_offset=iter_offset,
                 shuffle=self.shuffle,
                 n_jobs=1,
-                project_dict=project_dict,
+                project_dict=not record,
                 tol=0.
                 )
+            print('Time spent in `dict_learning_online`: {}'.
+                  format(time.time() - t1))  # REMOVE
             iter_offset += n_iter
             dict_init = self.components_
-            project_dict = False
-
             if not hasattr(self, 'debug_info_'):
                 self.debug_info_ = debug_info
             else:
@@ -263,9 +269,10 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                                                          time_serie), axis=0))
                 self.debug_info_ = tuple(debug_info_list)
 
-            # masker.inverse_transform(self.components_)\
-            #     .to_filename('/volatile3/output/shuffle/components_%i.nii.gz'
-            #                  % record)
+            if intermediary_directory is not None:
+                masker.inverse_transform(self.components_)\
+                    .to_filename(os.path.join(intermediary_directory,
+                                 'components_%i.nii.gz' % record))
 
 
         self.components_ = as_ndarray(self.components_)
@@ -279,5 +286,14 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         if self.verbose:
             print('[DictLearning] Learning score')
         self._sort_components(data)
+
+        # Saving intermediary results (for manual partial fit)
+        if intermediary_directory is not None:
+            masker.inverse_transform(self.components_)\
+                .to_filename(os.path.join(intermediary_directory,
+                             'dict_init.nii.gz' % record))
+        with open(os.path.join(intermediary_directory,
+                  'inner_stat.nii.gz', 'w+')) as f:
+            pickle.dump((inner_stats, iter_offset), f)
 
         return self

@@ -585,9 +585,9 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
         print(score)
         if not hasattr(score, '__iter__'):
             return
-        argsort = np.argsort(score)[::-1]
-        self.components_ = self.components_[argsort]
-        self.score_ = score[argsort]
+        # argsort = np.argsort(score)[::-1]
+        # self.components_ = self.components_[argsort]
+        self.score_ = score  #[argsort]
 
     def score(self, imgs, confounds=None, per_component=False):
         """Score function based on explained variance
