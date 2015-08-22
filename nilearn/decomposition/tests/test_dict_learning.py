@@ -1,9 +1,13 @@
 from distutils.version import LooseVersion
+import nibabel
+from nilearn.input_data import NiftiMasker
+from numpy.random.mtrand import RandomState
 
 import sklearn
 from nose.tools import assert_true
 from numpy.testing import assert_array_equal, assert_array_almost_equal
 import numpy as np
+from sklearn.linear_model import LinearRegression
 
 from nilearn.decomposition.tests.test_canica import _make_canica_test_data
 from nilearn.decomposition.dict_learning import DictLearning
@@ -13,7 +17,10 @@ from nilearn.image import iter_img
 
 def test_dict_learning():
     data, mask_img, components, rng = _make_canica_test_data()
+    mask = NiftiMasker(mask_img=mask_img).fit()
+    dict_init = mask.inverse_transform(components)
     dict_learning = DictLearning(n_components=4, random_state=rng,
+                                 dict_init=dict_init,
                                  mask=mask_img,
                                  smoothing_fwhm=0., n_iter=30, alpha=4)
     dict_learning.fit(data)

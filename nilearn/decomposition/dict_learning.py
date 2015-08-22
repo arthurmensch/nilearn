@@ -7,6 +7,9 @@ component sparsity
 # License: BSD 3 clause
 
 from __future__ import division
+from os.path import join
+from math import ceil
+import nibabel
 
 import numpy as np
 from sklearn.externals.joblib import Memory
@@ -20,6 +23,8 @@ from .._utils import as_ndarray, fast_same_size_concatenation
 from .canica import CanICA
 from .._utils.cache_mixin import CacheMixin
 from ._base import DecompositionEstimator, make_pca_masker
+from joblib import load, dump
+from tempfile import mkdtemp
 
 class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
     """Perform a map learning algorithm based on component sparsity,
@@ -130,7 +135,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
     def _init_dict(self, imgs, data, confounds=None):
 
         if self.dict_init is not None:
-            self.dict_init_ = self.dict_init
+            components = self.masker_.transform(self.dict_init)
         else:
             canica = CanICA(n_components=self.n_components,
                             # CanICA specific parameters
@@ -143,12 +148,12 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                             verbose=self.verbose
                             )
             canica.fit(imgs, confounds=confounds)
-
-            ridge = Ridge(alpha=1e-10, fit_intercept=None)
-            ridge.fit(canica.components_.T, data.T)
-            self.dict_init_ = ridge.coef_.T
-            S = np.sqrt(np.sum(self.dict_init_ ** 2, axis=0))
-            self.dict_init_ /= S[np.newaxis, :]
+            components = canica.components_
+        ridge = Ridge(alpha=1e-10, fit_intercept=None)
+        ridge.fit(components.T, data.T)
+        self.dict_init_ = ridge.coef_.T
+        S = np.sqrt(np.sum(self.dict_init_ ** 2, axis=0))
+        self.dict_init_ /= S[np.newaxis, :]
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
@@ -169,16 +174,50 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         if self.verbose:
             print('[DictLearning] Loading data')
-        data = make_pca_masker(self.masker_, n_components=self.n_components,
-                               random_state=self.random_state)\
-            .transform(imgs, confounds=confounds)
-        if isinstance(data, list) or isinstance(data, tuple):
-            try:
-                data = fast_same_size_concatenation(data, self.n_components)
-            except ValueError:
-                raise ValueError('One of the subjects has less samples than'
-                                 'desired number of components %i.' %
-                                 self.n_components)
+
+        subject_limits = np.zeros(len(imgs) + 1)
+
+        if self.reduction_factor ==  'auto' or \
+                self.reduction_factor is not None and \
+                self.reduction_factor < 1:
+            reduction_factor = self.reduction_factor
+        else:
+            reduction_factor = 1
+
+        for i, img in enumerate(imgs):
+            if reduction_factor:
+                size = min(self.n_components, nibabel.load(img).get_shape()[3])
+            else:
+                size = int(ceil(nibabel.load(img).
+                               get_shape()[3] * reduction_factor))
+            subject_limits[i+1] = subject_limits[i] + size
+
+        n_voxels = np.sum(self.masker_.mask_img_.get_data())
+        n_samples = subject_limits[-1]
+
+        # We initialize data in memory or on disk
+        if n_voxels * n_samples * 8 > 1e9:
+            filename = join(mkdtemp(), 'data')
+            data = np.memmap(filename, dtype='float64', mode='w+',
+                             shape=(n_samples, n_voxels))
+        else:
+            data = np.array((n_samples, n_voxels), dtype='float64')
+
+        # Preparing PCA masker
+        if reduction_factor == 'auto':
+            masker = make_pca_masker(self.masker_,
+                                     n_components=self.n_components,
+                                     random_state=self.random_state)
+        elif reduction_factor < 1:
+            masker = make_pca_masker(self.masker_,
+                                     reduction_factor=reduction_factor,
+                                     random_state=self.random_state)
+        else:
+            masker = self.masker_
+
+        for i, img in enumerate(imgs):
+            data[subject_limits[i-1]:subject_limits[i]] = masker.transform(img)
+
         if self.verbose:
             print('[DictLearning] Initializating dictionary')
         self._init_dict(imgs, data)
