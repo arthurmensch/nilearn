@@ -10,7 +10,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.utils.extmath import randomized_svd
 from sklearn.base import BaseEstimator
 
-from ..input_data.nifti_masker import filter_and_mask
+from ..input_data.base_masker import filter_and_mask
 from ..input_data import MultiNiftiMasker, NiftiMasker, NiftiMapsMasker
 from ..input_data.masker_validation import check_embedded_nifti_masker
 from .._utils.cache_mixin import CacheMixin, cache
@@ -119,6 +119,7 @@ def session_pca(imgs, mask_img, parameters,
         memory=memory,
         verbose=verbose,
         confounds=confounds,
+        sample_mask=sample_mask,
         copy=copy)
     # If we project on a relatively small space, randomized_svd is faster
     if n_components <= data.shape[0] // 4:
