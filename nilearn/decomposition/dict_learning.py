@@ -7,18 +7,9 @@ component sparsity
 # License: BSD 3 clause
 
 from __future__ import division
-import os
+from os.path import join
 from math import ceil
-import shutil
-import warnings
-
-# WindowsError only exist on Windows
-import gc
-
-try:
-    WindowsError
-except NameError:
-    WindowsError = None
+import nibabel
 
 import numpy as np
 from sklearn.externals.joblib import Memory
@@ -28,10 +19,11 @@ from sklearn.decomposition import dict_learning_online, sparse_encode
 
 from sklearn.base import TransformerMixin
 
-from .._utils import as_ndarray, check_niimg_4d
+from .._utils import as_ndarray, fast_same_size_concatenation
 from .canica import CanICA
 from .._utils.cache_mixin import CacheMixin
 from ._base import DecompositionEstimator, make_pca_masker
+from joblib import load, dump
 from tempfile import mkdtemp
 
 class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
@@ -111,7 +103,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
 
     def __init__(self, n_components=20,
                  n_iter='auto', alpha=1, dict_init=None,
-                 reduction_ratio='auto',
                  random_state=None,
                  mask=None, smoothing_fwhm=None,
                  standardize=True, detrend=True,
@@ -140,7 +131,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.n_iter = n_iter
         self.alpha = alpha
         self.dict_init = dict_init
-        self.reduction_ratio = reduction_ratio
 
     def _init_dict(self, imgs, data, confounds=None):
 
@@ -182,61 +172,51 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         # Base logic for decomposition estimators
         DecompositionEstimator.fit(self, imgs)
 
-        if self.reduction_ratio is None:
-            reduction_ratio = 1
-        else:
-            if self.reduction_ratio == 'auto' or self.reduction_ratio >= 1:
-                reduction_ratio = self.reduction_ratio
-            else:
-                reduction_ratio = 1
-
         if self.verbose:
             print('[DictLearning] Loading data')
 
-        # Precomputing number of samples for preallocation
-        subject_n_samples = np.zeros(len(imgs), dtype='int')
+        subject_limits = np.zeros(len(imgs) + 1)
+
+        if self.reduction_factor ==  'auto' or \
+                self.reduction_factor is not None and \
+                self.reduction_factor < 1:
+            reduction_factor = self.reduction_factor
+        else:
+            reduction_factor = 1
+
         for i, img in enumerate(imgs):
-            if reduction_ratio == 'auto':
-                subject_n_samples[i] = min(self.n_components,
-                                           check_niimg_4d(img).get_shape()[3])
+            if reduction_factor:
+                size = min(self.n_components, nibabel.load(img).get_shape()[3])
             else:
-                subject_n_samples[i] = int(ceil(check_niimg_4d(img).
-                                           get_shape()[3] * reduction_ratio))
-        print(subject_n_samples)
-        subject_limits = np.zeros(subject_n_samples.shape[0]+1,
-                                  dtype='int')
-        subject_limits[1:] = np.cumsum(subject_n_samples)
-        print(subject_limits)
+                size = int(ceil(nibabel.load(img).
+                               get_shape()[3] * reduction_factor))
+            subject_limits[i+1] = subject_limits[i] + size
+
         n_voxels = np.sum(self.masker_.mask_img_.get_data())
         n_samples = subject_limits[-1]
 
         # We initialize data in memory or on disk
-        if n_voxels * n_samples * 8 > 1:
-            temp_dir = mkdtemp()
-            filename = os.path.join(temp_dir, 'data')
+        if n_voxels * n_samples * 8 > 1e9:
+            filename = join(mkdtemp(), 'data')
             data = np.memmap(filename, dtype='float64', mode='w+',
                              shape=(n_samples, n_voxels))
         else:
-            temp_dir = None
-            data = np.empty((n_samples, n_voxels), dtype='float64')
+            data = np.array((n_samples, n_voxels), dtype='float64')
 
-        if reduction_ratio == 'auto':
-            pca_masker = make_pca_masker(self.masker_,
-                                    n_components=self.n_components,
-                                    random_state=self.random_state)
+        # Preparing PCA masker
+        if reduction_factor == 'auto':
+            masker = make_pca_masker(self.masker_,
+                                     n_components=self.n_components,
+                                     random_state=self.random_state)
+        elif reduction_factor < 1:
+            masker = make_pca_masker(self.masker_,
+                                     reduction_factor=reduction_factor,
+                                     random_state=self.random_state)
+        else:
+            masker = self.masker_
 
         for i, img in enumerate(imgs):
-            if reduction_ratio == 'auto':
-                this_masker = pca_masker
-            elif self.reduction_ratio == 1:
-                this_masker = self.masker_
-            else:
-                this_masker = \
-                    make_pca_masker(self.masker_,
-                                    n_components=subject_n_samples[i],
-                                    random_state=self.random_state)
-            data[subject_limits[i]:subject_limits[i+1], :] = \
-                this_masker.transform(img)
+            data[subject_limits[i-1]:subject_limits[i]] = masker.transform(img)
 
         if self.verbose:
             print('[DictLearning] Initializating dictionary')
@@ -279,12 +259,4 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                     - np.sum(component[component <= 0]):
                 component *= -1
 
-        data = None
-        if temp_dir is not None:
-                try:
-                    if os.path.exists(temp_dir):
-                        # This can fail under windows,
-                        shutil.rmtree(temp_dir)
-                except WindowsError:
-                        warnings.warn("Could not delete temporary folder %s"
-                                      % temp_dir)
+        return self
