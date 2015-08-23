@@ -9,7 +9,7 @@ from sklearn.base import TransformerMixin
 
 from .._utils import fast_same_size_concatenation
 from .._utils.cache_mixin import CacheMixin
-from ._base import DecompositionEstimator, make_pca_masker
+from ._base import DecompositionEstimator, make_pca_masker, mask_and_reduce
 
 
 class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
@@ -146,15 +146,10 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         """
         DecompositionEstimator.fit(self, imgs)
 
-        data = make_pca_masker(self.masker_, n_components=self.n_components,
-                               random_state=self.random_state).transform(imgs)
-        if isinstance(data, list) or isinstance(data, tuple):
-            try:
-                data = fast_same_size_concatenation(data, self.n_components)
-            except ValueError:
-                raise ValueError('One of the subjects has less samples than'
-                                 'desired number of components %i.' %
-                                 self.n_components)
+        data, temp_dir = mask_and_reduce(self.masker_, imgs, confounds,
+                                         n_components=self.n_components,
+                                         reduction_ratio='auto',
+                                         random_state=self.random_state)
         if self.do_cca:
             S = np.sqrt(np.sum(data ** 2, axis=1))
             S[S == 0] = 1

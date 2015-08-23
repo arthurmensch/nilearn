@@ -2,6 +2,9 @@
 PCA dimension reduction on single subjects
 """
 import itertools
+import os
+from math import ceil
+import nibabel
 
 import numpy as np
 from scipy import linalg
@@ -10,13 +13,14 @@ from sklearn.linear_model import LinearRegression
 from sklearn.utils.extmath import randomized_svd
 from sklearn.base import BaseEstimator
 
-from ..input_data.base_masker import filter_and_mask
+from ..input_data.nifti_masker import filter_and_mask
 from ..input_data import MultiNiftiMasker, NiftiMasker, NiftiMapsMasker
 from ..input_data.masker_validation import check_embedded_nifti_masker
 from .._utils.cache_mixin import CacheMixin, cache
 from .._utils.class_inspect import get_params
 from .._utils.compat import izip
-from .._utils.niimg_conversions import _iter_check_niimg
+from .._utils.niimg_conversions import _iter_check_niimg, check_niimg_4d
+from nilearn.datasets.utils import _get_dataset_dir
 
 
 def make_pca_masker(masker, n_components=None, random_state=None):
@@ -54,6 +58,74 @@ def make_pca_masker(masker, n_components=None, random_state=None):
         returned_masker.mask_img = masker.mask_img_
         returned_masker.fit()
     return returned_masker
+
+
+def mask_and_reduce(masker, imgs, confounds=None,
+                    reduction_ratio='auto',
+                    n_components=None, random_state=None,
+                    memory_level=0,
+                    memory=Memory(cachedir=None),):
+        if isinstance(imgs, nibabel.Nifti1Image):
+            imgs = [imgs]
+
+        if reduction_ratio != 'auto':
+            reduction_ratio = float(reduction_ratio)
+            if reduction_ratio is None or reduction_ratio >= 1:
+                reduction_ratio = 1
+        # Precomputing number of samples for preallocation
+        subject_n_samples = np.zeros(len(imgs), dtype='int')
+
+        for i, img in enumerate(imgs):
+            if reduction_ratio == 'auto':
+                subject_n_samples[i] = min(n_components,
+                                           check_niimg_4d(img).get_shape()[3])
+            else:
+                subject_n_samples[i] = int(ceil(check_niimg_4d(img).
+                                           get_shape()[3] * reduction_ratio))
+        subject_limits = np.zeros(subject_n_samples.shape[0]+1,
+                                  dtype='int')
+        subject_limits[1:] = np.cumsum(subject_n_samples)
+        n_voxels = np.sum(masker.mask_img_.get_data())
+        n_samples = subject_limits[-1]
+
+        # We initialize data in memory or on disk
+        if n_voxels * n_samples * 8 > 2e9:
+            temp_dir = _get_dataset_dir('temp')
+            filename = os.path.join(temp_dir, 'data')
+            data = np.memmap(filename, dtype='float64', order='F', mode='w+',
+                             shape=(n_samples, n_voxels))
+        else:
+            temp_dir = None
+            data = np.empty((n_samples, n_voxels), order='F', dtype='float64')
+
+        if confounds is None:
+            confounds = [None] * len(imgs)
+
+        masker_type = type(masker)
+        for i, (img, confound) in enumerate(zip(imgs, confounds)):
+            this_data = cache(masker_type.transform, memory,
+                              memory_level=memory_level,
+                              func_memory_level=3)\
+                (masker, img, confound)
+            if subject_n_samples[i] <= this_data.shape[0] // 4:
+                U, S, _ = cache(randomized_svd, memory,
+                                memory_level=memory_level,
+                                func_memory_level=3)(this_data.T,
+                                                     subject_n_samples[i],
+                                                     random_state=random_state)
+                U = U.T
+            else:
+                U, S, _ = cache(linalg.svd, memory,
+                                memory_level=memory_level,
+                                func_memory_level=3)(this_data.T,
+                                                     full_matrices=False)
+                U = U.T[:subject_n_samples[i]].copy()
+                S = S[:subject_n_samples[i]]
+            U = U * S[:, np.newaxis]
+            data[subject_limits[i]:subject_limits[i+1], :] = U
+        return data, temp_dir
+
+
 
 
 def session_pca(imgs, mask_img, parameters,
@@ -119,7 +191,6 @@ def session_pca(imgs, mask_img, parameters,
         memory=memory,
         verbose=verbose,
         confounds=confounds,
-        sample_mask=sample_mask,
         copy=copy)
     # If we project on a relatively small space, randomized_svd is faster
     if n_components <= data.shape[0] // 4:
