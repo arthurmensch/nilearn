@@ -1,3 +1,4 @@
+from numpy.testing import assert_almost_equal
 from nilearn.input_data import NiftiMasker
 
 from nose.tools import assert_true
@@ -16,36 +17,36 @@ def test_dict_learning():
     dict_learning = DictLearning(n_components=4, random_state=0,
                                  dict_init=dict_init,
                                  mask=mask_img,
-                                 smoothing_fwhm=0., n_iter=30, alpha=1)
+                                 smoothing_fwhm=0., n_epochs=1, alpha=1)
     # Test with intermediary memorymapped unmasked data
-    dict_learning_memmap = DictLearning(n_components=4, random_state=0,
-                                 dict_init=dict_init,
-                                 mask=mask_img,
-                                 smoothing_fwhm=0., n_iter=30, alpha=1,
-                                 max_nbytes=0)
-    for estimator in [dict_learning, dict_learning_memmap]:
+    dict_learning_mmap = DictLearning(n_components=4, random_state=0,
+                                      dict_init=dict_init,
+                                      mask=mask_img,
+                                      smoothing_fwhm=0., n_epochs=1, alpha=1,
+                                      max_nbytes=0)
+    maps = {}
+    for estimator in [dict_learning, dict_learning_mmap]:
         estimator.fit(data)
-        maps = estimator.masker_.inverse_transform(dict_learning.components_)\
-            .get_data()
-        maps = np.reshape(np.rollaxis(maps, 3, 0), (4, 400))
+        maps[estimator] = estimator.masker_.\
+            inverse_transform(estimator.components_).get_data()
+        maps[estimator] = np.reshape(np.rollaxis(maps[estimator], 3, 0),
+                                     (4, 400))
+    # Ensure that the result is the same with or without intermediary memory
+    # mapping
+    assert_almost_equal(maps[dict_learning], maps[dict_learning_mmap])
 
-        S = np.sqrt(np.sum(components ** 2, axis=1))
-        S[S == 0] = 1
-        components /= S[:, np.newaxis]
+    maps = maps[dict_learning]
+    S = np.sqrt(np.sum(components ** 2, axis=1))
+    S[S == 0] = 1
+    components /= S[:, np.newaxis]
 
-        S = np.sqrt(np.sum(maps ** 2, axis=1))
-        S[S == 0] = 1
-        maps /= S[:, np.newaxis]
+    S = np.sqrt(np.sum(maps ** 2, axis=1))
+    S[S == 0] = 1
+    maps /= S[:, np.newaxis]
 
-        K = np.abs(components.dot(maps.T))
-        recovered_maps = np.sum(K > 0.9)
-        assert_true(recovered_maps >= 2)
-
-    # Smoke test n_iter="auto"
-    dict_learning = DictLearning(n_components=4, random_state=rng,
-                                 mask=mask_img,
-                                 smoothing_fwhm=0., n_iter="auto", alpha=2)
-    dict_learning.fit(data)
+    K = np.abs(components.dot(maps.T))
+    recovered_maps = np.sum(K > 0.9)
+    assert_true(recovered_maps >= 2)
 
 
 def test_component_sign():
@@ -59,10 +60,9 @@ def test_component_sign():
     for mp in components:
         assert_less_equal(-mp.min(), mp.max())
 
-    # run CanICA many times (this is known to produce different results)
     dict_learning = DictLearning(n_components=4, random_state=rng,
                                  mask=mask_img,
-                                 smoothing_fwhm=0., n_iter=100, alpha=1)
+                                 smoothing_fwhm=0., alpha=1)
     dict_learning.fit(data)
     for mp in iter_img(dict_learning.masker_.inverse_transform(
             dict_learning.components_)):

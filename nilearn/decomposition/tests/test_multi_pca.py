@@ -39,6 +39,13 @@ def test_multi_pca():
     confounds = [np.arange(10).reshape(5, 2)] * 8
     multi_pca.fit(data, confounds=confounds)
 
+    # Test with memory mapped intermediary
+    multi_pca_mmap = MultiPCA(mask=mask_img, n_components=3, random_state=0,
+                              max_nbytes=0)
+    components3 = multi_pca_mmap.fit(data).components_
+    np.testing.assert_array_almost_equal(components1, components3)
+
+
     # Smoke test that multi_pca also works with single subject data
     multi_pca.fit(data[0])
 
@@ -62,6 +69,7 @@ def test_multi_pca():
                         "Object has no components_ attribute. "
                         "This is probably because fit has not been called",
                         multi_pca.transform, data)
+
 
 
 def test_multi_pca_score():
