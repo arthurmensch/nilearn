@@ -3,7 +3,7 @@ Group analysis of resting-state fMRI with dictionary learning: DictLearning
 =====================================================
 
 An example applying dictionary learning to resting-state data. This example applies it
-to 10 subjects of the ADHD200 datasets.
+to 20 subjects of the ADHD200 datasets.
 
 Dictionary learning is a sparsity based decomposition method for extracting spatial maps.
 
@@ -14,12 +14,13 @@ Dictionary learning is a sparsity based decomposition method for extracting spat
 Pre-prints for paper is available on hal
 https://hal.inria.fr/inria-00588898/en/
 """
+import time
 from sklearn.externals.joblib import Memory
 
 ### Load ADHD rest dataset ####################################################
 from nilearn import datasets
 # For linear assignment (should be moved in non user space...)
-
+t0 = time.time()
 adhd_dataset = datasets.fetch_adhd(n_subjects=20)
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
@@ -30,14 +31,14 @@ print('First functional nifti image (4D) is at: %s' %
 ### Apply DictLearning ########################################################
 from nilearn.decomposition import DictLearning, CanICA
 
-n_components = 10
+n_components = 30
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
-                             memory="nilearn_cache", memory_level=3,
+                             memory=None, memory_level=3,
                              verbose=10,
-                             random_state=0, alpha=3)
+                             random_state=0, alpha=3, max_nbytes=0)
 canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
-                memory="nilearn_cache",  memory_level=3,
+                memory=None,  memory_level=3,
                 n_init=1, threshold=3.)
 
 estimators = [dict_learning]
@@ -69,5 +70,5 @@ for estimator, cur_img, ax in zip(estimators, components_imgs, [axes]):
     plot_prob_atlas(cur_img, title="%s" % estimator.__class__.__name__,
                     axes=ax,
                     cut_coords=cut_coords, colorbar=False)
-
+print("Elapsed time : %3is" % (time.time() - t0))
 plt.show()

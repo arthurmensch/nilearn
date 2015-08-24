@@ -115,7 +115,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                  target_affine=None, target_shape=None,
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
-                 n_jobs=1, verbose=0
+                 n_jobs=1, max_nbytes=1e9, verbose=0
                  ):
         DecompositionEstimator.__init__(self, n_components=n_components,
                                         random_state=random_state,
@@ -131,14 +131,16 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                                         mask_args=mask_args,
                                         memory=memory,
                                         memory_level=memory_level,
-                                        n_jobs=n_jobs, verbose=verbose)
+                                        n_jobs=n_jobs,
+                                        max_nbytes=max_nbytes,
+                                        verbose=verbose)
 
         self.n_iter = n_iter
         self.alpha = alpha
         self.dict_init = dict_init
         self.reduction_ratio = reduction_ratio
 
-    def _init_dict(self, imgs, data, confounds=None):
+    def _init_dict(self, data):
 
         if self.dict_init is not None:
             components = self.masker_.transform(self.dict_init)
@@ -146,7 +148,9 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             canica = CanICA(n_components=self.n_components,
                             # CanICA specific parameters
                             do_cca=True, threshold=float(self.n_components),
-                            n_init=1, mask=self.masker_,
+                            n_init=1,
+                            # mask parameter is not useful as we bypass masking
+                            mask=None,
                             random_state=self.random_state,
                             memory=self.memory,
                             memory_level=self.memory_level,
@@ -190,11 +194,10 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                              random_state=self.random_state,
                              memory_level=self.memory_level,
                              memory=self.memory,
-                             max_nbytes=0) as data:
-            print(data)
+                             max_nbytes=self.max_nbytes) as data:
             if self.verbose:
                 print('[DictLearning] Initializating dictionary')
-            self._init_dict(imgs, data)
+            self._init_dict(data)
 
             if self.n_iter == 'auto':
                 # We do a third of an epoch on voxels

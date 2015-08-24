@@ -1,7 +1,6 @@
 from nilearn.input_data import NiftiMasker
 
-from numpy.testing import assert_equal
-from nose.tools import assert_greater_equal
+from nose.tools import assert_true
 import numpy as np
 
 from nilearn.decomposition.tests.test_canica import _make_canica_test_data
@@ -33,7 +32,7 @@ def test_dict_learning():
 
     K = np.abs(components.dot(maps.T))
     recovered_maps = np.sum(K > 0.9)
-    assert_greater_equal(recovered_maps,  2)
+    assert_true(recovered_maps >= 2)
 
     # Smoke test n_iter="auto"
     dict_learning = DictLearning(n_components=4, random_state=rng,
