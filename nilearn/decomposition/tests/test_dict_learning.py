@@ -55,6 +55,14 @@ def test_dict_learning():
                                  smoothing_fwhm=0., n_epochs=2, alpha=1)
     dict_learning.fit(data)
 
+    # Smoke test reduction_ratio < 1
+    dict_learning = DictLearning(n_components=4, random_state=0,
+                                 dict_init=dict_init,
+                                 reduction_ratio=0.5,
+                                 mask=mask_img,
+                                 smoothing_fwhm=0., n_epochs=1, alpha=1)
+    dict_learning.fit(data)
+
 
 def test_component_sign():
     # Regression test
