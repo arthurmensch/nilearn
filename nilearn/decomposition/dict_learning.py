@@ -155,7 +155,9 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                             )
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", UserWarning)
-                canica.fit(imgs, confounds=confounds)
+                # We use protected function _raw_fit as data
+                # has already been unmasked
+                canica._raw_fit(data)
             components = canica.components_
         ridge = LinearRegression(fit_intercept=None)
         ridge.fit(components.T, data.T)
@@ -188,7 +190,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                              random_state=self.random_state,
                              memory_level=self.memory_level,
                              memory=self.memory,
-                             max_nbytes=None) as data:
+                             max_nbytes=0) as data:
             print(data)
             if self.verbose:
                 print('[DictLearning] Initializating dictionary')
@@ -204,9 +206,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
 
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
-            temp = os.path.join(mkdtemp(), 'data')
-            dump(data, temp)
-            data = np.memmap(temp, dtype='float64', shape=data.shape)
             dictionary = self._cache(dict_learning_online,
                                      func_memory_level=2)(
                 data.T,
