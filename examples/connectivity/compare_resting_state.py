@@ -33,13 +33,13 @@ sparse_pca = SparsePCA(n_components=n_components, smoothing_fwhm=4.,
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=4.,
                              memory="nilearn_cache", dict_init=rsn70,
-                             reduction_ratio=1.,
+                             reduction_ratio='auto',
                              memory_level=3,
                              verbose=2,
-                             random_state=0, alpha=10, max_nbytes=0,
-                             n_epochs=2)
+                             random_state=0, alpha=60, max_nbytes=None,
+                             n_epochs=0.5)
 
-estimators = [sparse_pca, dict_learning]
+estimators = [dict_learning]
 components_imgs = []
 timings = []
 for estimator in estimators:
@@ -61,7 +61,8 @@ from nilearn.image import index_img
 
 print('[Example] Displaying')
 
-fig, axes = plt.subplots(nrows=len(estimators))
+fig, axes = plt.subplots(nrows=len(estimators), squeeze=False)
+axes = axes.reshape(-1)
 cut_coords = find_xyz_cut_coords(index_img(components_imgs[0], 1))
 for estimator, cur_img, timing, ax in zip(estimators, components_imgs,
                                         timings, axes):

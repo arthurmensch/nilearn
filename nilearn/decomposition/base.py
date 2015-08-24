@@ -176,7 +176,7 @@ class mask_and_reduce(object):
         for i, (img, confound) in enumerate(zip(imgs, confounds)):
             # Caching is done withing masker class
             this_data = self.masker.transform(img, confound)
-            if self.compression_type == 'pca':
+            if self.compression_type == 'svd':
                 if subject_n_samples[i] <= this_data.shape[0] // 4:
                     U, S, _ = cache(randomized_svd, self.memory,
                                     memory_level=self.memory_level,
@@ -192,7 +192,7 @@ class mask_and_reduce(object):
                     U = U.T[:subject_n_samples[i]].copy()
                     S = S[:subject_n_samples[i]]
                 U = U * S[:, np.newaxis]
-            else:
+            else:  # compression_type == 'range_finder'
                 Q = randomized_range_finder(this_data, subject_n_samples[i], 3,
                                             random_state=self.random_state)
                 U = Q.T.dot(this_data)
