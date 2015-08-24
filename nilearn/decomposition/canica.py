@@ -133,30 +133,15 @@ class CanICA(MultiPCA, CacheMixin):
         self.threshold = threshold
         self.n_init = n_init
 
-    def fit(self, imgs, y=None, confounds=None):
-        """Compute the mask and the ICA maps across subjects
 
-        Parameters
-        ----------
-        imgs: list of Niimg-like objects
-            See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
-            Data on which PCA must be calculated. If this is a list,
-            the affine is considered the same for all.
-
-        confounds: CSV file path or 2D matrix
-            This parameter is passed to nilearn.signal.clean. Please see the
-            related documentation for details
-        """
-        if self.verbose:
-            print('[CanICA] Learning mask')
-        MultiPCA.fit(self, imgs, y=y, confounds=confounds)
-
+    def _unmix_components(self):
         random_state = check_random_state(self.random_state)
 
         seeds = random_state.randint(np.iinfo(np.int32).max, size=self.n_init)
         results = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
-                delayed(self._cache(fastica, func_memory_level=2))(self.components_.T,
-                                 whiten=True, fun='cube', random_state=seed)
+                delayed(self._cache(fastica, func_memory_level=2))
+                (self.components_.T, whiten=True, fun='cube',
+                 random_state=seed)
                 for seed in seeds)
 
         ica_maps_gen_ = (result[2].T for result in results)
@@ -188,4 +173,37 @@ class CanICA(MultiPCA, CacheMixin):
             if component.max() < -component.min():
                 component *= -1
 
+    def fit(self, imgs, y=None, confounds=None):
+        """Compute the mask and the ICA maps across subjects
+
+        Parameters
+        ----------
+        imgs: list of Niimg-like objects
+            See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
+            Data on which PCA must be calculated. If this is a list,
+            the affine is considered the same for all.
+
+        confounds: CSV file path or 2D matrix
+            This parameter is passed to nilearn.signal.clean. Please see the
+            related documentation for details
+        """
+        if self.verbose:
+            print('[CanICA] Learning mask')
+        MultiPCA.fit(self, imgs, y=y, confounds=confounds)
+        self._unmix_components()
+        return self
+
+    def _raw_fit(self, data):
+        """Helper function that direcly process unmasked data.
+
+        Useful when called by another estimator that has already
+        unmasked data.
+
+        Parameters
+        ----------
+        data: ndarray or memmap
+            Unmasked data to process*
+        """
+        MultiPCA._raw_fit(self, data)
+        self._unmix_components()
         return self

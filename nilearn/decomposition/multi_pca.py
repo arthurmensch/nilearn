@@ -151,14 +151,20 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                              n_components=self.n_components,
                              random_state=self.random_state, max_nbytes=0)\
                 as data:
-            if self.do_cca:
-                S = np.sqrt(np.sum(data ** 2, axis=1))
-                S[S == 0] = 1
-                data /= S[:, np.newaxis]
-
-            self.components_, self.variance_, _ = self._cache(
-                randomized_svd, func_memory_level=2)(
-                    data.T, n_components=self.n_components,
-                random_state=self.random_state)
-        self.components_ = self.components_.T
+            self._raw_fit(data)
         return self
+
+    def _raw_fit(self, data):
+        """Helper function that direcly process unmasked data"""
+        if self.do_cca:
+            S = np.sqrt(np.sum(data ** 2, axis=1))
+            S[S == 0] = 1
+            data /= S[:, np.newaxis]
+        self.components_, self.variance_, _ = self._cache(
+            randomized_svd, func_memory_level=2)(
+                data.T, n_components=self.n_components,
+            random_state=self.random_state)
+        if self.do_cca:
+            data *= S[:, np.newaxis]
+        self.components_ = self.components_.T
+
