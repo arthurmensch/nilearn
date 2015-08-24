@@ -110,7 +110,8 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                  target_affine=None, target_shape=None,
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
-                 n_jobs=1, verbose=0
+                 n_jobs=1, max_nbytes=1e9,
+                 verbose=0
                  ):
         self.n_components = n_components
         self.do_cca = do_cca
@@ -129,7 +130,8 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                                         mask_args=mask_args,
                                         memory=memory,
                                         memory_level=memory_level,
-                                        n_jobs=n_jobs, verbose=verbose)
+                                        n_jobs=n_jobs, max_nbytes=max_nbytes,
+                                        verbose=verbose)
         
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the components
@@ -149,7 +151,8 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         with mask_and_reduce(self.masker_, imgs, confounds,
                              n_components=self.n_components,
-                             random_state=self.random_state, max_nbytes=0)\
+                             random_state=self.random_state,
+                             max_nbytes=self.max_nbytes)\
                 as data:
             self._raw_fit(data)
         return self

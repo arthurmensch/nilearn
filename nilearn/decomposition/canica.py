@@ -116,7 +116,7 @@ class CanICA(MultiPCA, CacheMixin):
                  target_affine=None, target_shape=None,
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
-                 n_jobs=1, verbose=0
+                 n_jobs=1, max_nbytes=1e9, verbose=0
                  ):
 
         super(CanICA, self).__init__(
@@ -129,7 +129,7 @@ class CanICA(MultiPCA, CacheMixin):
             target_affine=target_affine, target_shape=target_shape,
             mask_strategy=mask_strategy, mask_args=mask_args,
             memory=memory, memory_level=memory_level,
-            n_jobs=n_jobs, verbose=verbose)
+            n_jobs=n_jobs, max_nbytes=max_nbytes, verbose=verbose)
         self.threshold = threshold
         self.n_init = n_init
 
