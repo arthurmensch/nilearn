@@ -35,13 +35,14 @@ n_components = 30
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="nilearn_cache", memory_level=3,
-                             verbose=10,
-                             random_state=0, alpha=3, max_nbytes=0, n_epochs=1)
+                             verbose=1,
+                             random_state=0, alpha=3, max_nbytes=0, n_epochs=2)
 canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
                 memory="nilearn_cache",  memory_level=3,
+                verbose=1,
                 n_init=1, threshold=3.)
 
-estimators = [dict_learning, canica]
+estimators = [dict_learning]
 
 components_imgs = []
 
@@ -66,7 +67,7 @@ print('[Example] Displaying')
 
 fig, axes = plt.subplots(nrows=len(estimators))
 cut_coords = find_xyz_cut_coords(index_img(components_imgs[0], 1))
-for estimator, cur_img, ax in zip(estimators, components_imgs, axes):
+for estimator, cur_img, ax in zip(estimators, components_imgs, [axes]):
     plot_prob_atlas(cur_img, view_type="continuous",
                     title="%s" % estimator.__class__.__name__,
                     axes=ax,

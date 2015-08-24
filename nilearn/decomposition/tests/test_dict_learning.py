@@ -48,6 +48,13 @@ def test_dict_learning():
     recovered_maps = np.sum(K > 0.9)
     assert_true(recovered_maps >= 2)
 
+    # Smoke test n_epochs > 1
+    dict_learning = DictLearning(n_components=4, random_state=0,
+                                 dict_init=dict_init,
+                                 mask=mask_img,
+                                 smoothing_fwhm=0., n_epochs=2, alpha=1)
+    dict_learning.fit(data)
+
 
 def test_component_sign():
     # Regression test
