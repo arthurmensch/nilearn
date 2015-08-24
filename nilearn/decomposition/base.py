@@ -6,16 +6,14 @@ import os
 from math import ceil
 from tempfile import mkstemp
 import warnings
-import nibabel
 
 import numpy as np
 from scipy import linalg
-from sklearn.externals.joblib import Memory, Parallel, delayed
+from sklearn.externals.joblib import Memory
 from sklearn.linear_model import LinearRegression
-from sklearn.utils.extmath import randomized_svd
+from sklearn.utils.extmath import randomized_svd, randomized_range_finder
 from sklearn.base import BaseEstimator
 
-from ..input_data.nifti_masker import filter_and_mask
 from ..input_data import NiftiMapsMasker
 from ..input_data.masker_validation import check_embedded_nifti_masker
 from .._utils.cache_mixin import CacheMixin, cache
@@ -100,6 +98,7 @@ class mask_and_reduce(object):
 
     def __init__(self, masker, imgs, confounds=None,
                  reduction_ratio='auto',
+                 compression_type='svd',
                  n_components=None, random_state=None,
                  memory_level=0,
                  memory=Memory(cachedir=None),
@@ -108,6 +107,7 @@ class mask_and_reduce(object):
         self.imgs = imgs
         self.confounds = confounds
         self.reduction_ratio = reduction_ratio
+        self.compression_type = compression_type
         self.n_components = n_components
         self.random_state = random_state
         self.memory_level = memory_level
@@ -115,7 +115,7 @@ class mask_and_reduce(object):
         self.max_nbytes = max_nbytes
 
     def __enter__(self):
-        if isinstance(self.imgs, nibabel.Nifti1Image):
+        if not hasattr(self.imgs, '__iter__'):
             imgs = [self.imgs]
         else:
             imgs = self.imgs
@@ -168,24 +168,34 @@ class mask_and_reduce(object):
         else:
             confounds = self.confounds
 
+        if self.compression_type not in ['svd', 'range_finder']:
+            raise ValueError("`compression_type` should be `svd`"
+                             " or `range_finder`, got %s."
+                             % self.compression_type)
+
         for i, (img, confound) in enumerate(zip(imgs, confounds)):
             # Caching is done withing masker class
             this_data = self.masker.transform(img, confound)
-            if subject_n_samples[i] <= this_data.shape[0] // 4:
-                U, S, _ = cache(randomized_svd, self.memory,
-                                memory_level=self.memory_level,
-                                func_memory_level=3)\
-                    (this_data.T, subject_n_samples[i],
-                     random_state=self.random_state)
-                U = U.T
+            if self.compression_type == 'pca':
+                if subject_n_samples[i] <= this_data.shape[0] // 4:
+                    U, S, _ = cache(randomized_svd, self.memory,
+                                    memory_level=self.memory_level,
+                                    func_memory_level=3)\
+                        (this_data.T, subject_n_samples[i],
+                         random_state=self.random_state)
+                    U = U.T
+                else:
+                    U, S, _ = cache(linalg.svd, self.memory,
+                                    memory_level=self.memory_level,
+                                    func_memory_level=3)(this_data.T,
+                                                         full_matrices=False)
+                    U = U.T[:subject_n_samples[i]].copy()
+                    S = S[:subject_n_samples[i]]
+                U = U * S[:, np.newaxis]
             else:
-                U, S, _ = cache(linalg.svd, self.memory,
-                                memory_level=self.memory_level,
-                                func_memory_level=3)(this_data.T,
-                                                     full_matrices=False)
-                U = U.T[:subject_n_samples[i]].copy()
-                S = S[:subject_n_samples[i]]
-            U = U * S[:, np.newaxis]
+                Q = randomized_range_finder(this_data, subject_n_samples[i], 3,
+                                            random_state=self.random_state)
+                U = Q.T.dot(this_data)
             data[subject_limits[i]:subject_limits[i+1], :] = U
         return data
 

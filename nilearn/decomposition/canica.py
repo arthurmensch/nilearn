@@ -137,7 +137,6 @@ class CanICA(MultiPCA, CacheMixin):
         self.threshold = threshold
         self.n_init = n_init
 
-
     def _unmix_components(self):
         random_state = check_random_state(self.random_state)
 
