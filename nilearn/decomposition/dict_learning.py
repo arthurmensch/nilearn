@@ -12,6 +12,8 @@ from tempfile import mkdtemp
 import warnings
 
 # WindowsError only exist on Windows
+from math import ceil
+
 try:
     WindowsError
 except NameError:
@@ -45,6 +47,25 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
     n_components: int
         Number of components to extract
 
+    n_epochs: float
+        Number of epochs the algorithm should run on the data
+
+    alpha: float, optional, default=1
+        Sparsity controlling parameter
+
+    dict_init: Niimg-like object, optional
+        Initial estimation of dictionary maps. Would be computed from CanICA if
+        not provided
+
+    reduction_ratio: 'auto' or float, optional
+        - Between 0. or 1. : controls compression of data, 1. means no
+        compression
+        - if set to 'auto', estimator will guess a good compression trade-off
+        between speed and accuracy
+
+    random_state: int or RandomState
+        Pseudo number generator state used for random sampling.
+
     smoothing_fwhm: float, optional
         If smoothing_fwhm is not None, it gives the size in millimeters of the
         spatial smoothing to apply to the signal.
@@ -52,12 +73,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
     standardize : boolean, optional
         If standardize is True, the time-series are centered and normed:
         their variance is put to 1 in the time dimension.
-
-    alpha: float, optional, default=1
-        Sparsity controlling parameter
-
-    random_state: int or RandomState
-        Pseudo number generator state used for random sampling.
 
     target_affine: 3x3 or 4x4 matrix, optional
         This parameter is passed to image.resample_img. Please see the
@@ -92,6 +107,10 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         The number of CPUs to use to do the computation. -1 means
         'all CPUs', -2 'all CPUs but one', and so on.
 
+    max_nbytes: int,
+        Size (in bytes) above which the intermediary unmasked data will be
+        stored as a tempory memory map
+
     verbose: integer, optional
         Indicate the level of verbosity. By default, nothing is printed
 
@@ -106,7 +125,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
     """
 
     def __init__(self, n_components=20,
-                 n_iter='auto', alpha=1, dict_init=None,
+                 n_epochs=1, alpha=1, dict_init=None,
                  reduction_ratio='auto',
                  random_state=None,
                  mask=None, smoothing_fwhm=None,
@@ -135,7 +154,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                                         max_nbytes=max_nbytes,
                                         verbose=verbose)
 
-        self.n_iter = n_iter
+        self.n_epochs = n_epochs
         self.alpha = alpha
         self.dict_init = dict_init
         self.reduction_ratio = reduction_ratio
@@ -199,13 +218,12 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 print('[DictLearning] Initializating dictionary')
             self._init_dict(data)
 
-            if self.n_iter == 'auto':
-                # We do a third of an epoch on voxels
-                # self.n_iter = ceil(self.data_fat.shape[1] / self.batch_size)
-                n_iter = (data.shape[1] - 1) // 10 + 1
-                n_iter //= 1
-            else:
-                n_iter = self.n_iter
+            if self.n_epochs < 0:
+                self.n_epochs = 1
+            # Performing more than 10 epochs would probably useless
+            if self.n_epochs > 10:
+                self.n_epochs = 10
+            n_iter = int(ceil((data.shape[1] / 10 * self.n_epochs)))
 
             if self.verbose:
                 print('[DictLearning] Learning dictionary')

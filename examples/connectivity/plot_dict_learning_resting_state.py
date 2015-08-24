@@ -21,7 +21,7 @@ from sklearn.externals.joblib import Memory
 from nilearn import datasets
 # For linear assignment (should be moved in non user space...)
 t0 = time.time()
-adhd_dataset = datasets.fetch_adhd(n_subjects=20)
+adhd_dataset = datasets.fetch_adhd(n_subjects=40)
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
@@ -36,7 +36,7 @@ n_components = 30
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="nilearn_cache", memory_level=3,
                              verbose=10,
-                             random_state=0, alpha=6, max_nbytes=0)
+                             random_state=0, alpha=3, max_nbytes=0, n_epochs=1)
 canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
                 memory="nilearn_cache",  memory_level=3,
                 n_init=1, threshold=3.)
@@ -67,7 +67,7 @@ print('[Example] Displaying')
 fig, axes = plt.subplots(nrows=len(estimators))
 cut_coords = find_xyz_cut_coords(index_img(components_imgs[0], 1))
 for estimator, cur_img, ax in zip(estimators, components_imgs, axes):
-    plot_prob_atlas(cur_img, display_mode="continuous",
+    plot_prob_atlas(cur_img, view_type="continuous",
                     title="%s" % estimator.__class__.__name__,
                     axes=ax,
                     cut_coords=cut_coords, colorbar=False)
