@@ -14,7 +14,7 @@ from sklearn.utils.extmath import randomized_svd
 from sklearn.base import BaseEstimator
 
 from ..input_data.nifti_masker import filter_and_mask
-from ..input_data import MultiNiftiMasker, NiftiMasker, NiftiMapsMasker
+from ..input_data import MultiNiftiMasker, NiftiMapsMasker
 from ..input_data.masker_validation import check_embedded_nifti_masker
 from .._utils.cache_mixin import CacheMixin, cache
 from .._utils.class_inspect import get_params
@@ -23,109 +23,126 @@ from .._utils.niimg_conversions import _iter_check_niimg, check_niimg_4d
 from nilearn.datasets.utils import _get_dataset_dir
 
 
-def make_pca_masker(masker, n_components=None, random_state=None):
-    """Utility function to return a PCAMultiNiftiMasker from a MultiNiftiMasker
-
-    Parameters
-    ----------
-    masker: MultiNiftiMasker or NiftiMasker,
-        Masker to be copied from when creating new _PCAMultiNiftiMasker
-
-    n_components: int
-        In new masker, number of components to extract, for each 4D-Niimage.
-        None means no reduction
-
-    random_state: int or RandomState
-        In new masker, pseudo number generator state used for random sampling.
-
-    Returns
-    ----------
-    returned_masker: _PCAMultiNiftiMasker or MultiNiftiMasker,
-        New masker with reduction capability
-    """
-    if not isinstance(masker, (NiftiMasker, MultiNiftiMasker)):
-        raise ValueError("Expected type: *NiftiMasker but got type %s" %
-                         type(masker))
-    params = masker.get_params()
-    if n_components is not None:
-        returned_masker = PCAMultiNiftiMasker(n_components=n_components,
-                                              random_state=random_state,
-                                              **params)
-    else:
-        returned_masker = MultiNiftiMasker(**params)
-    # If masker has already been fitted, intialize new masker with mask_img_
-    if hasattr(masker, 'mask_img_'):
-        returned_masker.mask_img = masker.mask_img_
-        returned_masker.fit()
-    return returned_masker
-
-
 def mask_and_reduce(masker, imgs, confounds=None,
                     reduction_ratio='auto',
                     n_components=None, random_state=None,
                     memory_level=0,
-                    memory=Memory(cachedir=None),):
-        if isinstance(imgs, nibabel.Nifti1Image):
-            imgs = [imgs]
+                    memory=Memory(cachedir=None),
+                    memory_mode='auto'):
+    """Mask and reduce provided data with provided masker, using a PCA
 
-        if reduction_ratio != 'auto':
-            reduction_ratio = float(reduction_ratio)
-            if reduction_ratio is None or reduction_ratio >= 1:
-                reduction_ratio = 1
-        # Precomputing number of samples for preallocation
-        subject_n_samples = np.zeros(len(imgs), dtype='int')
+    Uses a PCA on time series to reduce data size. For multiple image, the
+    concatenation of data is returned, either as an ndarray or a memorymap
+    (useful for big datasets that does not fit in memory).
 
-        for i, img in enumerate(imgs):
-            if reduction_ratio == 'auto':
-                subject_n_samples[i] = min(n_components,
-                                           check_niimg_4d(img).get_shape()[3])
-            else:
-                subject_n_samples[i] = int(ceil(check_niimg_4d(img).
-                                           get_shape()[3] * reduction_ratio))
-        subject_limits = np.zeros(subject_n_samples.shape[0]+1,
-                                  dtype='int')
-        subject_limits[1:] = np.cumsum(subject_n_samples)
-        n_voxels = np.sum(masker.mask_img_.get_data())
-        n_samples = subject_limits[-1]
+    Parameters
+    ----------
+    masker: NiftiMasker or MultiNiftiMasker
+        Masker to use to mask provided data
 
-        # We initialize data in memory or on disk
-        if n_voxels * n_samples * 8 > 2e9:
-            temp_dir = _get_dataset_dir('temp')
-            filename = os.path.join(temp_dir, 'data')
-            data = np.memmap(filename, dtype='float64', order='F', mode='w+',
-                             shape=(n_samples, n_voxels))
+    imgs: list of Niimg-like objects
+        See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
+        List of subject data
+
+    confounds: CSV file path or 2D matrix
+        This parameter is passed to signal.clean. Please see the
+        corresponding documentation for details.
+
+    reduction_ratio: 'auto' or float
+        How to reduce the data. If 'auto', reduce it to the provided number of
+        components. If float between 0. and 1., data will be reduced to the
+        provided ratio. Default: 'auto'
+
+    n_components: integer, optional
+        Number of components to be extracted by the PCA
+
+    random_state: int or RandomState
+        Pseudo number generator state used for random sampling.
+
+    memory_level: integer, optional
+        Integer indicating the level of memorization. The higher, the more
+        function calls are cached.
+
+    memory: joblib.Memory
+        Used to cache the function calls.
+
+    memory_mode: {'auto', 'array', 'memorymap'}
+        Whether to return a memorymap or and ndarray. Default: 'auto'
+
+    Retuns
+    ------
+    data: ndarray or memorymap
+        Concatenation of reduced data
+    """
+    if isinstance(imgs, nibabel.Nifti1Image):
+        imgs = [imgs]
+
+    if reduction_ratio != 'auto':
+        reduction_ratio = float(reduction_ratio)
+        if reduction_ratio is None or reduction_ratio >= 1:
+            reduction_ratio = 1
+    else:
+        if n_components is None:
+            raise ValueError("`n_components` should be explicitly provided if"
+                             " `reduction_ratio` == 'auto'")
+    # Precomputing number of samples for preallocation
+    subject_n_samples = np.zeros(len(imgs), dtype='int')
+
+    for i, img in enumerate(imgs):
+        if reduction_ratio == 'auto':
+            subject_n_samples[i] = min(n_components,
+                                       check_niimg_4d(img).get_shape()[3])
         else:
-            temp_dir = None
-            data = np.empty((n_samples, n_voxels), order='F', dtype='float64')
+            subject_n_samples[i] = int(ceil(check_niimg_4d(img).
+                                       get_shape()[3] * reduction_ratio))
+    subject_limits = np.zeros(subject_n_samples.shape[0]+1,
+                              dtype='int')
+    subject_limits[1:] = np.cumsum(subject_n_samples)
+    n_voxels = np.sum(masker.mask_img_.get_data())
+    n_samples = subject_limits[-1]
 
-        if confounds is None:
-            confounds = [None] * len(imgs)
+    if memory_mode == 'auto':
+        if n_voxels * n_samples * 8 > 1e9:
+            memory_mode == 'memorymap'
+        else:
+            memory_mode == 'array'
+    elif memory_mode not in ['memorymap', 'array']:
+        raise ValueError("`memory_mode` should be 'auto', 'memorymap',"
+                         " 'array', got %s" % memory_mode)
 
-        masker_type = type(masker)
-        for i, (img, confound) in enumerate(zip(imgs, confounds)):
-            this_data = cache(masker_type.transform, memory,
-                              memory_level=memory_level,
-                              func_memory_level=3)\
-                (masker, img, confound)
-            if subject_n_samples[i] <= this_data.shape[0] // 4:
-                U, S, _ = cache(randomized_svd, memory,
-                                memory_level=memory_level,
-                                func_memory_level=3)(this_data.T,
-                                                     subject_n_samples[i],
-                                                     random_state=random_state)
-                U = U.T
-            else:
-                U, S, _ = cache(linalg.svd, memory,
-                                memory_level=memory_level,
-                                func_memory_level=3)(this_data.T,
-                                                     full_matrices=False)
-                U = U.T[:subject_n_samples[i]].copy()
-                S = S[:subject_n_samples[i]]
-            U = U * S[:, np.newaxis]
-            data[subject_limits[i]:subject_limits[i+1], :] = U
-        return data, temp_dir
+    # We initialize data in memory or on disk
+    if memory_mode == 'memorymap':
+        temp_dir = _get_dataset_dir('temp')
+        filename = os.path.join(temp_dir, 'data')
+        data = np.memmap(filename, dtype='float64', order='F', mode='w+',
+                         shape=(n_samples, n_voxels))
+    else:
+        temp_dir = None
+        data = np.empty((n_samples, n_voxels), order='F', dtype='float64')
 
+    if confounds is None:
+        confounds = [None] * len(imgs)
 
+    for i, (img, confound) in enumerate(zip(imgs, confounds)):
+        # Caching is done withing masker class
+        this_data = masker.transform(img, confound)
+        if subject_n_samples[i] <= this_data.shape[0] // 4:
+            U, S, _ = cache(randomized_svd, memory,
+                            memory_level=memory_level,
+                            func_memory_level=3)(this_data.T,
+                                                 subject_n_samples[i],
+                                                 random_state=random_state)
+            U = U.T
+        else:
+            U, S, _ = cache(linalg.svd, memory,
+                            memory_level=memory_level,
+                            func_memory_level=3)(this_data.T,
+                                                 full_matrices=False)
+            U = U.T[:subject_n_samples[i]].copy()
+            S = S[:subject_n_samples[i]]
+        U = U * S[:, np.newaxis]
+        data[subject_limits[i]:subject_limits[i+1], :] = U
+    return data, temp_dir
 
 
 def session_pca(imgs, mask_img, parameters,
@@ -205,226 +222,6 @@ def session_pca(imgs, mask_img, parameters,
         U = U.T[:n_components].copy()
         S = S[:n_components]
     return U * S[:, np.newaxis], affine
-
-
-class PCAMultiNiftiMasker(MultiNiftiMasker, CacheMixin):
-    """Class for masking Niimg-like objects, with PCA compression in
-     the direction of samples.
-    This class is a monkey_patched version of MultiNiftiMasker,
-    where filter_and_mask is replaced by session_pca
-
-    Parameters
-    ==========
-    n_components: int
-        Number of components to extract, for each 4D-Niimage.
-
-    random_state: int or RandomState
-        Pseudo number generator state used for random sampling.
-
-    mask_img: Niimg-like object
-        See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
-        Mask of the data. If not given, a mask is computed in the fit step.
-        Optional parameters can be set using mask_args and mask_strategy to
-        fine tune the mask extraction.
-
-    smoothing_fwhm: float, optional
-        If smoothing_fwhm is not None, it gives the size in millimeters of the
-        spatial smoothing to apply to the signal.
-
-    standardize: boolean, optional
-        If standardize is True, the time-series are centered and normed:
-        their mean is put to 0 and their variance to 1 in the time dimension.
-
-    detrend: boolean, optional
-        This parameter is passed to signal.clean. Please see the related
-        documentation for details
-
-    low_pass: False or float, optional
-        This parameter is passed to signal.clean. Please see the related
-        documentation for details
-
-    high_pass: False or float, optional
-        This parameter is passed to signal.clean. Please see the related
-        documentation for details
-
-    t_r: float, optional
-        This parameter is passed to signal.clean. Please see the related
-        documentation for details
-
-    target_affine: 3x3 or 4x4 matrix, optional
-        This parameter is passed to image.resample_img. Please see the
-        related documentation for details.
-
-    target_shape: 3-tuple of integers, optional
-        This parameter is passed to image.resample_img. Please see the
-        related documentation for details.
-
-    mask_strategy: {'background' or 'epi'}, optional
-        The strategy used to compute the mask: use 'background' if your
-        images present a clear homogeneous background, and 'epi' if they
-        are raw EPI images. Depending on this value, the mask will be
-        computed from masking.compute_background_mask or
-        masking.compute_epi_mask. Default is 'background'.
-
-    mask_args : dict, optional
-        If mask is None, these are additional parameters passed to
-        masking.compute_background_mask or masking.compute_epi_mask
-        to fine-tune mask computation. Please see the related documentation
-        for details.
-
-    memory: instance of joblib.Memory or string
-        Used to cache the masking process.
-        By default, no caching is done. If a string is given, it is the
-        path to the caching directory.
-
-    memory_level: integer, optional
-        Rough estimator of the amount of memory used by caching. Higher value
-        means more memory for caching.
-
-    n_jobs: integer, optional
-        The number of CPUs to use to do the computation. -1 means
-        'all CPUs', -2 'all CPUs but one', and so on.
-
-    verbose: integer, optional
-        Indicate the level of verbosity. By default, nothing is printed
-
-    Attributes
-    ==========
-    mask_img_: nibabel.Nifti1Image object
-        The mask of the data. If no mask was given at masker creation, contains
-        the automatically computed mask.
-
-    affine_: 4x4 numpy.ndarray
-        Affine of the transformed image. If affine is different across
-        subjects, contains the affine of the first subject on which other
-        subject data have been resampled.
-
-    See Also
-    ========
-    nilearn.image.resample_img: image resampling
-    nilearn.masking.compute_epi_mask: mask computation
-    nilearn.masking.apply_mask: mask application on image
-    nilearn.signal.clean: confounds removal and general filtering of signals
-    """
-
-    def __init__(self, n_components=20,
-                 random_state=None,
-                 mask_img=None, smoothing_fwhm=None,
-                 standardize=False, detrend=False,
-                 low_pass=None, high_pass=None, t_r=None,
-                 target_affine=None, target_shape=None,
-                 mask_strategy='background', mask_args=None,
-                 memory=Memory(cachedir=None), memory_level=0,
-                 n_jobs=1, verbose=0
-                 ):
-        MultiNiftiMasker.__init__(self, mask_img=mask_img,
-                                  smoothing_fwhm=smoothing_fwhm,
-                                  standardize=standardize,
-                                  detrend=detrend,
-                                  low_pass=low_pass,
-                                  high_pass=high_pass, t_r=t_r,
-                                  target_affine=target_affine,
-                                  target_shape=target_shape,
-                                  mask_strategy=mask_strategy,
-                                  mask_args=mask_args,
-                                  memory=memory, memory_level=memory_level,
-                                  n_jobs=n_jobs, verbose=verbose
-                                  )
-
-        self.n_components = n_components
-        self.random_state = random_state
-
-    def transform_single_imgs(self, imgs, confounds=None, copy=True,
-                              sample_mask=None):
-        if not hasattr(self, 'mask_img_'):
-            raise ValueError('It seems that %s has not been fitted. '
-                             'You must call fit() before calling transform().'
-                             % self.__class__.__name__)
-        params = get_params(MultiNiftiMasker, self)
-
-        # Remove the mask-computing params: they are not useful and will
-        # just invalid the cache for no good reason
-        for name in ('mask_img', 'mask_args', 'mask_strategy'):
-            params.pop(name, None)
-
-        data, _ = self._cache(session_pca, func_memory_level=2,
-                              ignore=['verbose', 'memory', 'copy',
-                                      'random_state'])(
-            imgs, self.mask_img_,
-            params,
-            memory_level=self.memory_level,
-            memory=self.memory,
-            verbose=self.verbose,
-            confounds=confounds,
-            copy=copy,
-            sample_mask=sample_mask,
-            n_components=self.n_components,
-            random_state=self.random_state
-        )
-        return data
-
-    def transform_imgs(self, imgs_list, confounds=None, copy=True, n_jobs=1):
-        """Prepare multi subject data in parallel
-
-        Parameters
-        ----------
-
-        imgs_list: list of Niimg-like objects
-            See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
-            List of imgs file to prepare. One item per subject.
-
-        confounds: list of confounds, optional
-            List of confounds (2D arrays or filenames pointing to CSV
-            files). Must be of same length than imgs_list.
-
-        copy: boolean, optional
-            If True, guarantees that output array has no memory in common with
-            input array.
-
-        n_jobs: integer, optional
-            The number of cpus to use to do the computation. -1 means
-            'all cpus'.
-        """
-        if not hasattr(self, 'mask_img_'):
-            raise ValueError('It seems that %s has not been fitted. '
-                             'You must call fit() before calling transform().'
-                             % self.__class__.__name__)
-        params = get_params(MultiNiftiMasker, self)
-        # Remove the mask-computing params: they are not useful and will
-
-        # just invalid the cache for no good reason
-        for name in ('mask_img', 'mask_args', 'mask_strategy'):
-            params.pop(name, None)
-
-        target_fov = None
-        if self.target_affine is None:
-            # Force resampling on first image
-            target_fov = 'first'
-
-        niimg_iter = _iter_check_niimg(imgs_list, ensure_ndim=None,
-                                       atleast_4d=False,
-                                       target_fov=target_fov,
-                                       memory=self.memory,
-                                       memory_level=self.memory_level,
-                                       verbose=self.verbose)
-
-        func = self._cache(session_pca, func_memory_level=2,
-                           ignore=['verbose', 'memory', 'copy',
-                                   'random_state'])
-        if confounds is None:
-            confounds = itertools.repeat(None, len(imgs_list))
-        data = Parallel(n_jobs=n_jobs)(delayed(func)(
-            imgs, self.mask_img_,
-            parameters=params,
-            memory_level=self.memory_level,
-            memory=self.memory,
-            verbose=self.verbose,
-            confounds=confounds,
-            copy=copy,
-            n_components=self.n_components,
-            random_state=self.random_state)
-            for imgs, confounds in izip(niimg_iter, confounds))
-        return list(zip(*data))[0]
 
 
 class DecompositionEstimator(BaseEstimator, CacheMixin):
