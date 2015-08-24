@@ -17,22 +17,29 @@ def test_dict_learning():
                                  dict_init=dict_init,
                                  mask=mask_img,
                                  smoothing_fwhm=0., n_iter=30, alpha=1)
-    dict_learning.fit(data)
-    maps = dict_learning.masker_.inverse_transform(dict_learning.components_)\
-        .get_data()
-    maps = np.reshape(np.rollaxis(maps, 3, 0), (4, 400))
+    # Test with intermediary memorymapped unmasked data
+    dict_learning_memmap = DictLearning(n_components=4, random_state=0,
+                                 dict_init=dict_init,
+                                 mask=mask_img,
+                                 smoothing_fwhm=0., n_iter=30, alpha=1,
+                                 max_nbytes=0)
+    for estimator in [dict_learning, dict_learning_memmap]:
+        estimator.fit(data)
+        maps = estimator.masker_.inverse_transform(dict_learning.components_)\
+            .get_data()
+        maps = np.reshape(np.rollaxis(maps, 3, 0), (4, 400))
 
-    S = np.sqrt(np.sum(components ** 2, axis=1))
-    S[S == 0] = 1
-    components /= S[:, np.newaxis]
+        S = np.sqrt(np.sum(components ** 2, axis=1))
+        S[S == 0] = 1
+        components /= S[:, np.newaxis]
 
-    S = np.sqrt(np.sum(maps ** 2, axis=1))
-    S[S == 0] = 1
-    maps /= S[:, np.newaxis]
+        S = np.sqrt(np.sum(maps ** 2, axis=1))
+        S[S == 0] = 1
+        maps /= S[:, np.newaxis]
 
-    K = np.abs(components.dot(maps.T))
-    recovered_maps = np.sum(K > 0.9)
-    assert_true(recovered_maps >= 2)
+        K = np.abs(components.dot(maps.T))
+        recovered_maps = np.sum(K > 0.9)
+        assert_true(recovered_maps >= 2)
 
     # Smoke test n_iter="auto"
     dict_learning = DictLearning(n_components=4, random_state=rng,
