@@ -142,6 +142,7 @@ class CanICA(MultiPCA, CacheMixin):
         random_state = check_random_state(self.random_state)
 
         seeds = random_state.randint(np.iinfo(np.int32).max, size=self.n_init)
+        print(self.components_.T)
         results = Parallel(n_jobs=self.n_jobs, verbose=self.verbose)(
                 delayed(self._cache(fastica, func_memory_level=2))
                 (self.components_.T, whiten=True, fun='cube',
