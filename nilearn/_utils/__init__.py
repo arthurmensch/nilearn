@@ -4,7 +4,7 @@ from .niimg_conversions import (check_niimg, check_niimg_3d, concat_niimgs,
 
 from .niimg import _repr_niimgs, copy_img, load_niimg
 
-from .numpy_conversions import as_ndarray, fast_same_size_concatenation
+from .numpy_conversions import as_ndarray
 
 from .cache_mixin import CacheMixin
 

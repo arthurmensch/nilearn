@@ -168,33 +168,3 @@ def csv_to_array(csv_path, delimiters=' \t,;', **kwargs):
         array = np.genfromtxt(csv_path, delimiter=dialect.delimiter, **kwargs)
 
     return array
-
-
-def fast_same_size_concatenation(data, n_components):
-    """Utility function that return a concatenation of an array list, raising
-    an error if any array of the list has an unexpected length.
-
-    Parameters
-    ----------
-    data: list of 2D array,
-        List of arrays with the same size in first dimension.
-
-    n_components: int,
-        Expected first dimensional length
-
-    Returns
-    ----------
-    concatenated_data: 2D array,
-        Concatenated subject components
-    """
-    res = np.empty((len(data) * n_components,
-                    data[0].shape[1]),
-                    dtype=data[0].dtype)
-    for index, this_data in enumerate(data):
-        if n_components != this_data.shape[0]:
-            raise ValueError('Concatenation of data failed as one of the array'
-                             ' in list has an unexpected length: %i != %i'
-                             % (n_components, this_data.shape[0]))
-        res[index * n_components:
-            (index + 1) * n_components] = this_data
-    return res

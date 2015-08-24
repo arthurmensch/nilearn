@@ -1,9 +1,11 @@
 """
 PCA dimension reduction on single subjects
 """
-import itertools
+import atexit
 import os
 from math import ceil
+from tempfile import mkstemp
+import warnings
 import nibabel
 
 import numpy as np
@@ -14,21 +16,42 @@ from sklearn.utils.extmath import randomized_svd
 from sklearn.base import BaseEstimator
 
 from ..input_data.nifti_masker import filter_and_mask
-from ..input_data import MultiNiftiMasker, NiftiMapsMasker
+from ..input_data import NiftiMapsMasker
 from ..input_data.masker_validation import check_embedded_nifti_masker
 from .._utils.cache_mixin import CacheMixin, cache
-from .._utils.class_inspect import get_params
-from .._utils.compat import izip
-from .._utils.niimg_conversions import _iter_check_niimg, check_niimg_4d
+from .._utils.niimg_conversions import check_niimg_4d
 from nilearn.datasets.utils import _get_dataset_dir
 
+# WindowsError only exist on Windows
+try:
+    WindowsError
+except NameError:
+    WindowsError = None
 
-def mask_and_reduce(masker, imgs, confounds=None,
-                    reduction_ratio='auto',
-                    n_components=None, random_state=None,
-                    memory_level=0,
-                    memory=Memory(cachedir=None),
-                    memory_mode='auto'):
+
+def _delete_file(file_descriptor, file_path, warn=False):
+    """Utility function to cleanup a temporary folder if still existing.
+    Copy from joblib.pool (for independance)"""
+    try:
+        os.close(file_descriptor)
+    except OSError:
+        pass
+    if os.path.exists(file_path):
+        folder_path = os.path.dirname(file_path)
+        os.remove(file_path)
+        # if folder_path is empty
+        if not os.listdir(folder_path):
+            try:
+                # This can fail under windows,
+                #  but will succeed when called by atexit
+                os.rmdir(folder_path)
+            except WindowsError:
+                if warn:
+                    warnings.warn("Could not delete temporary folder %s"
+                                  % folder_path)
+
+
+class mask_and_reduce(object):
     """Mask and reduce provided data with provided masker, using a PCA
 
     Uses a PCA on time series to reduce data size. For multiple image, the
@@ -74,154 +97,101 @@ def mask_and_reduce(masker, imgs, confounds=None,
     data: ndarray or memorymap
         Concatenation of reduced data
     """
-    if isinstance(imgs, nibabel.Nifti1Image):
-        imgs = [imgs]
 
-    if reduction_ratio != 'auto':
-        reduction_ratio = float(reduction_ratio)
-        if reduction_ratio is None or reduction_ratio >= 1:
-            reduction_ratio = 1
-    else:
-        if n_components is None:
-            raise ValueError("`n_components` should be explicitly provided if"
-                             " `reduction_ratio` == 'auto'")
-    # Precomputing number of samples for preallocation
-    subject_n_samples = np.zeros(len(imgs), dtype='int')
+    def __init__(self, masker, imgs, confounds=None,
+                 reduction_ratio='auto',
+                 n_components=None, random_state=None,
+                 memory_level=0,
+                 memory=Memory(cachedir=None),
+                 max_nbytes=1e9):
+        self.masker = masker
+        self.imgs = imgs
+        self.confounds = confounds
+        self.reduction_ratio = reduction_ratio
+        self.n_components = n_components
+        self.random_state = random_state
+        self.memory_level = memory_level
+        self.memory = memory
+        self.max_nbytes = max_nbytes
 
-    for i, img in enumerate(imgs):
-        if reduction_ratio == 'auto':
-            subject_n_samples[i] = min(n_components,
-                                       check_niimg_4d(img).get_shape()[3])
+    def __enter__(self):
+        if isinstance(self.imgs, nibabel.Nifti1Image):
+            imgs = [self.imgs]
         else:
-            subject_n_samples[i] = int(ceil(check_niimg_4d(img).
-                                       get_shape()[3] * reduction_ratio))
-    subject_limits = np.zeros(subject_n_samples.shape[0]+1,
-                              dtype='int')
-    subject_limits[1:] = np.cumsum(subject_n_samples)
-    n_voxels = np.sum(masker.mask_img_.get_data())
-    n_samples = subject_limits[-1]
+            imgs = self.imgs
 
-    if memory_mode == 'auto':
-        if n_voxels * n_samples * 8 > 1e9:
-            memory_mode == 'memorymap'
+        if self.reduction_ratio != 'auto':
+            reduction_ratio = float(self.reduction_ratio)
+            if reduction_ratio is None or reduction_ratio >= 1:
+                reduction_ratio = 1
         else:
-            memory_mode == 'array'
-    elif memory_mode not in ['memorymap', 'array']:
-        raise ValueError("`memory_mode` should be 'auto', 'memorymap',"
-                         " 'array', got %s" % memory_mode)
+            if self.n_components is None:
+                reduction_ratio = 1
+            else:
+                reduction_ratio = 'n_components'
+        # Precomputing number of samples for preallocation
+        subject_n_samples = np.zeros(len(imgs), dtype='int')
 
-    # We initialize data in memory or on disk
-    if memory_mode == 'memorymap':
-        temp_dir = _get_dataset_dir('temp')
-        filename = os.path.join(temp_dir, 'data')
-        data = np.memmap(filename, dtype='float64', order='F', mode='w+',
-                         shape=(n_samples, n_voxels))
-    else:
-        temp_dir = None
-        data = np.empty((n_samples, n_voxels), order='F', dtype='float64')
+        for i, img in enumerate(imgs):
+            if reduction_ratio == 'n_components':
+                subject_n_samples[i] = min(self.n_components,
+                                           check_niimg_4d(img).get_shape()[3])
+            else:
+                subject_n_samples[i] = int(ceil(check_niimg_4d(img).
+                                           get_shape()[3] * reduction_ratio))
+        subject_limits = np.zeros(subject_n_samples.shape[0]+1,
+                                  dtype='int')
+        subject_limits[1:] = np.cumsum(subject_n_samples)
+        n_voxels = np.sum(self.masker.mask_img_.get_data())
+        n_samples = subject_limits[-1]
 
-    if confounds is None:
-        confounds = [None] * len(imgs)
-
-    for i, (img, confound) in enumerate(zip(imgs, confounds)):
-        # Caching is done withing masker class
-        this_data = masker.transform(img, confound)
-        if subject_n_samples[i] <= this_data.shape[0] // 4:
-            U, S, _ = cache(randomized_svd, memory,
-                            memory_level=memory_level,
-                            func_memory_level=3)(this_data.T,
-                                                 subject_n_samples[i],
-                                                 random_state=random_state)
-            U = U.T
+        if self.max_nbytes is not None:
+            max_nbytes = int(self.max_nbytes)
+            return_mmap = n_voxels * n_samples * 8 > max_nbytes
         else:
-            U, S, _ = cache(linalg.svd, memory,
-                            memory_level=memory_level,
-                            func_memory_level=3)(this_data.T,
-                                                 full_matrices=False)
-            U = U.T[:subject_n_samples[i]].copy()
-            S = S[:subject_n_samples[i]]
-        U = U * S[:, np.newaxis]
-        data[subject_limits[i]:subject_limits[i+1], :] = U
-    return data, temp_dir
+            return_mmap = False
 
+        # We initialize data in memory or on disk
+        if return_mmap:
+            temp_folder = _get_dataset_dir('temp', verbose=0)
+            self.file_, self.filename_ = mkstemp(dir=temp_folder)
+            atexit.register(lambda: _delete_file(self.file_, self.filename_,
+                                     warn=True))
+            data = np.memmap(self.filename_, dtype='float64',
+                             order='F', mode='w+',
+                             shape=(n_samples, n_voxels))
+        else:
+            data = np.empty((n_samples, n_voxels), order='F', dtype='float64')
 
-def session_pca(imgs, mask_img, parameters,
-                n_components=20,
-                confounds=None,
-                memory_level=0,
-                memory=Memory(cachedir=None),
-                verbose=0,
-                copy=True,
-                sample_mask=None,
-                random_state=0):
-    """Filter, mask and compute PCA on Niimg-like objects
+        if self.confounds is None:
+            confounds = [None] * len(imgs)
+        else:
+            confounds = self.confounds
 
-    This is an helper function whose first call `base_masker.filter_and_mask`
-    and then apply a PCA to reduce the number of time series.
+        for i, (img, confound) in enumerate(zip(imgs, confounds)):
+            # Caching is done withing masker class
+            this_data = self.masker.transform(img, confound)
+            if subject_n_samples[i] <= this_data.shape[0] // 4:
+                U, S, _ = cache(randomized_svd, self.memory,
+                                memory_level=self.memory_level,
+                                func_memory_level=3)\
+                    (this_data.T, subject_n_samples[i],
+                     random_state=self.random_state)
+                U = U.T
+            else:
+                U, S, _ = cache(linalg.svd, self.memory,
+                                memory_level=self.memory_level,
+                                func_memory_level=3)(this_data.T,
+                                                     full_matrices=False)
+                U = U.T[:subject_n_samples[i]].copy()
+                S = S[:subject_n_samples[i]]
+            U = U * S[:, np.newaxis]
+            data[subject_limits[i]:subject_limits[i+1], :] = U
+        return data
 
-    Parameters
-    ----------
-    imgs: list of Niimg-like objects
-        See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
-        List of subject data
-
-    mask_img: Niimg-like object
-        See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
-        Mask to apply on the data
-
-    parameters: dictionary
-        Dictionary of parameters passed to `filter_and_mask`. Please see the
-        documentation of the `NiftiMasker` for more informations.
-
-    confounds: CSV file path or 2D matrix
-        This parameter is passed to signal.clean. Please see the
-        corresponding documentation for details.
-
-    n_components: integer, optional
-        Number of components to be extracted by the PCA
-
-    memory_level: integer, optional
-        Integer indicating the level of memorization. The higher, the more
-        function calls are cached.
-
-    memory: joblib.Memory
-        Used to cache the function calls.
-
-    verbose: integer, optional
-        Indicate the level of verbosity (0 means no messages).
-
-    copy: boolean, optional
-        Whether or not data should be copied.
-
-    random_state: int or RandomState
-        Pseudo number generator state used for random sampling.
-
-    random_state:
-    """
-
-    data, affine = cache(
-        filter_and_mask, memory,
-        func_memory_level=3, memory_level=memory_level,
-        ignore=['verbose', 'memory', 'memory_level', 'copy'])(
-        imgs, mask_img, parameters,
-        memory_level=memory_level,
-        memory=memory,
-        verbose=verbose,
-        confounds=confounds,
-        copy=copy)
-    # If we project on a relatively small space, randomized_svd is faster
-    if n_components <= data.shape[0] // 4:
-        U, S, _ = cache(randomized_svd, memory, memory_level=memory_level,
-                        func_memory_level=3)(
-            data.T, n_components, random_state=random_state)
-        U = U.T
-    else:
-        U, S, _ = cache(linalg.svd, memory, memory_level=memory_level,
-                        func_memory_level=3)(
-            data.T, full_matrices=False)
-        U = U.T[:n_components].copy()
-        S = S[:n_components]
-    return U * S[:, np.newaxis], affine
+    def __exit__(self, type, value, traceback):
+        if hasattr(self, 'file_'):
+            _delete_file(self.file_, self.filename_)
 
 
 class DecompositionEstimator(BaseEstimator, CacheMixin):
