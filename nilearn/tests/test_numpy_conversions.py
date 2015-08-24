@@ -9,11 +9,8 @@ import os
 import tempfile
 
 from nose.tools import assert_true, assert_raises
-from numpy.testing import assert_array_equal
-from nilearn._utils.testing import assert_raises_regex
 
 from nilearn._utils.numpy_conversions import as_ndarray, csv_to_array
-from nilearn._utils.numpy_conversions import fast_same_size_concatenation
 
 
 def are_arrays_identical(arr1, arr2):
