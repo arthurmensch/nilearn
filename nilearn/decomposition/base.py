@@ -135,10 +135,10 @@ class mask_and_reduce(object):
         for i, img in enumerate(imgs):
             if reduction_ratio == 'n_components':
                 subject_n_samples[i] = min(self.n_components,
-                                           check_niimg_4d(img).get_shape()[3])
+                                           check_niimg_4d(img).shape[3])
             else:
                 subject_n_samples[i] = int(ceil(check_niimg_4d(img).
-                                           get_shape()[3] * reduction_ratio))
+                                           shape[3] * reduction_ratio))
         subject_limits = np.zeros(subject_n_samples.shape[0]+1,
                                   dtype='int')
         subject_limits[1:] = np.cumsum(subject_n_samples)
