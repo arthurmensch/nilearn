@@ -2,15 +2,22 @@
 PCA dimension reduction on multiple subjects.
 This is a good initialization method for ICA.
 """
+import os
+import shutil
+import warnings
 import numpy as np
 from sklearn.externals.joblib import Memory
 from sklearn.utils.extmath import randomized_svd
 from sklearn.base import TransformerMixin
 
-from .._utils import fast_same_size_concatenation
 from .._utils.cache_mixin import CacheMixin
-from ._base import DecompositionEstimator, make_pca_masker, mask_and_reduce
+from .base import DecompositionEstimator, mask_and_reduce
 
+# WindowsError only exist on Windows
+try:
+    WindowsError
+except NameError:
+    WindowsError = None
 
 class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
     """Perform Multi Subject Principal Component Analysis.
@@ -159,6 +166,17 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
             randomized_svd, func_memory_level=2)(
                 data.T, n_components=self.n_components,
             random_state=self.random_state)
+
+        data = None
+        if temp_dir is not None:
+                try:
+                    if os.path.exists(temp_dir):
+                        # This can fail under windows,
+                        shutil.rmtree(temp_dir)
+                except WindowsError:
+                        warnings.warn("Could not delete temporary folder %s"
+                                      % temp_dir)
+
 
         self.components_ = self.components_.T
 

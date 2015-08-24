@@ -13,9 +13,6 @@ import shutil
 import warnings
 
 # WindowsError only exist on Windows
-import gc
-from nilearn.datasets.utils import _get_dataset_dir
-
 try:
     WindowsError
 except NameError:
@@ -32,7 +29,7 @@ from sklearn.base import TransformerMixin
 from .._utils import as_ndarray
 from .canica import CanICA
 from .._utils.cache_mixin import CacheMixin
-from ._base import DecompositionEstimator, mask_and_reduce
+from .base import DecompositionEstimator, mask_and_reduce
 
 class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
     """Perform a map learning algorithm based on component sparsity,
@@ -157,7 +154,9 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                             n_jobs=self.n_jobs,
                             verbose=self.verbose
                             )
-            canica.fit(imgs, confounds=confounds)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                canica.fit(imgs, confounds=confounds)
             components = canica.components_
         ridge = LinearRegression(fit_intercept=None)
         ridge.fit(components.T, data.T)
@@ -189,7 +188,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                                          n_components=self.n_components,
                                          random_state=self.random_state,
                                          memory_level=self.memory_level,
-                                         memory=self.memory)
+                                         memory=self.memory,
+                                         memory_mode='memorymap')
 
         if self.verbose:
             print('[DictLearning] Initializating dictionary')
