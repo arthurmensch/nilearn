@@ -99,10 +99,14 @@ def test_component_sign():
         assert_less_equal(-mp.min(), mp.max())
 
     # run CanICA many times (this is known to produce different results)
-    canica = CanICA(n_components=4, random_state=rng, mask=mask_img)
+    canica = CanICA(n_components=4, random_state=1000, mask=mask_img)
     for _ in range(3):
         canica.fit(data)
         for mp in iter_img(canica.masker_.inverse_transform(
                 canica.components_)):
             mp = mp.get_data()
             assert_less_equal(-mp.min(), mp.max())
+
+
+if __name__ == '__main__':
+    test_component_sign()
