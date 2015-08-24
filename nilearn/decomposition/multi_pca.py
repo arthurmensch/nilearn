@@ -13,12 +13,6 @@ from sklearn.base import TransformerMixin
 from .._utils.cache_mixin import CacheMixin
 from .base import DecompositionEstimator, mask_and_reduce
 
-# WindowsError only exist on Windows
-try:
-    WindowsError
-except NameError:
-    WindowsError = None
-
 class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
     """Perform Multi Subject Principal Component Analysis.
     This is a good initialization method for ICA.
@@ -153,31 +147,18 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         """
         DecompositionEstimator.fit(self, imgs)
 
-        data, temp_dir = mask_and_reduce(self.masker_, imgs, confounds,
-                                         n_components=self.n_components,
-                                         reduction_ratio='auto',
-                                         random_state=self.random_state)
-        if self.do_cca:
-            S = np.sqrt(np.sum(data ** 2, axis=1))
-            S[S == 0] = 1
-            data /= S[:, np.newaxis]
+        with mask_and_reduce(self.masker_, imgs, confounds,
+                             n_components=self.n_components,
+                             random_state=self.random_state, max_nbytes=0)\
+                as data:
+            if self.do_cca:
+                S = np.sqrt(np.sum(data ** 2, axis=1))
+                S[S == 0] = 1
+                data /= S[:, np.newaxis]
 
-        self.components_, self.variance_, _ = self._cache(
-            randomized_svd, func_memory_level=2)(
-                data.T, n_components=self.n_components,
-            random_state=self.random_state)
-
-        data = None
-        if temp_dir is not None:
-                try:
-                    if os.path.exists(temp_dir):
-                        # This can fail under windows,
-                        shutil.rmtree(temp_dir)
-                except WindowsError:
-                        warnings.warn("Could not delete temporary folder %s"
-                                      % temp_dir)
-
-
+            self.components_, self.variance_, _ = self._cache(
+                randomized_svd, func_memory_level=2)(
+                    data.T, n_components=self.n_components,
+                random_state=self.random_state)
         self.components_ = self.components_.T
-
         return self

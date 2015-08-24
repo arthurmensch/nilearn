@@ -15,8 +15,6 @@ Pre-prints for paper is available on hal
 (http://hal.archives-ouvertes.fr)
 """
 
-import numpy as np
-
 ### Load ADHD rest dataset ####################################################
 from nilearn import datasets
 

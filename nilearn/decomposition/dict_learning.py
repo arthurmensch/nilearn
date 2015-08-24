@@ -8,8 +8,7 @@ component sparsity
 
 from __future__ import division
 import os
-from math import ceil
-import shutil
+from tempfile import mkdtemp
 import warnings
 
 # WindowsError only exist on Windows
@@ -19,7 +18,7 @@ except NameError:
     WindowsError = None
 
 import numpy as np
-from sklearn.externals.joblib import Memory
+from sklearn.externals.joblib import Memory, dump
 from sklearn.linear_model import Ridge, LinearRegression
 
 from sklearn.decomposition import dict_learning_online, sparse_encode
@@ -183,47 +182,50 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         if self.verbose:
             print('[DictLearning] Loading data')
-        data, temp_dir = mask_and_reduce(self.masker_, imgs, confounds,
-                                         reduction_ratio=self.reduction_ratio,
-                                         n_components=self.n_components,
-                                         random_state=self.random_state,
-                                         memory_level=self.memory_level,
-                                         memory=self.memory,
-                                         memory_mode='memorymap')
+        with mask_and_reduce(self.masker_, imgs, confounds,
+                             reduction_ratio=self.reduction_ratio,
+                             n_components=self.n_components,
+                             random_state=self.random_state,
+                             memory_level=self.memory_level,
+                             memory=self.memory,
+                             max_nbytes=None) as data:
+            print(data)
+            if self.verbose:
+                print('[DictLearning] Initializating dictionary')
+            self._init_dict(imgs, data)
 
-        if self.verbose:
-            print('[DictLearning] Initializating dictionary')
-        self._init_dict(imgs, data)
+            if self.n_iter == 'auto':
+                # We do a third of an epoch on voxels
+                # self.n_iter = ceil(self.data_fat.shape[1] / self.batch_size)
+                n_iter = (data.shape[1] - 1) // 10 + 1
+                n_iter //= 1
+            else:
+                n_iter = self.n_iter
 
-        if self.n_iter == 'auto':
-            # We do a third of an epoch on voxels
-            # self.n_iter = ceil(self.data_fat.shape[1] / self.batch_size)
-            n_iter = (data.shape[1] - 1) // 10 + 1
-            n_iter //= 1
-        else:
-            n_iter = self.n_iter
-
-        if self.verbose:
-            print('[DictLearning] Learning dictionary')
-        dictionary = self._cache(dict_learning_online,
-                                 func_memory_level=2)(
-            data.T,
-            self.n_components,
-            alpha=self.alpha,
-            n_iter=n_iter,
-            batch_size=10,
-            method='cd',
-            return_code=False,
-            dict_init=self.dict_init_,
-            verbose=max(0, self.verbose - 1),
-            random_state=self.random_state,
-            shuffle=False,
-            n_jobs=1)
-        self.components_ = self._cache(sparse_encode,
-                                       func_memory_level=2,
-                                       ignore=['n_jobs'])\
-            (data.T, dictionary, algorithm='lasso_cd', alpha=self.alpha,
-             n_jobs=self.n_jobs).T
+            if self.verbose:
+                print('[DictLearning] Learning dictionary')
+            temp = os.path.join(mkdtemp(), 'data')
+            dump(data, temp)
+            data = np.memmap(temp, dtype='float64', shape=data.shape)
+            dictionary = self._cache(dict_learning_online,
+                                     func_memory_level=2)(
+                data.T,
+                self.n_components,
+                alpha=self.alpha,
+                n_iter=n_iter,
+                batch_size=10,
+                method='cd',
+                return_code=False,
+                dict_init=self.dict_init_,
+                verbose=max(0, self.verbose - 1),
+                random_state=self.random_state,
+                shuffle=False,
+                n_jobs=1)
+            self.components_ = self._cache(sparse_encode,
+                                           func_memory_level=2,
+                                           ignore=['n_jobs'])\
+                (data.T, dictionary, algorithm='lasso_cd', alpha=self.alpha,
+                 n_jobs=self.n_jobs).T
         self.components_ = as_ndarray(self.components_)
 
         # flip signs in each composant positive part is l1 larger
@@ -232,13 +234,3 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             if np.sum(component[component > 0]) <\
                     - np.sum(component[component <= 0]):
                 component *= -1
-
-        data = None
-        if temp_dir is not None:
-                try:
-                    if os.path.exists(temp_dir):
-                        # This can fail under windows,
-                        shutil.rmtree(temp_dir)
-                except WindowsError:
-                        warnings.warn("Could not delete temporary folder %s"
-                                      % temp_dir)
