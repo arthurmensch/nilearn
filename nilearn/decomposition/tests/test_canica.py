@@ -53,8 +53,11 @@ def _make_canica_test_data(rng=None, n_subjects=8, noisy=False):
     shape = (20, 20, 1)
     affine = np.eye(4)
     components = _make_canica_components(shape)
-    if noisy:
+    if noisy:  # Creating noisy non positive data
         components[rng.randn(*components.shape) > .8] *= -5.
+
+    for mp in components:
+        assert_less_equal( mp.max(), -mp.min())  # Goal met ?
 
     # Create a "multi-subject" dataset
     data = _make_data_from_components(components, affine, shape, rng=rng,
@@ -95,11 +98,9 @@ def test_component_sign():
 
     data, mask_img, components, rng = _make_canica_test_data(n_subjects=2,
                                                              noisy=True)
-    for mp in components:
-        assert_less_equal(-mp.min(), mp.max())
 
     # run CanICA many times (this is known to produce different results)
-    canica = CanICA(n_components=4, random_state=1000, mask=mask_img)
+    canica = CanICA(n_components=4, random_state=rng, mask=mask_img)
     for _ in range(3):
         canica.fit(data)
         for mp in iter_img(canica.masker_.inverse_transform(
