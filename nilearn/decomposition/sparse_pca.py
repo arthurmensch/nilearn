@@ -235,7 +235,6 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                     iter_offset=iter_offset,
                     shuffle=self.shuffle,
                     n_jobs=1,
-                    project_dict=not record,
                     tol=0.
                     )
             iter_offset += n_iter

@@ -12,7 +12,7 @@ except:
 
 # dataset = datasets.fetch_hcp_rest(data_dir='/volatile3', n_subjects=1)
 # mask = dataset.mask if hasattr(dataset, 'mask') else None
-dataset = datasets.fetch_adhd(n_subjects=20)
+dataset = datasets.fetch_adhd(n_subjects=10)
 rsn70 = '/volatile/arthur/work/data/rsn70.nii.gz'
 func_filenames = dataset.func  # list of 4D nifti files for each subject
 
@@ -29,17 +29,17 @@ sparse_pca = SparsePCA(n_components=n_components, smoothing_fwhm=4.,
                        memory_level=3,
                        verbose=2,
                        random_state=0, l1_ratio=0.3,
-                       n_epochs=2)
+                       n_epochs=1)
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=4.,
                              memory="nilearn_cache", dict_init=rsn70,
                              reduction_ratio='auto',
                              memory_level=3,
-                             verbose=2,
-                             random_state=0, alpha=60, max_nbytes=None,
+                             verbose=10,
+                             random_state=0, alpha=3.5, max_nbytes=None,
                              n_epochs=0.5)
 
-estimators = [dict_learning]
+estimators = [sparse_pca]
 components_imgs = []
 timings = []
 for estimator in estimators:
@@ -62,6 +62,7 @@ from nilearn.image import index_img
 print('[Example] Displaying')
 
 fig, axes = plt.subplots(nrows=len(estimators), squeeze=False)
+
 axes = axes.reshape(-1)
 cut_coords = find_xyz_cut_coords(index_img(components_imgs[0], 1))
 for estimator, cur_img, timing, ax in zip(estimators, components_imgs,
