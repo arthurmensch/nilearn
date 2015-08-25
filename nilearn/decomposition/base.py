@@ -120,20 +120,35 @@ class mask_and_reduce(object):
         else:
             imgs = self.imgs
 
-        if self.reduction_ratio != 'auto':
-            reduction_ratio = float(self.reduction_ratio)
-            if reduction_ratio is None or reduction_ratio >= 1:
-                reduction_ratio = 1
-        else:
+        if self.reduction_ratio == 'auto':
             if self.n_components is None:
                 reduction_ratio = 1
             else:
-                reduction_ratio = 'n_components'
+                reduction_ratio = self.reduction_ratio
+        else:
+            reduction_ratio = float(self.reduction_ratio)
+            if reduction_ratio is None or reduction_ratio >= 1:
+                reduction_ratio = 1
+
+        if self.confounds is None:
+            confounds = [None] * len(imgs)
+        else:
+            confounds = self.confounds
+
+        if self.compression_type not in ['svd', 'range_finder']:
+            raise ValueError("`compression_type` should be `svd`"
+                             " or `range_finder`, got %s."
+                             % self.compression_type)
+        else:
+            if reduction_ratio != 1:
+                compression_type = self.compression_type
+            else:
+                compression_type = 'none'
         # Precomputing number of samples for preallocation
         subject_n_samples = np.zeros(len(imgs), dtype='int')
 
         for i, img in enumerate(imgs):
-            if reduction_ratio == 'n_components':
+            if reduction_ratio == 'auto':
                 subject_n_samples[i] = min(self.n_components,
                                            check_niimg_4d(img).shape[3])
             else:
@@ -163,16 +178,6 @@ class mask_and_reduce(object):
         else:
             data = np.empty((n_samples, n_voxels), order='F', dtype='float64')
 
-        if self.confounds is None:
-            confounds = [None] * len(imgs)
-        else:
-            confounds = self.confounds
-
-        if self.compression_type not in ['svd', 'range_finder']:
-            raise ValueError("`compression_type` should be `svd`"
-                             " or `range_finder`, got %s."
-                             % self.compression_type)
-
         for i, (img, confound) in enumerate(zip(imgs, confounds)):
             # Caching is done withing masker class
             this_data = self.masker.transform(img, confound)
@@ -192,10 +197,12 @@ class mask_and_reduce(object):
                     U = U.T[:subject_n_samples[i]].copy()
                     S = S[:subject_n_samples[i]]
                 U = U * S[:, np.newaxis]
-            else:  # compression_type == 'range_finder'
+            elif compression_type == 'range_finder':
                 Q = randomized_range_finder(this_data, subject_n_samples[i], 3,
                                             random_state=self.random_state)
                 U = Q.T.dot(this_data)
+            else:
+                U = this_data
             data[subject_limits[i]:subject_limits[i+1], :] = U
         return data
 

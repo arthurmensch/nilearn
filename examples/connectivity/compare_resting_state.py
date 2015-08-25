@@ -12,9 +12,9 @@ except:
 
 # dataset = datasets.fetch_hcp_rest(data_dir='/volatile3', n_subjects=1)
 # mask = dataset.mask if hasattr(dataset, 'mask') else None
-dataset = datasets.fetch_adhd(n_subjects=10)
+dataset = datasets.fetch_adhd(n_subjects=40)
 smith = datasets.fetch_atlas_smith_2009()
-dict_init = smith.rns20
+dict_init = smith.rsn20
 n_components = 20
 func_filenames = dataset.func  # list of 4D nifti files for each subject
 
@@ -29,7 +29,7 @@ sparse_pca = SparsePCA(n_components=n_components, smoothing_fwhm=4.,
                        reduction_ratio=1.,
                        memory_level=3,
                        verbose=2,
-                       random_state=0, l1_ratio=0.8,
+                       random_state=0, l1_ratio=0.3,
                        n_epochs=1)
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=4.,
@@ -37,10 +37,10 @@ dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=4.,
                              reduction_ratio='auto',
                              memory_level=3,
                              verbose=10,
-                             random_state=0, alpha=3.5, max_nbytes=None,
-                             n_epochs=0.5)
+                             random_state=0, alpha=6, max_nbytes=None,
+                             n_epochs=1)
 
-estimators = [dict_learning, sparse_pca]
+estimators = [sparse_pca]
 components_imgs = []
 timings = []
 for estimator in estimators:
