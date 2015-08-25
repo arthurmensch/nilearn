@@ -2,12 +2,11 @@ from os.path import join
 import os
 import numpy as np
 import pickle
-from decomposition import DictLearning
 from nilearn import datasets
 from nilearn.decomposition import SparsePCA
 # For linear assignment (should be moved in non user space...)
 
-output = '/volatile/arthur/output/hcp_fast'
+output = '/volatile/arthur/output/adhd'
 try:
     os.makedirs(join(output, 'intermediary'))
 except:
@@ -15,8 +14,10 @@ except:
 
 # dataset = datasets.fetch_hcp_rest(data_dir='/volatile3', n_subjects=1)
 # mask = dataset.mask if hasattr(dataset, 'mask') else None
-dataset = datasets.fetch_adhd(n_subjects=40)
-rsn70 = '/volatile/arthur/work/data/rsn70.nii.gz'
+dataset = datasets.fetch_adhd(n_subjects=10)
+smith = datasets.fetch_atlas_smith_2009()
+
+
 func_filenames = dataset.func  # list of 4D nifti files for each subject
 
 # from sandbox.utils import output
@@ -24,26 +25,19 @@ func_filenames = dataset.func  # list of 4D nifti files for each subject
 print('First functional nifti image (4D) is at: %s' %
       dataset.func[0])  # 4D data
 
-n_components = 70
+n_components = 20
 
 sparse_pca = SparsePCA(n_components=n_components,
-                       l1_ratio=0.3,
+                       l1_ratio=0.8,
                        smoothing_fwhm=4.,
                        reduction_ratio=1.,
                        batch_size=10,
                        n_epochs=1,
-                       dict_init=rsn70,
+                       dict_init=smith.rsn20,
                        memory="nilearn_cache",
                        memory_level=3,
                        shuffle=False,
                        verbose=2, random_state=0)
-
-dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=4.,
-                             memory="nilearn_cache", dict_init=rsn70,
-                             memory_level=3,
-                             verbose=2,
-                             random_state=0, alpha=10, max_nbytes=0,
-                             n_epochs=2)
 
 estimator = sparse_pca
 
