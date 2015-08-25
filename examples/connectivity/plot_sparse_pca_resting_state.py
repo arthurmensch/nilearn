@@ -14,7 +14,7 @@ except:
 
 # dataset = datasets.fetch_hcp_rest(data_dir='/volatile3', n_subjects=1)
 # mask = dataset.mask if hasattr(dataset, 'mask') else None
-dataset = datasets.fetch_adhd(n_subjects=10)
+dataset = datasets.fetch_adhd(n_subjects=40)
 smith = datasets.fetch_atlas_smith_2009()
 
 

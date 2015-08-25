@@ -13,7 +13,9 @@ except:
 # dataset = datasets.fetch_hcp_rest(data_dir='/volatile3', n_subjects=1)
 # mask = dataset.mask if hasattr(dataset, 'mask') else None
 dataset = datasets.fetch_adhd(n_subjects=10)
-rsn70 = '/volatile/arthur/work/data/rsn70.nii.gz'
+smith = datasets.fetch_atlas_smith_2009()
+dict_init = smith.rns20
+n_components = 20
 func_filenames = dataset.func  # list of 4D nifti files for each subject
 
 # from sandbox.utils import output
@@ -21,25 +23,24 @@ func_filenames = dataset.func  # list of 4D nifti files for each subject
 print('First functional nifti image (4D) is at: %s' %
       dataset.func[0])  # 4D data
 
-n_components = 70
 
 sparse_pca = SparsePCA(n_components=n_components, smoothing_fwhm=4.,
-                       memory="nilearn_cache", dict_init=rsn70,
+                       memory="nilearn_cache", dict_init=dict_init,
                        reduction_ratio=1.,
                        memory_level=3,
                        verbose=2,
-                       random_state=0, l1_ratio=0.3,
+                       random_state=0, l1_ratio=0.8,
                        n_epochs=1)
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=4.,
-                             memory="nilearn_cache", dict_init=rsn70,
+                             memory="nilearn_cache", dict_init=dict_init,
                              reduction_ratio='auto',
                              memory_level=3,
                              verbose=10,
                              random_state=0, alpha=3.5, max_nbytes=None,
                              n_epochs=0.5)
 
-estimators = [sparse_pca]
+estimators = [dict_learning, sparse_pca]
 components_imgs = []
 timings = []
 for estimator in estimators:
