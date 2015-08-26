@@ -182,6 +182,7 @@ class mask_and_reduce(object):
             # Caching is done withing masker class
             this_data = self.masker.transform(img, confound)
             if self.compression_type == 'svd':
+                print('svd')
                 if subject_n_samples[i] <= this_data.shape[0] // 4:
                     U, S, _ = cache(randomized_svd, self.memory,
                                     memory_level=self.memory_level,

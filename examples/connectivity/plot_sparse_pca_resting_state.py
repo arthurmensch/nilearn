@@ -1,12 +1,13 @@
 from os.path import join
 import os
-import numpy as np
 import pickle
+import datetime
 from nilearn import datasets
 from nilearn.decomposition import SparsePCA
 # For linear assignment (should be moved in non user space...)
 
-output = '/volatile/arthur/output/adhd'
+output = '/home/arthur/work/output/adhd'
+output = join(output, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
 try:
     os.makedirs(join(output, 'intermediary'))
 except:
@@ -14,9 +15,9 @@ except:
 
 # dataset = datasets.fetch_hcp_rest(data_dir='/volatile3', n_subjects=1)
 # mask = dataset.mask if hasattr(dataset, 'mask') else None
-dataset = datasets.fetch_adhd(n_subjects=40)
+dataset = datasets.fetch_adhd(n_subjects=10)
 smith = datasets.fetch_atlas_smith_2009()
-
+dict_init = smith.rsn20
 
 func_filenames = dataset.func  # list of 4D nifti files for each subject
 
@@ -43,29 +44,25 @@ estimator = sparse_pca
 
 print('[Example] Learning maps using %s model'
       % type(estimator).__name__)
-estimator.fit(func_filenames,
-              intermediary_directory=join(output, 'intermediary'))
+estimator.fit(func_filenames)
 print('[Example] Dumping results')
 components_img = estimator.masker_.inverse_transform(estimator.components_)
 components_img.to_filename(join(output, 'dict_learning_resting_state.nii.gz'))
-np.save(join(output, 'score'), estimator.score_)
-# Debug info
-(residual, sparsity, values) = estimator.debug_info_
-np.save(join(output, 'residual'), residual)
-np.save(join(output, 'sparsity'), sparsity)
-np.save(join(output, 'values'), values)
 with open(join(output, 'parameters'), mode='w+') as f:
     pickle.dump(sparse_pca.get_params(), f)
 with open(join(output, 'dataset'), mode='w+') as f:
     pickle.dump(dataset, f)
-### Visualize the results #####################################################
-# Show some interesting components
+
+
 import matplotlib.pyplot as plt
 from nilearn.plotting import plot_prob_atlas, find_xyz_cut_coords
+from nilearn.plotting.plot_to_pdf import plot_to_pdf
 from nilearn.image import index_img
 
-print('[Example] Displaying')
+print('[Example] Preparing pdf')
+plot_to_pdf(components_img, path=join(output, 'components.pdf'))
 
+print('[Example] Displaying')
 
 fig = plt.figure()
 cut_coords = find_xyz_cut_coords(index_img(components_img, 6))

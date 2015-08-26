@@ -16,7 +16,7 @@ def test_dict_learning():
     sparse_pca = SparsePCA(n_components=4, random_state=0,
                            dict_init=dict_init,
                            mask=mask_img,
-                           smoothing_fwhm=0., n_epochs=1, l1_ratio=0.1)
+                           smoothing_fwhm=0., n_epochs=1, l1_ratio=0.4)
     sparse_pca.fit(data)
     maps = sparse_pca.masker_.\
         inverse_transform(sparse_pca.components_).get_data()

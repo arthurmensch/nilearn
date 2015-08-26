@@ -13,6 +13,8 @@ import warnings
 
 # WindowsError only exist on Windows
 from math import ceil
+from os.path import join
+import time
 
 try:
     WindowsError
@@ -134,7 +136,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                  target_affine=None, target_shape=None,
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
-                 n_jobs=1, max_nbytes=1e9, verbose=0
+                 n_jobs=1, max_nbytes=1e9, verbose=0,
+                 debug_folder=None
                  ):
         DecompositionEstimator.__init__(self, n_components=n_components,
                                         random_state=random_state,
@@ -157,6 +160,20 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.alpha = alpha
         self.dict_init = dict_init
         self.reduction_ratio = reduction_ratio
+        self.debug_folder = debug_folder
+
+    def _dump_debug(self):
+        if hasattr(self, 'debug_info_'):
+            (residual, sparsity, values) = self.debug_info_
+            n_iter = residual.shape[0]
+            components_img = self.masker_.inverse_transform(self.components_)
+            components_img.to_filename(join(self.debug_folder,
+                                            'components_%i.nii.gz' % n_iter))
+            # Debug info
+            np.save(join(self.debug_folder, 'residual'), residual)
+            np.save(join(self.debug_folder, 'values'), values)
+            np.save(join(self.debug_folder, 'time'), self.time_)
+
 
     def _init_dict(self, data):
 
@@ -183,9 +200,10 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             components = canica.components_
         ridge = LinearRegression(fit_intercept=None)
         ridge.fit(components.T, data.T)
-        self.dict_init_ = ridge.coef_.T
-        S = np.sqrt(np.sum(self.dict_init_ ** 2, axis=0))
-        self.dict_init_ /= S[np.newaxis, :]
+        self._dict_init = ridge.coef_.T
+        S = np.sqrt(np.sum(self._dict_init ** 2, axis=0))
+        S[S == 0] = 1
+        self._dict_init /= S[np.newaxis, :]
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
@@ -204,9 +222,13 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         # Base logic for decomposition estimators
         DecompositionEstimator.fit(self, imgs)
 
+        debug = self.debug_folder is not None
+
         if self.verbose:
             print('[DictLearning] Loading data')
 
+        self.time_ = np.zeros(2)
+        t0 = time.time()
         with mask_and_reduce(self.masker_, imgs, confounds,
                              reduction_ratio=self.reduction_ratio,
                              n_components=self.n_components,
@@ -214,6 +236,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                              memory_level=self.memory_level,
                              memory=self.memory,
                              max_nbytes=self.max_nbytes) as data:
+            self.time_[1] += time.time() - t0
             if self.verbose:
                 print('[DictLearning] Initializating dictionary')
             self._init_dict(data)
@@ -227,7 +250,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
 
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
-            dictionary = self._cache(dict_learning_online,
+            t0 = time.time()
+            res = self._cache(dict_learning_online,
                                      func_memory_level=2)(
                 data.T,
                 self.n_components,
@@ -236,17 +260,22 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 batch_size=10,
                 method='cd',
                 return_code=False,
-                dict_init=self.dict_init_,
+                dict_init=self._dict_init,
+                return_debug_info=debug,
                 verbose=max(0, self.verbose - 1),
                 random_state=self.random_state,
                 shuffle=False,
                 n_jobs=1)
+            self.time_[0] += time.time() - t0
+            if debug:
+                dictionary, self.debug_info_ = res
+            else:
+                dictionary = res
             self.components_ = self._cache(sparse_encode,
                                            func_memory_level=2,
                                            ignore=['n_jobs'])\
                 (data.T, dictionary, algorithm='lasso_cd', alpha=self.alpha,
                  n_jobs=self.n_jobs).T
-        self.components_ = as_ndarray(self.components_)
 
         # flip signs in each composant positive part is l1 larger
         #  than negative part
@@ -254,3 +283,13 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             if np.sum(component[component > 0]) <\
                     - np.sum(component[component <= 0]):
                 component *= -1
+
+        # Normalize components
+        S = np.sqrt(np.sum(self.components_ ** 2, axis=1))
+        S[S == 0] = 1
+        self.components_ /= S[:, np.newaxis]
+
+        self._dump_debug()
+
+
+        return self

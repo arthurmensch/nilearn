@@ -13,6 +13,7 @@ from math import ceil
 
 import numpy as np
 import pickle
+from os.path import join
 from sklearn.externals.joblib import Memory
 from sklearn.decomposition import dict_learning_online
 
@@ -120,7 +121,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                  target_affine=None, target_shape=None,
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
-                 n_jobs=1, verbose=0,
+                 n_jobs=1, verbose=0, debug_folder=None,
                  ):
         DecompositionEstimator.__init__(self, n_components=n_components,
                                         random_state=random_state,
@@ -145,10 +146,26 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.batch_size = batch_size
         self.reduction_ratio = reduction_ratio
         self.shuffle = shuffle
+        self.debug_folder = debug_folder
+
+    def _dump_debug(self):
+        if hasattr(self, 'debug_info_'):
+            (residual, sparsity, values) = self.debug_info_
+            n_iter = residual.shape[0]
+            components_img = self.masker_.inverse_transform(self.components_)
+            components_img.to_filename(join(self.debug_folder,
+                                            'components_%i.nii.gz' % n_iter))
+            # Debug info
+            np.save(join(self.debug_folder, 'residual'), residual)
+            np.save(join(self.debug_folder, 'sparsity'), sparsity)
+            np.save(join(self.debug_folder, 'values'), values)
+            np.save(join(self.debug_folder, 'time'), self.time_)
+            if hasattr(self, 'score_'):
+                np.save(join(self.debug_folder, 'score'), self.score_)
 
     def _init_dict(self, imgs, confounds=None):
         if self.dict_init is not None:
-            self.dict_init_ = self.masker_.transform(self.dict_init)
+            self._dict_init = self.masker_.transform(self.dict_init)
         else:
             canica = CanICA(n_components=self.n_components,
                             # CanICA specific parameters
@@ -162,9 +179,9 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                             verbose=self.verbose
                             )
             canica.fit(imgs, confounds=confounds)
-            self.dict_init_ = canica.components_
+            self._dict_init = canica.components_
 
-    def fit(self, imgs, y=None, confounds=None, intermediary_directory=None):
+    def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
 
         Parameters
@@ -181,6 +198,8 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         # Base logic for decomposition estimators
         DecompositionEstimator.fit(self, imgs)
 
+        debug = self.debug_folder is not None
+
         random_state = check_random_state(self.random_state)
 
         n_epochs = int(self.n_epochs)
@@ -188,22 +207,25 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
             raise ValueError('Number of n_epochs should be at least one,'
                              ' got {r}'.format(self.n_epochs))
 
+        if confounds is None:
+            confounds = [None] * len(imgs)
+
         if self.verbose:
             print('[DictLearning] Initializating dictionary')
         self._init_dict(imgs, confounds)
 
-        if confounds is None:
-            confounds = [None] * len(imgs)
-
         inner_stats = None
         iter_offset = 0
         imgs_confounds = zip(imgs, confounds)
-        dict_init = self.dict_init_
+        dict_init = self._dict_init
 
         imgs_confounds_list = itertools.chain(*[random_state.permutation(
-            imgs_confounds) for _ in range(self.n_epochs)])
+            imgs_confounds) for _ in range(n_epochs)])
+
+        self.time_ = np.zeros(2)
 
         for record, (img, confound) in enumerate(imgs_confounds_list):
+            t0 = time.time()
             with mask_and_reduce(self.masker_, img, confound,
                                  reduction_ratio=self.reduction_ratio,
                                  n_components=self.n_components,
@@ -212,11 +234,13 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                                  memory_level=self.memory_level,
                                  memory=self.memory,
                                  max_nbytes=None) as data:
+                self.time_[1] += time.time() - t0
                 n_iter = (data.shape[0] - 1) // self.batch_size + 1
                 if self.verbose:
                     print('[DictLearning] Learning dictionary')
-                (self.components_, inner_stats), debug_info = \
-                    self._cache(dict_learning_online, func_memory_level=2)(
+                t0 = time.time()
+                res = self._cache(
+                    dict_learning_online, func_memory_level=2)(
                     data,
                     self.n_components,
                     alpha=0.,
@@ -229,7 +253,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                     return_code=False,
                     verbose=max(0, self.verbose - 1),
                     random_state=self.random_state,
-                    return_debug_info=True,
+                    return_debug_info=debug,
                     return_inner_stats=True,
                     inner_stats=inner_stats,
                     iter_offset=iter_offset,
@@ -237,24 +261,26 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                     n_jobs=1,
                     tol=0.
                     )
+                self.time_[0] += time.time() - t0
+            if debug:
+                (self.components_, inner_stats), debug_info = res
+                # Debug information
+                if not hasattr(self, 'debug_info_'):
+                    self.debug_info_ = debug_info
+                else:
+                    debug_info_list = []
+                    for i, time_serie in enumerate(debug_info):
+                        debug_info_list.\
+                            append(np.concatenate((self.debug_info_[i],
+                                                   time_serie),
+                                                  axis=0))
+                    self.debug_info_ = tuple(debug_info_list)
+                    self._dump_debug()
+            else:
+                (self.components_, inner_stats) = res
             iter_offset += n_iter
             dict_init = self.components_
-            if not hasattr(self, 'debug_info_'):
-                self.debug_info_ = debug_info
-            else:
-                debug_info_list = []
-                for i, time_serie in enumerate(debug_info):
-                   debug_info_list.append(np.concatenate((self.debug_info_[i],
-                                                         time_serie), axis=0))
-                self.debug_info_ = tuple(debug_info_list)
 
-            if intermediary_directory is not None:
-                self.masker_.inverse_transform(self.components_)\
-                    .to_filename(os.path.join(intermediary_directory,
-                                 'components_%i.nii.gz' % record))
-
-
-        self.components_ = as_ndarray(self.components_)
         # flip signs in each composant positive part is l1 larger
         #  than negative part
         for component in self.components_:
@@ -262,8 +288,15 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                     - np.sum(component[component <= 0]):
                 component *= -1
 
+        # Normalize components
+        S = np.sqrt(np.sum(self.components_ ** 2, axis=1))
+        S[S == 0] = 1
+        self.components_ /= S[:, np.newaxis]
+
         if self.verbose:
             print('[DictLearning] Learning score')
         self._sort_components(data)
+
+        self._dump_debug()
 
         return self
