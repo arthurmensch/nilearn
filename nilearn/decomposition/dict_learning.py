@@ -137,7 +137,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, max_nbytes=1e9, verbose=0,
-                 debug_folder=None
+                 debug_folder=None,
+                 batch_size=10,
                  ):
         DecompositionEstimator.__init__(self, n_components=n_components,
                                         random_state=random_state,
@@ -161,7 +162,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.dict_init = dict_init
         self.reduction_ratio = reduction_ratio
         self.debug_folder = debug_folder
-
+        self.batch_size = batch_size
     def _dump_debug(self):
         if hasattr(self, 'debug_info_'):
             (residual, sparsity, values) = self.debug_info_
@@ -246,7 +247,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             # Performing more than 10 epochs would probably useless
             if self.n_epochs > 10:
                 self.n_epochs = 10
-            n_iter = int(ceil((data.shape[1] / 10 * self.n_epochs)))
+            n_iter = int(ceil((data.shape[1] / self.batch_size * self.n_epochs)))
 
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
@@ -257,7 +258,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 self.n_components,
                 alpha=self.alpha,
                 n_iter=n_iter,
-                batch_size=10,
+                batch_size=self.batch_size,
                 method='cd',
                 return_code=False,
                 dict_init=self._dict_init,

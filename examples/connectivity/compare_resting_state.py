@@ -15,10 +15,10 @@ try:
 except:
     pass
 
-dataset = datasets.fetch_adhd(n_subjects=40)
+dataset = datasets.fetch_adhd(n_subjects=10)
 smith = datasets.fetch_atlas_smith_2009()
-dict_init = smith.rsn70
-n_components = 70
+dict_init = smith.rsn20
+n_components = 20
 func_filenames = dataset.func
 
 reduction_ratios = [0.25, 0.5, 1]
@@ -31,6 +31,7 @@ for reduction_ratio in reduction_ratios:
                            memory="nilearn_cache", dict_init=dict_init,
                            reduction_ratio=reduction_ratio,
                            memory_level=3,
+                           batch_size=20,
                            verbose=1,
                            random_state=0, l1_ratio=0.3,
                            n_epochs=1)
@@ -41,6 +42,7 @@ for reduction_ratio in reduction_ratios:
                                  memory="nilearn_cache", dict_init=dict_init,
                                  reduction_ratio=reduction_ratio,
                                  memory_level=3,
+                                 batch_size=20,
                                  verbose=1,
                                  random_state=0, alpha=3, max_nbytes=2e10,
                                  n_epochs=1)
