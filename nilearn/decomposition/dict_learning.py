@@ -22,14 +22,13 @@ except NameError:
     WindowsError = None
 
 import numpy as np
-from sklearn.externals.joblib import Memory, dump
-from sklearn.linear_model import Ridge, LinearRegression
+from sklearn.externals.joblib import Memory
+from sklearn.linear_model import Ridge
 
 from sklearn.decomposition import dict_learning_online, sparse_encode
 
 from sklearn.base import TransformerMixin
 
-from .._utils import as_ndarray
 from .canica import CanICA
 from .._utils.cache_mixin import CacheMixin
 from .base import DecompositionEstimator, mask_and_reduce
@@ -200,7 +199,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 # has already been unmasked
                 canica._raw_fit(data)
             components = canica.components_
-        ridge = LinearRegression(fit_intercept=None)
+        ridge = Ridge(fit_intercept=None, alpha=0.)
         ridge.fit(components.T, data.T)
         self._dict_init = ridge.coef_.T
         S = np.sqrt(np.sum(self._dict_init ** 2, axis=0))
@@ -254,7 +253,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 print('[DictLearning] Learning dictionary')
             t0 = time.time()
             res = self._cache(dict_learning_online,
-                                     func_memory_level=2)(
+                              func_memory_level=2)(
                 data.T,
                 self.n_components,
                 alpha=self.alpha,
@@ -283,7 +282,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         #  than negative part
         for component in self.components_:
             if np.sum(component[component > 0]) <\
-                    - np.sum(component[component <= 0]):
+                    - np.sum(component[component < 0]):
                 component *= -1
 
         # Normalize components

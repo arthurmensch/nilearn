@@ -9,7 +9,7 @@ import warnings
 
 import numpy as np
 from scipy import linalg
-from sklearn.externals.joblib import Memory
+from sklearn.externals.joblib import Memory, Parallel, delayed
 from sklearn.linear_model import LinearRegression
 from sklearn.utils.extmath import randomized_svd, randomized_range_finder
 from sklearn.base import BaseEstimator
@@ -102,7 +102,9 @@ class mask_and_reduce(object):
                  n_components=None, random_state=None,
                  memory_level=0,
                  memory=Memory(cachedir=None),
-                 max_nbytes=1e9):
+                 mock=False,
+                 max_nbytes=1e9,
+                 n_jobs=1):
         self.masker = masker
         self.imgs = imgs
         self.confounds = confounds
@@ -113,8 +115,14 @@ class mask_and_reduce(object):
         self.memory_level = memory_level
         self.memory = memory
         self.max_nbytes = max_nbytes
+        self.mock = mock
+        self.n_jobs = n_jobs
 
     def __enter__(self):
+        mock = bool(self.mock)
+        if mock and self.memory is None:
+            warnings.warn('Mock run is useless if memory is disabled.')
+
         if not hasattr(self.imgs, '__iter__'):
             imgs = [self.imgs]
         else:
@@ -167,49 +175,75 @@ class mask_and_reduce(object):
             return_mmap = False
 
         # We initialize data in memory or on disk
-        if return_mmap:
-            temp_folder = _get_dataset_dir('temp', verbose=0)
-            self.file_, self.filename_ = mkstemp(dir=temp_folder)
-            atexit.register(lambda: _delete_file(self.file_, self.filename_,
-                                     warn=True))
-            data = np.memmap(self.filename_, dtype='float64',
-                             order='F', mode='w+',
-                             shape=(n_samples, n_voxels))
-        else:
-            data = np.empty((n_samples, n_voxels), order='F', dtype='float64')
-
-        for i, (img, confound) in enumerate(zip(imgs, confounds)):
-            # Caching is done withing masker class
-            this_data = self.masker.transform(img, confound)
-            if self.compression_type == 'svd':
-                print('svd')
-                if subject_n_samples[i] <= this_data.shape[0] // 4:
-                    U, S, _ = cache(randomized_svd, self.memory,
-                                    memory_level=self.memory_level,
-                                    func_memory_level=3)\
-                        (this_data.T, subject_n_samples[i],
-                         random_state=self.random_state)
-                    U = U.T
-                else:
-                    U, S, _ = cache(linalg.svd, self.memory,
-                                    memory_level=self.memory_level,
-                                    func_memory_level=3)(this_data.T,
-                                                         full_matrices=False)
-                    U = U.T[:subject_n_samples[i]].copy()
-                    S = S[:subject_n_samples[i]]
-                U = U * S[:, np.newaxis]
-            elif compression_type == 'range_finder':
-                Q = randomized_range_finder(this_data, subject_n_samples[i], 3,
-                                            random_state=self.random_state)
-                U = Q.T.dot(this_data)
+        if not mock:
+            if return_mmap or self.n_jobs > 1:
+                temp_folder = _get_dataset_dir('temp', verbose=0)
+                self.file_, self.filename_ = mkstemp(dir=temp_folder)
+                atexit.register(lambda: _delete_file(self.file_,
+                                                     self.filename_,
+                                                     warn=True))
+                data = np.memmap(self.filename_, dtype='float64',
+                                 order='F', mode='w+',
+                                 shape=(n_samples, n_voxels))
             else:
-                U = this_data
-            data[subject_limits[i]:subject_limits[i+1], :] = U
+                data = np.empty((n_samples, n_voxels), order='F',
+                                dtype='float64')
+        else:
+            data = None
+
+        Parallel(n_jobs=self.n_jobs)(delayed(_load_single_subject)(
+            self.masker, data, subject_limits, subject_n_samples,
+            compression_type, mock,
+            img, confound,
+            self.memory,
+            self.memory_level,
+            self.random_state,
+            i
+        ) for i, (img, confound) in enumerate(zip(imgs, confounds)))
+        if not return_mmap and self.n_jobs > 1:
+            # We used a memory map for multiprocessing, restoring
+            data = np.array(data)
         return data
 
     def __exit__(self, type, value, traceback):
         if hasattr(self, 'file_'):
             _delete_file(self.file_, self.filename_)
+
+
+def _load_single_subject(masker, data, subject_limits, subject_n_samples,
+                         compression_type, mock,
+                         img, confound,
+                         memory,
+                         memory_level,
+                         random_state,
+                         i):
+    """Utility function for multiprocessing"""
+    this_data = masker.transform(img, confound)
+    if compression_type == 'svd':
+        if subject_n_samples[i] <= this_data.shape[0] // 4:
+            U, S, _ = cache(randomized_svd, memory,
+                            memory_level=memory_level,
+                            func_memory_level=3)\
+                (this_data.T, subject_n_samples[i],
+                 random_state=random_state)
+            U = U.T
+        else:
+            U, S, _ = cache(linalg.svd, memory,
+                            memory_level=memory_level,
+                            func_memory_level=3)(this_data.T,
+                                                 full_matrices=False)
+            U = U.T[:subject_n_samples[i]].copy()
+            S = S[:subject_n_samples[i]]
+        U = U * S[:, np.newaxis]
+    elif compression_type == 'range_finder':
+        Q = randomized_range_finder(this_data, subject_n_samples[i], 3,
+                                    random_state=random_state)
+        U = Q.T.dot(this_data)
+    else:  # compression type = 'none'
+        U = this_data
+    if not mock:
+        data[subject_limits[i]:subject_limits[i+1], :] = U
+
 
 
 class DecompositionEstimator(BaseEstimator, CacheMixin):
@@ -341,7 +375,7 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
         self.max_nbytes = max_nbytes
         self.verbose = verbose
 
-    def fit(self, imgs, y=None):
+    def fit(self, imgs, y=None, confounds=None, preload=False):
         """Base fit for decomposition estimators : compute the embedded masker
 
         Parameters
@@ -366,6 +400,13 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
         else:
             self.masker_.fit()
         self.mask_img_ = self.masker_.mask_img_
+
+        if preload:
+            with mask_and_reduce(self.masker_, imgs, confounds,
+                                 memory_level=self.memory_level,
+                                 memory=self.memory, mock=True,
+                                 n_jobs=self.n_jobs) as data:
+                data = None
 
     def _check_components_(self):
         if not hasattr(self, 'components_'):
@@ -447,9 +488,9 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
         print(score)
         if not hasattr(score, '__iter__'):
             return
-        # argsort = np.argsort(score)[::-1]
-        # self.components_ = self.components_[argsort]
-        self.score_ = score  #[argsort]
+        argsort = np.argsort(score)[::-1]
+        self.components_ = self.components_[argsort]
+        self.score_ = score[argsort]
 
     def score(self, imgs, confounds=None, per_component=False):
         """Score function based on explained variance
@@ -509,9 +550,9 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
         """
         # If data is not standardized:
         return self._cache(explained_variance,
-                    func_memory_level=3)(data,
-                                         self.components_,
-                                         per_component=per_component)
+                           func_memory_level=3)(data,
+                                                self.components_,
+                                                per_component=per_component)
 
 
 def explained_variance(X, components, per_component=False):

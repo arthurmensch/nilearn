@@ -25,7 +25,7 @@ def plot_to_pdf(img, path='multipages.pdf', vmax='auto'):
                 if i + j < 0:
                     plot_prob_atlas(img, axes=ax)
                 elif j + i < n_components:
-                    plot_stat_map(index_img(img, j + i), axes=ax, vmax=vmax)
+                    plot_stat_map(index_img(img, j + i), axes=ax)
                 else:
                     ax.axis('off')
             pdf.savefig(fig)

@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from nose.tools import assert_true, assert_false
+from nose.tools import assert_true, assert_false, assert_is
 import nibabel
 from numpy.testing import assert_equal, assert_array_almost_equal
 
@@ -52,13 +52,39 @@ def test_mask_and_reduce():
     # Test memorymap
     with mask_and_reduce(masker, data[0], n_components=3,
                          max_nbytes=0) as components:
-        assert_true(components.shape == (3, 6 * 8 * 10))
+        assert_equal(components.shape, (3, 6 * 8 * 10))
         temp_file = components.filename
         assert_true(os.path.exists(os.path.join(temp_file)))
     # Assert that temp file removal has worked
     assert_false(os.path.exists(temp_file))
     assert_false(os.path.exists(os.path.join(temp_file, os.path.pardir)))
 
+    # Test mock
+    with mask_and_reduce(masker, data[0], n_components=3,
+                         max_nbytes=0,
+                         n_jobs=1,
+                         mock=True) as components:
+        assert_is(components, None)
+        # Should test cache
+
+    # Test n_jobs > 1 with memory map
+    with mask_and_reduce(masker, data[0], n_components=3,
+                         max_nbytes=0,
+                         n_jobs=2) as components:
+        assert_equal(components.shape, (3, 6 * 8 * 10))
+        temp_file = components.filename
+        assert_true(os.path.exists(os.path.join(temp_file)))
+    # Assert that temp file removal has worked
+    assert_false(os.path.exists(temp_file))
+    assert_false(os.path.exists(os.path.join(temp_file, os.path.pardir)))
+
+    # Test n_jobs > 1 with array
+    with mask_and_reduce(masker, data[0], n_components=3,
+                         max_nbytes=None,
+                         n_jobs=2) as components:
+        assert_equal(components.shape, (3, 6 * 8 * 10))
+        assert_true(isinstance(components, np.ndarray))
+        # Should assert that temp file removal has worked
 
 
 

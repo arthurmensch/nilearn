@@ -115,6 +115,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                  shuffle=False,
                  batch_size=10,
                  reduction_ratio=1.,
+                 alpha=0.,
                  mask=None, smoothing_fwhm=None,
                  standardize=True, detrend=True,
                  low_pass=None, high_pass=None, t_r=None,
@@ -142,6 +143,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         self.n_epochs = n_epochs
         self.l1_ratio = l1_ratio
+        self.alpha = alpha
         self.dict_init = dict_init
         self.batch_size = batch_size
         self.reduction_ratio = reduction_ratio
@@ -243,12 +245,12 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                     dict_learning_online, func_memory_level=2)(
                     data,
                     self.n_components,
-                    alpha=0.,
+                    alpha=self.alpha,
                     l1_ratio=self.l1_ratio,
                     n_iter=n_iter,
-                    slowing=0.001 if not record else 0.,
+                    slowing=0.01 if not record else 0.,
                     batch_size=self.batch_size,
-                    method='ridge',
+                    method='cd' if self.alpha > 0 else 'ridge',
                     dict_init=dict_init,
                     return_code=False,
                     verbose=max(0, self.verbose - 1),
@@ -285,7 +287,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         #  than negative part
         for component in self.components_:
             if np.sum(component[component > 0]) <\
-                    - np.sum(component[component <= 0]):
+                    - np.sum(component[component < 0]):
                 component *= -1
 
         # Normalize components
