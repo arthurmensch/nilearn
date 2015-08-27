@@ -8,7 +8,7 @@ from nilearn import datasets
 from nilearn.decomposition import SparsePCA, DictLearning
 from nilearn.plotting.plot_to_pdf import plot_to_pdf
 
-output = '/home/arthur/work/output/compare'
+output = '/volatile/arthur/work/output/compare'
 output = join(output, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
 try:
     os.makedirs(join(output))
@@ -44,10 +44,9 @@ for reduction_ratio in reduction_ratios:
                                  memory_level=3,
                                  batch_size=20,
                                  verbose=1,
-                                 random_state=0, alpha=3, max_nbytes=2e10,
+                                 random_state=0, alpha=3.5, max_nbytes=0,
                                  n_epochs=1)
     estimators.append(dict_learning)
-
 
 with open(join(output, 'estimators'), mode='w+') as f:
     pickle.dump(estimators, f)

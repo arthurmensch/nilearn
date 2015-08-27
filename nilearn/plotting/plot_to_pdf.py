@@ -5,8 +5,6 @@ from . import plot_stat_map, plot_prob_atlas
 from .._utils import check_niimg_4d
 from ..image import index_img
 from ..datasets import fetch_atlas_smith_2009
-from nilearn.plotting.img_plotting import _get_colorbar_and_data_ranges
-
 
 def plot_to_pdf(img, path='multipages.pdf', vmax='auto'):
     a4_size = (8.27,11.69)

@@ -163,6 +163,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.reduction_ratio = reduction_ratio
         self.debug_folder = debug_folder
         self.batch_size = batch_size
+
     def _dump_debug(self):
         if hasattr(self, 'debug_info_'):
             (residual, sparsity, values) = self.debug_info_
@@ -276,7 +277,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                                            func_memory_level=2,
                                            ignore=['n_jobs'])\
                 (data.T, dictionary, algorithm='lasso_cd', alpha=self.alpha,
-                 n_jobs=self.n_jobs).T
+                 n_jobs=self.n_jobs, check_input=False).T
 
         # flip signs in each composant positive part is l1 larger
         #  than negative part
