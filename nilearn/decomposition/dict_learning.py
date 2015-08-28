@@ -272,11 +272,13 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 dictionary, self.debug_info_ = res
             else:
                 dictionary = res
+            t0 = time.time()
             self.components_ = self._cache(sparse_encode,
                                            func_memory_level=2,
                                            ignore=['n_jobs'])\
                 (data.T, dictionary, algorithm='lasso_cd', alpha=self.alpha,
                  n_jobs=self.n_jobs, check_input=False).T
+            self.time_[0] += time.time() - t0
 
         # flip signs in each composant positive part is l1 larger
         #  than negative part

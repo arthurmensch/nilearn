@@ -118,10 +118,8 @@ def run_experiment(n_jobs=6):
     except:
         pass
 
-    # dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir='/volatile3')
-    dataset = datasets.fetch_adhd(n_subjects=40)
-    # /storage/data
-    # mask = dataset.mask  # /storage/data/HCP_mask/mask.nii.gz
+    dataset = datasets.fetch_hcp_rest(n_subjects=2, data_dir='/storage/data')
+    mask = '/storage/data/HCP_mask/mask.nii.gz'
     smith = datasets.fetch_atlas_smith_2009()
     dict_init = smith.rsn20
     n_components = 20
@@ -135,29 +133,29 @@ def run_experiment(n_jobs=6):
     print("[Example] Warming up cache")
     decomposition_estimator = DecompositionEstimator(smoothing_fwhm=4.,
                                                      memory="nilearn_cache",
-                                                     # mask=mask,
+                                                     mask=mask,
                                                      memory_level=3,
                                                      verbose=1,
                                                      n_jobs=n_jobs)
     decomposition_estimator.fit(data_filenames, preload=True)
     masker = decomposition_estimator.masker_
 
-    reduction_ratios = [0.1, 0.25, 1]
+    reduction_ratios = [0.1]
 
     estimators = []
 
-    for reduction_ratio in reduction_ratios:
-        sparse_pca = SparsePCA(n_components=n_components, mask=masker,
-                               memory="nilearn_cache", dict_init=dict_init,
-                               reduction_ratio=reduction_ratio,
-                               memory_level=3,
-                               alpha=0.1,
-                               batch_size=20,
-                               verbose=1,
-                               shuffle=True,
-                               random_state=0, l1_ratio=0.5,
-                               n_epochs=1)
-        estimators.append(sparse_pca)
+    # for reduction_ratio in reduction_ratios:
+    #     sparse_pca = SparsePCA(n_components=n_components, mask=masker,
+    #                            memory="nilearn_cache", dict_init=dict_init,
+    #                            reduction_ratio=reduction_ratio,
+    #                            memory_level=3,
+    #                            alpha=0.1,
+    #                            batch_size=20,
+    #                            verbose=1,
+    #                            shuffle=True,
+    #                            random_state=0, l1_ratio=0.5,
+    #                            n_epochs=1)
+    #     estimators.append(sparse_pca)
 
     for reduction_ratio in reduction_ratios:
         dict_learning = DictLearning(n_components=n_components,
@@ -168,7 +166,7 @@ def run_experiment(n_jobs=6):
                                      memory_level=3,
                                      batch_size=20,
                                      verbose=1,
-                                     random_state=0, alpha=3, max_nbytes=0,
+                                     random_state=0, alpha=4, max_nbytes=0,
                                      n_epochs=1)
         estimators.append(dict_learning)
 

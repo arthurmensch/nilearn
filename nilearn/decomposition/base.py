@@ -481,16 +481,18 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
         return [nifti_maps_masker.inverse_transform(signal)
                 for signal in loadings]
 
-    def _sort_components(self, data):
+    def _score_and_store(self, data):
+        self.score_ = self._score(data, per_component=True)
+
+    def _score_and_sort(self, data):
         """ Sort components by score obtained on test set imgs
         """
-        score = self._score(data, per_component=True)
-        print(score)
-        if not hasattr(score, '__iter__'):
+        self._score_and_store(data)
+        if not hasattr(self.score_, '__iter__'):
             return
-        argsort = np.argsort(score)[::-1]
+        argsort = np.argsort(self.score_)[::-1]
         self.components_ = self.components_[argsort]
-        self.score_ = score[argsort]
+        self.score_ = self.score_[argsort]
 
     def score(self, imgs, confounds=None, per_component=False):
         """Score function based on explained variance

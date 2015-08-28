@@ -297,7 +297,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         if self.verbose:
             print('[DictLearning] Learning score')
-        self._sort_components(data)
+        self._score_and_store(data)
 
         self._dump_debug()
 

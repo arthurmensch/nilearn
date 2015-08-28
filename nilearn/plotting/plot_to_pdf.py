@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -6,8 +7,9 @@ from .._utils import check_niimg_4d
 from ..image import index_img
 from ..datasets import fetch_atlas_smith_2009
 
-def plot_to_pdf(img, path='multipages.pdf', vmax='auto'):
-    a4_size = (8.27,11.69)
+
+def plot_to_pdf(img, path='output.pdf', vmax='auto'):
+    a4_size = (8.27, 11.69)
     img = check_niimg_4d(img)
     n_components = img.shape[3]
 
@@ -36,3 +38,4 @@ def test_plot_to_pdf():
     smith = fetch_atlas_smith_2009()
     img = smith.rsn10
     plot_to_pdf(img)
+    os.remove('output.pdf')
