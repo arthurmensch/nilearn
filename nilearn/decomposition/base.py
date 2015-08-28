@@ -104,6 +104,7 @@ class mask_and_reduce(object):
                  memory=Memory(cachedir=None),
                  mock=False,
                  max_nbytes=1e9,
+                 temp_dir=None,
                  n_jobs=1):
         self.masker = masker
         self.imgs = imgs
@@ -117,6 +118,7 @@ class mask_and_reduce(object):
         self.max_nbytes = max_nbytes
         self.mock = mock
         self.n_jobs = n_jobs
+        self.temp_dir = temp_dir
 
     def __enter__(self):
         mock = bool(self.mock)
@@ -127,6 +129,14 @@ class mask_and_reduce(object):
             imgs = [self.imgs]
         else:
             imgs = self.imgs
+
+        if self.temp_dir is None:
+            warnings.warn('Using system temporary folder : may be too small')
+            temp_dir = mkdtemp()
+        else:
+            if not os.path.exists(self.temp_dir):
+                os.makedirs(self.temp_dir)
+            temp_dir = self.temp_dir
 
         if self.reduction_ratio == 'auto':
             if self.n_components is None:
@@ -177,7 +187,7 @@ class mask_and_reduce(object):
         # We initialize data in memory or on disk
         if not mock:
             if return_mmap or self.n_jobs > 1:
-                temp_folder = mkdtemp()
+                temp_folder = temp_dir
                 self.file_, self.filename_ = mkstemp(dir=temp_folder)
                 atexit.register(lambda: _delete_file(self.file_,
                                                      self.filename_,

@@ -119,7 +119,7 @@ def run_experiment(n_jobs=6):
         pass
 
     # dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir='/volatile3')
-    dataset = datasets.fetch_adhd(n_subjects=40)
+    dataset = datasets.fetch_adhd(n_subjects=10)
     # /storage/data
     # mask = dataset.mask  # /storage/data/HCP_mask/mask.nii.gz
     smith = datasets.fetch_atlas_smith_2009()

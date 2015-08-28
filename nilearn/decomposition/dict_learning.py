@@ -135,7 +135,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                  target_affine=None, target_shape=None,
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
-                 n_jobs=1, max_nbytes=1e9, verbose=0,
+                 n_jobs=1, max_nbytes=1e9, temp_dir=None, verbose=0,
                  debug_folder=None,
                  batch_size=10,
                  ):
@@ -162,6 +162,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.reduction_ratio = reduction_ratio
         self.debug_folder = debug_folder
         self.batch_size = batch_size
+        self.temp_dir = temp_dir
 
     def _dump_debug(self):
         if hasattr(self, 'debug_info_'):
@@ -235,6 +236,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                              n_components=self.n_components,
                              random_state=self.random_state,
                              memory_level=self.memory_level,
+                             temp_dir=self.temp_dir,
                              memory=self.memory,
                              max_nbytes=self.max_nbytes) as data:
             self.time_[1] += time.time() - t0

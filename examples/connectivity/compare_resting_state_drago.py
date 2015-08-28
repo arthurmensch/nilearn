@@ -118,8 +118,8 @@ def run_experiment(n_jobs=6):
     except:
         pass
 
-    dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir='/storage/data')
-    mask = '/storage/data/HCP_mask/mask_img.nii.gz'
+    dataset = datasets.fetch_hcp_rest(n_subjects=2, data_dir='/volatile3')
+    mask = dataset.mask
     smith = datasets.fetch_atlas_smith_2009()
     dict_init = smith.rsn20
     n_components = 20
@@ -136,8 +136,8 @@ def run_experiment(n_jobs=6):
                                                      mask=mask,
                                                      memory_level=3,
                                                      verbose=1,
-                                                     n_jobs=1)
-    decomposition_estimator.fit(data_filenames, preload=False)
+                                                     n_jobs=n_jobs)
+    decomposition_estimator.fit(data_filenames, preload=True)
     masker = decomposition_estimator.masker_
 
     reduction_ratios = [0.1]
@@ -163,6 +163,7 @@ def run_experiment(n_jobs=6):
                                      mask=masker,
                                      memory="nilearn_cache",
                                      dict_init=dict_init,
+                                     temp_dir='/volatile2/temp',
                                      reduction_ratio=0.25,
                                      memory_level=3,
                                      batch_size=20,
@@ -197,6 +198,6 @@ def run_experiment(n_jobs=6):
 
 if __name__ == '__main__':
     t0 = time.time()
-    run_experiment(n_jobs=1)
+    run_experiment(n_jobs=4)
     time = time.time() - t0
     print('Total_time : %f s' % time)
