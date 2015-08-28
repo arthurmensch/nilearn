@@ -157,16 +157,17 @@ def run_experiment(n_jobs=6):
     #                            n_epochs=1)
     #     estimators.append(sparse_pca)
 
-    for reduction_ratio in reduction_ratios:
+    alphas = [4, 6, 8]
+    for alpha in alphas:
         dict_learning = DictLearning(n_components=n_components,
                                      mask=masker,
                                      memory="nilearn_cache",
                                      dict_init=dict_init,
-                                     reduction_ratio=reduction_ratio,
+                                     reduction_ratio=0.1,
                                      memory_level=3,
                                      batch_size=20,
                                      verbose=1,
-                                     random_state=0, alpha=6, max_nbytes=0,
+                                     random_state=0, alpha=alpha, max_nbytes=0,
                                      n_epochs=1)
         estimators.append(dict_learning)
 
