@@ -151,7 +151,7 @@ def run_experiment(n_jobs=6):
                                memory="nilearn_cache", dict_init=dict_init,
                                reduction_ratio=reduction_ratio,
                                memory_level=3,
-                               alpha=1,
+                               alpha=0.,
                                batch_size=20,
                                verbose=1,
                                shuffle=True,

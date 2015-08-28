@@ -119,7 +119,7 @@ def run_experiment(n_jobs=6):
         pass
 
     dataset = datasets.fetch_hcp_rest(n_subjects=2, data_dir='/storage/data')
-    mask = '/storage/data/HCP_mask/mask_img.nii.gz'
+    mask = '/storage/data/HCP_mask/mask_imgp.nii.gz'
     smith = datasets.fetch_atlas_smith_2009()
     dict_init = smith.rsn20
     n_components = 20
@@ -166,7 +166,7 @@ def run_experiment(n_jobs=6):
                                      memory_level=3,
                                      batch_size=20,
                                      verbose=1,
-                                     random_state=0, alpha=4, max_nbytes=0,
+                                     random_state=0, alpha=6, max_nbytes=0,
                                      n_epochs=1)
         estimators.append(dict_learning)
 
