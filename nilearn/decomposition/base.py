@@ -385,7 +385,7 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
         self.max_nbytes = max_nbytes
         self.verbose = verbose
 
-    def fit(self, imgs, y=None, confounds=None, preload=False):
+    def fit(self, imgs, y=None, confounds=None, preload=False, temp_dir=None):
         """Base fit for decomposition estimators : compute the embedded masker
 
         Parameters
@@ -415,6 +415,7 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
             with mask_and_reduce(self.masker_, imgs, confounds,
                                  memory_level=self.memory_level,
                                  memory=self.memory, mock=True,
+                                 temp_dir=temp_dir,
                                  n_jobs=self.n_jobs) as data:
                 data = None
 

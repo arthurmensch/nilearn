@@ -138,28 +138,14 @@ def run_experiment(n_jobs=6):
     decomposition_estimator = DecompositionEstimator(smoothing_fwhm=4.,
                                                      memory=cache_dir,
                                                      mask=mask,
+                                                     temp_dir=temp_dir,
                                                      memory_level=3,
                                                      verbose=1,
                                                      n_jobs=n_jobs)
     decomposition_estimator.fit(data_filenames, preload=True)
     masker = decomposition_estimator.masker_
 
-    reduction_ratios = [0.1]
-
     estimators = []
-
-    # for reduction_ratio in reduction_ratios:
-    #     sparse_pca = SparsePCA(n_components=n_components, mask=masker,
-    #                            memory=cache_dir, dict_init=dict_init,
-    #                            reduction_ratio=reduction_ratio,
-    #                            memory_level=3,
-    #                            alpha=0.1,
-    #                            batch_size=20,
-    #                            verbose=1,
-    #                            shuffle=True,
-    #                            random_state=0, l1_ratio=0.5,
-    #                            n_epochs=1)
-    #     estimators.append(sparse_pca)
 
     alphas = [6]
     for alpha in alphas:

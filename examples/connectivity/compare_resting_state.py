@@ -159,19 +159,6 @@ def run_experiment(n_jobs=6):
                                n_epochs=1)
         estimators.append(sparse_pca)
 
-    # for reduction_ratio in reduction_ratios:
-    #     dict_learning = DictLearning(n_components=n_components,
-    #                                  mask=masker,
-    #                                  memory="nilearn_cache",
-    #                                  dict_init=dict_init,
-    #                                  reduction_ratio=reduction_ratio,
-    #                                  memory_level=3,
-    #                                  batch_size=20,
-    #                                  verbose=1,
-    #                                  random_state=0, alpha=3, max_nbytes=0,
-    #                                  n_epochs=1)
-    #     estimators.append(dict_learning)
-
     with open(join(output, 'estimators'), mode='w+') as f:
         pickle.dump(estimators, f)
 
