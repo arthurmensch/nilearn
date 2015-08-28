@@ -115,14 +115,15 @@ def run_experiment(n_jobs=6):
     temp_dir = os.path.expanduser('~/temp')
     cache_dir = os.path.expanduser('~/nilearn_cache')
     data_dir = os.path.expanduser('~/data')
-    output = join(output, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+    output = join(output, datetime.datetime.now().strftime('%Y-%m-%d_%H'
+                                                           '-%M-%S'))
     try:
         os.makedirs(join(output))
     except:
         pass
 
     dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir=data_dir)
-    mask = dataset.mask
+    mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
     smith = datasets.fetch_atlas_smith_2009()
     dict_init = smith.rsn20
     n_components = 20
