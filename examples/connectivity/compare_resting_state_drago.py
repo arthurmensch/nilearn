@@ -122,7 +122,7 @@ def run_experiment(n_jobs=6):
     except:
         pass
 
-    dataset = datasets.fetch_hcp_rest(n_subjects=2, data_dir=data_dir)
+    dataset = datasets.fetch_hcp_rest(n_subjects=1, data_dir=data_dir)
     mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
     smith = datasets.fetch_atlas_smith_2009()
     dict_init = smith.rsn20
@@ -147,7 +147,7 @@ def run_experiment(n_jobs=6):
 
     estimators = []
 
-    alphas = [6]
+    alphas = [1, 4, 6, 10]
     for alpha in alphas:
         dict_learning = DictLearning(n_components=n_components,
                                      mask=masker,
@@ -188,6 +188,6 @@ def run_experiment(n_jobs=6):
 
 if __name__ == '__main__':
     t0 = time.time()
-    run_experiment(n_jobs=5)
+    run_experiment(n_jobs=10)
     time = time.time() - t0
     print('Total_time : %f s' % time)
