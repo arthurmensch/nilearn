@@ -157,7 +157,7 @@ def run_experiment(n_jobs=6):
     #                            n_epochs=1)
     #     estimators.append(sparse_pca)
 
-    alphas = [4, 6, 8]
+    alphas = [6]
     for alpha in alphas:
         dict_learning = DictLearning(n_components=n_components,
                                      mask=masker,
@@ -197,6 +197,6 @@ def run_experiment(n_jobs=6):
 
 if __name__ == '__main__':
     t0 = time.time()
-    run_experiment(n_jobs=6)
+    run_experiment(n_jobs=1)
     time = time.time() - t0
     print('Total_time : %f s' % time)
