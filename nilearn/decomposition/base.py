@@ -4,7 +4,7 @@ PCA dimension reduction on single subjects
 import atexit
 import os
 from math import ceil
-from tempfile import mkstemp
+from tempfile import mkstemp, mkdtemp
 import warnings
 
 import numpy as np
@@ -177,7 +177,7 @@ class mask_and_reduce(object):
         # We initialize data in memory or on disk
         if not mock:
             if return_mmap or self.n_jobs > 1:
-                temp_folder = _get_dataset_dir('temp', verbose=0)
+                temp_folder = mkdtemp()
                 self.file_, self.filename_ = mkstemp(dir=temp_folder)
                 atexit.register(lambda: _delete_file(self.file_,
                                                      self.filename_,
