@@ -137,7 +137,7 @@ def run_experiment(n_jobs=6):
                                                      memory_level=3,
                                                      verbose=1,
                                                      n_jobs=1)
-    decomposition_estimator.fit(data_filenames, preload=True)
+    decomposition_estimator.fit(data_filenames, preload=False)
     masker = decomposition_estimator.masker_
 
     reduction_ratios = [0.1]
