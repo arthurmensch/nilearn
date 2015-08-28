@@ -122,7 +122,7 @@ def run_experiment(n_jobs=6):
     except:
         pass
 
-    dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir=data_dir)
+    dataset = datasets.fetch_hcp_rest(n_subjects=2, data_dir=data_dir)
     mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
     smith = datasets.fetch_atlas_smith_2009()
     dict_init = smith.rsn20
@@ -138,11 +138,11 @@ def run_experiment(n_jobs=6):
     decomposition_estimator = DecompositionEstimator(smoothing_fwhm=4.,
                                                      memory=cache_dir,
                                                      mask=mask,
-                                                     temp_dir=temp_dir,
-                                                     memory_level=3,
+                                                     memory_level=2,
                                                      verbose=1,
-                                                     n_jobs=n_jobs)
-    decomposition_estimator.fit(data_filenames, preload=True)
+                                                     n_jobs=1)
+    decomposition_estimator.fit(data_filenames, preload=True,
+                                temp_dir=temp_dir)
     masker = decomposition_estimator.masker_
 
     estimators = []
@@ -155,7 +155,7 @@ def run_experiment(n_jobs=6):
                                      dict_init=dict_init,
                                      temp_dir=temp_dir,
                                      reduction_ratio=0.25,
-                                     memory_level=3,
+                                     memory_level=2,
                                      batch_size=20,
                                      verbose=1,
                                      random_state=0, alpha=alpha, max_nbytes=0,
