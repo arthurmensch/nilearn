@@ -142,7 +142,7 @@ def run_experiment(n_jobs=6):
     decomposition_estimator.fit(data_filenames, preload=True)
     masker = decomposition_estimator.masker_
 
-    reduction_ratios = [0.1, 0.25, 1.]
+    reduction_ratios = [0.25]
 
     estimators = []
 
@@ -151,7 +151,7 @@ def run_experiment(n_jobs=6):
                                memory="nilearn_cache", dict_init=dict_init,
                                reduction_ratio=reduction_ratio,
                                memory_level=3,
-                               alpha=0.,
+                               alpha=0.2,
                                batch_size=20,
                                verbose=1,
                                shuffle=True,
