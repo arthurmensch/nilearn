@@ -112,13 +112,16 @@ def dump_nii_and_pdf(i, components, dump_dir):
 
 def run_experiment(n_jobs=6):
     output = os.path.expanduser('~/work/output/compare')
+    temp_dir = os.path.expanduser('~/temp')
+    cache_dir = os.path.expanduser('~/nilearn_cache')
+    data_dir = os.path.expanduser('~/data')
     output = join(output, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
     try:
         os.makedirs(join(output))
     except:
         pass
 
-    dataset = datasets.fetch_hcp_rest(n_subjects=2, data_dir='/volatile3')
+    dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir=data_dir)
     mask = dataset.mask
     smith = datasets.fetch_atlas_smith_2009()
     dict_init = smith.rsn20
@@ -132,7 +135,7 @@ def run_experiment(n_jobs=6):
     # Warming up cache with masked images
     print("[Example] Warming up cache")
     decomposition_estimator = DecompositionEstimator(smoothing_fwhm=4.,
-                                                     memory="nilearn_cache",
+                                                     memory=cache_dir,
                                                      mask=mask,
                                                      memory_level=3,
                                                      verbose=1,
@@ -146,7 +149,7 @@ def run_experiment(n_jobs=6):
 
     # for reduction_ratio in reduction_ratios:
     #     sparse_pca = SparsePCA(n_components=n_components, mask=masker,
-    #                            memory="nilearn_cache", dict_init=dict_init,
+    #                            memory=cache_dir, dict_init=dict_init,
     #                            reduction_ratio=reduction_ratio,
     #                            memory_level=3,
     #                            alpha=0.1,
@@ -161,9 +164,9 @@ def run_experiment(n_jobs=6):
     for alpha in alphas:
         dict_learning = DictLearning(n_components=n_components,
                                      mask=masker,
-                                     memory="nilearn_cache",
+                                     memory=cache_dir,
                                      dict_init=dict_init,
-                                     temp_dir='/volatile2/temp',
+                                     temp_dir=temp_dir,
                                      reduction_ratio=0.25,
                                      memory_level=3,
                                      batch_size=20,
@@ -198,6 +201,6 @@ def run_experiment(n_jobs=6):
 
 if __name__ == '__main__':
     t0 = time.time()
-    run_experiment(n_jobs=4)
+    run_experiment(n_jobs=20)
     time = time.time() - t0
     print('Total_time : %f s' % time)
