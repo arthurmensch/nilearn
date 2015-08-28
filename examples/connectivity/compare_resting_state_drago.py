@@ -118,7 +118,7 @@ def run_experiment(n_jobs=6):
     except:
         pass
 
-    dataset = datasets.fetch_hcp_rest(n_subjects=2, data_dir='/storage/data')
+    dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir='/storage/data')
     mask = '/storage/data/HCP_mask/mask_img.nii.gz'
     smith = datasets.fetch_atlas_smith_2009()
     dict_init = smith.rsn20
@@ -163,7 +163,7 @@ def run_experiment(n_jobs=6):
                                      mask=masker,
                                      memory="nilearn_cache",
                                      dict_init=dict_init,
-                                     reduction_ratio=0.1,
+                                     reduction_ratio=0.25,
                                      memory_level=3,
                                      batch_size=20,
                                      verbose=1,
