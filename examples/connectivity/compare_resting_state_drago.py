@@ -136,7 +136,7 @@ def run_experiment(n_jobs=6):
                                                      mask=mask,
                                                      memory_level=3,
                                                      verbose=1,
-                                                     n_jobs=n_jobs)
+                                                     n_jobs=1)
     decomposition_estimator.fit(data_filenames, preload=True)
     masker = decomposition_estimator.masker_
 
