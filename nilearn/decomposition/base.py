@@ -233,14 +233,14 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
         if subject_n_samples[i] <= this_data.shape[0] // 4:
             U, S, _ = cache(randomized_svd, memory,
                             memory_level=memory_level,
-                            func_memory_level=3)\
-                (this_data.T, subject_n_samples[i],
-                 random_state=random_state)
+                            func_memory_level=1)(this_data.T,
+                                                 subject_n_samples[i],
+                                                 random_state=random_state)
             U = U.T
         else:
             U, S, _ = cache(linalg.svd, memory,
                             memory_level=memory_level,
-                            func_memory_level=3)(this_data.T,
+                            func_memory_level=1)(this_data.T,
                                                  full_matrices=False)
             U = U.T[:subject_n_samples[i]].copy()
             S = S[:subject_n_samples[i]]

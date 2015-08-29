@@ -156,8 +156,9 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         with mask_and_reduce(self.masker_, imgs, confounds,
                              n_components=self.n_components,
                              random_state=self.random_state,
-                             max_nbytes=self.max_nbytes)\
-                as data:
+                             memory=self.memory,
+                             memory_level=max(0, self.memory_level -1),
+                             max_nbytes=self.max_nbytes) as data:
             self._raw_fit(data)
         return self
 
