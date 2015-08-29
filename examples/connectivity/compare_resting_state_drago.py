@@ -138,7 +138,7 @@ def run_experiment(n_jobs=6):
     decomposition_estimator = DecompositionEstimator(smoothing_fwhm=4.,
                                                      memory=cache_dir,
                                                      mask=mask,
-                                                     memory_level=1,
+                                                     memory_level=2,
                                                      verbose=1,
                                                      n_jobs=n_jobs)
     decomposition_estimator.fit(data_filenames, preload=True,
@@ -188,6 +188,6 @@ def run_experiment(n_jobs=6):
 
 if __name__ == '__main__':
     t0 = time.time()
-    run_experiment(n_jobs=10)
+    run_experiment(n_jobs=3)
     time = time.time() - t0
     print('Total_time : %f s' % time)
