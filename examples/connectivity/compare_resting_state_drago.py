@@ -122,11 +122,11 @@ def run_experiment(n_jobs=6):
     except:
         pass
 
-    dataset = datasets.fetch_hcp_rest(n_subjects=1, data_dir=data_dir)
+    dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir=data_dir)
     mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
     smith = datasets.fetch_atlas_smith_2009()
-    dict_init = smith.rsn20
-    n_components = 20
+    dict_init = smith.rsn70
+    n_components = 70
     data_filenames = dataset.func
 
     print('First functional nifti image (4D) is at: %s' %
