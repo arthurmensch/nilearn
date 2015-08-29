@@ -21,7 +21,7 @@ from sklearn.externals.joblib import Memory
 from nilearn import datasets
 # For linear assignment (should be moved in non user space...)
 t0 = time.time()
-adhd_dataset = datasets.fetch_adhd(n_subjects=40)
+adhd_dataset = datasets.fetch_adhd(n_subjects=10)
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
@@ -30,19 +30,24 @@ print('First functional nifti image (4D) is at: %s' %
 
 ### Apply DictLearning ########################################################
 from nilearn.decomposition import DictLearning, CanICA
+from nilearn.decomposition.multi_pca import MultiPCA
 
 n_components = 30
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
-                             memory="nilearn_cache", memory_level=3,
-                             verbose=2,
-                             random_state=0, alpha=10, max_nbytes=0, n_epochs=2)
+                             memory="nilearn_cache", memory_level=2,
+                             verbose=1,
+                             random_state=0, alpha=3, max_nbytes=0,
+                             n_epochs=1)
 canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
-                memory="nilearn_cache",  memory_level=3,
+                memory="nilearn_cache",  memory_level=2,
                 verbose=1,
                 n_init=1, threshold=3.)
+multi_pca = MultiPCA(n_components=n_components, smoothing_fwhm=6.,
+                     memory="nilearn_cache",  memory_level=2,
+                     verbose=1)
 
-estimators = [dict_learning]
+estimators = [multi_pca, canica, dict_learning]
 
 components_imgs = []
 
@@ -58,19 +63,18 @@ for estimator in estimators:
 ### Visualize the results #####################################################
 # Show some interesting components
 import matplotlib.pyplot as plt
-from nilearn.plotting import plot_prob_atlas, find_xyz_cut_coords
+from nilearn.plotting import plot_prob_atlas, find_xyz_cut_coords, \
+    plot_stat_map
 from nilearn.image import index_img
 
 mem = Memory(cachedir='~/nilearn_cache')
 
 print('[Example] Displaying')
 
-fig, axes = plt.subplots(nrows=len(estimators))
-cut_coords = find_xyz_cut_coords(index_img(components_imgs[0], 1))
-for estimator, cur_img, ax in zip(estimators, components_imgs, [axes]):
-    plot_prob_atlas(cur_img, view_type="continuous",
+fig, axes = plt.subplots(ncols=len(estimators))
+for estimator, cur_img, ax in zip(estimators, components_imgs, axes):
+    plot_stat_map(index_img(cur_img, 0),
                     title="%s" % estimator.__class__.__name__,
-                    axes=ax,
-                    cut_coords=cut_coords, colorbar=False)
+                    axes=ax, colorbar=False, display_mode='x', cut_coords=1)
 print("Elapsed time : %3is" % (time.time() - t0))
 plt.show()

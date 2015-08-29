@@ -109,7 +109,7 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
     def __init__(self, n_components=20, do_cca=True,
                  random_state=None,
                  mask=None, smoothing_fwhm=None,
-                 standardize=False, detrend=False,
+                 standardize=True, detrend=True,
                  low_pass=None, high_pass=None, t_r=None,
                  target_affine=None, target_shape=None,
                  mask_strategy='epi', mask_args=None,
@@ -156,6 +156,8 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         with mask_and_reduce(self.masker_, imgs, confounds,
                              n_components=self.n_components,
                              random_state=self.random_state,
+                             memory=self.memory,
+                             memory_level=max(0, self.memory_level),
                              max_nbytes=self.max_nbytes)\
                 as data:
             self._raw_fit(data)

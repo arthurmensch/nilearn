@@ -174,14 +174,14 @@ class mask_and_reduce(object):
             if subject_n_samples[i] <= this_data.shape[0] // 4:
                 U, S, _ = cache(randomized_svd, self.memory,
                                 memory_level=self.memory_level,
-                                func_memory_level=3)\
-                    (this_data.T, subject_n_samples[i],
-                     random_state=self.random_state)
+                                func_memory_level=1)(
+                    this_data.T, subject_n_samples[i],
+                    random_state=self.random_state)
                 U = U.T
             else:
                 U, S, _ = cache(linalg.svd, self.memory,
                                 memory_level=self.memory_level,
-                                func_memory_level=3)(this_data.T,
+                                func_memory_level=1)(this_data.T,
                                                      full_matrices=False)
                 U = U.T[:subject_n_samples[i]].copy()
                 S = S[:subject_n_samples[i]]

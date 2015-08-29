@@ -211,7 +211,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                              reduction_ratio=self.reduction_ratio,
                              n_components=self.n_components,
                              random_state=self.random_state,
-                             memory_level=self.memory_level,
+                             memory_level=max(0, self.memory_level - 1),
                              memory=self.memory,
                              max_nbytes=self.max_nbytes) as data:
             if self.verbose:
