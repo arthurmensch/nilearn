@@ -57,7 +57,6 @@ def test_mask_and_reduce():
         assert_true(os.path.exists(os.path.join(temp_file)))
     # Assert that temp file removal has worked
     assert_false(os.path.exists(temp_file))
-    assert_false(os.path.exists(os.path.join(temp_file, os.path.pardir)))
 
     # Test mock
     with mask_and_reduce(masker, data[0], n_components=3,

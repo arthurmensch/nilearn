@@ -20,34 +20,16 @@ from .._utils.cache_mixin import CacheMixin, cache
 from .._utils.niimg_conversions import check_niimg_4d
 from nilearn.datasets.utils import _get_dataset_dir
 
-# WindowsError only exist on Windows
-try:
-    WindowsError
-except NameError:
-    WindowsError = None
-
-
 def _delete_file(file_descriptor, file_path, warn=False):
     """Utility function to cleanup a temporary folder if still existing.
     Copy from joblib.pool (for independance)"""
     try:
         os.close(file_descriptor)
     except OSError:
+        # Already closed
         pass
     if os.path.exists(file_path):
-        folder_path = os.path.dirname(file_path)
         os.remove(file_path)
-        # if folder_path is empty
-        if not os.listdir(folder_path):
-            try:
-                # This can fail under windows,
-                #  but will succeed when called by atexit
-                os.rmdir(folder_path)
-            except WindowsError:
-                if warn:
-                    warnings.warn("Could not delete temporary folder %s"
-                                  % folder_path)
-
 
 class mask_and_reduce(object):
     """Mask and reduce provided data with provided masker, using a PCA
@@ -135,7 +117,8 @@ class mask_and_reduce(object):
             temp_dir = mkdtemp()
         else:
             if not os.path.exists(self.temp_dir):
-                os.makedirs(self.temp_dir)
+                raise ValueError('Temporary directory does not exist : please'
+                                 'create %s before using it.' % self.temp_dir)
             temp_dir = self.temp_dir
 
         if self.reduction_ratio == 'auto':
