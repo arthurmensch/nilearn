@@ -160,7 +160,8 @@ def run_experiment(n_jobs=6):
                                      verbose=1,
                                      random_state=0, alpha=alpha,
                                      max_nbytes=None,
-                                     n_epochs=1)
+                                     n_epochs=1,
+                                     n_jobs=5)
         estimators.append(dict_learning)
 
     with open(join(output, 'estimators'), mode='w+') as f:

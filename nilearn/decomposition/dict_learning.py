@@ -23,7 +23,7 @@ except NameError:
 
 import numpy as np
 from sklearn.externals.joblib import Memory
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Ridge, LinearRegression
 
 from sklearn.decomposition import dict_learning_online, sparse_encode
 
@@ -200,7 +200,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 # has already been unmasked
                 canica._raw_fit(data)
             components = canica.components_
-        ridge = Ridge(fit_intercept=None, alpha=0.)
+        ridge = LinearRegression(fit_intercept=None, n_jobs=self.n_jobs)
         ridge.fit(components.T, data.T)
         self._dict_init = ridge.coef_.T
         S = np.sqrt(np.sum(self._dict_init ** 2, axis=0))
@@ -237,6 +237,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                              random_state=self.random_state,
                              memory_level=max(0, self.memory_level - 1),
                              temp_dir=self.temp_dir,
+                             n_jobs=self.n_jobs,
                              memory=self.memory,
                              max_nbytes=self.max_nbytes) as data:
             self.time_[1] += time.time() - t0
