@@ -110,7 +110,7 @@ def dump_nii_and_pdf(i, components, dump_dir):
     return filename
 
 
-def run_experiment(n_jobs=6):
+def run_experiment(n_jobs=6, parallel_exp=False):
     output = os.path.expanduser('~/work/output/compare')
     temp_dir = os.path.expanduser('~/temp')
     cache_dir = os.path.expanduser('~/nilearn_cache')
@@ -121,9 +121,9 @@ def run_experiment(n_jobs=6):
         os.makedirs(join(output))
     except:
         pass
-
-    dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir=data_dir)
-    mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
+    dataset = datasets.fetch_adhd(n_subjects=10) #, data_dir=data_dir)
+    # dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir=data_dir)
+    # mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
     smith = datasets.fetch_atlas_smith_2009()
     dict_init = smith.rsn70
     n_components = 70
@@ -137,7 +137,7 @@ def run_experiment(n_jobs=6):
     print("[Example] Warming up cache")
     decomposition_estimator = DecompositionEstimator(smoothing_fwhm=4.,
                                                      memory=cache_dir,
-                                                     mask=mask,
+                                                     # mask=mask,
                                                      memory_level=2,
                                                      verbose=1,
                                                      n_jobs=n_jobs)
@@ -147,7 +147,8 @@ def run_experiment(n_jobs=6):
 
     estimators = []
 
-    alphas = [8]
+    alphas = [3]
+    estimator_n_jobs = n_jobs if not parallel_exp else 1
     for alpha in alphas:
         dict_learning = DictLearning(n_components=n_components,
                                      mask=masker,
@@ -161,13 +162,15 @@ def run_experiment(n_jobs=6):
                                      random_state=0, alpha=alpha,
                                      max_nbytes=None,
                                      n_epochs=1,
-                                     n_jobs=5)
+                                     n_jobs=estimator_n_jobs)
         estimators.append(dict_learning)
 
     with open(join(output, 'estimators'), mode='w+') as f:
         pickle.dump(estimators, f)
 
-    res = Parallel(n_jobs=n_jobs, verbose=10)(delayed(fit_and_dump)(index,
+    exp_n_jobs = n_jobs if parallel_exp else 1
+
+    res = Parallel(n_jobs=exp_n_jobs, verbose=10)(delayed(fit_and_dump)(index,
                                                                estimator,
                                                                data_filenames,
                                                                output)
@@ -179,14 +182,15 @@ def run_experiment(n_jobs=6):
     np.save(join(output, 'timings'), timings)
     print(timings)
 
-    print("Performing alignment")
-    map_masker = MultiNiftiMasker(mask_img=masker.mask_img_,).fit()
-    components_list = align_with_last_nii(map_masker, components_filename)
-    comparison_dir = join(output, "comparison")
-    os.mkdir(comparison_dir)
-    Parallel(n_jobs=n_jobs)(
-        delayed(dump_nii_and_pdf)(i, components, comparison_dir)
-        for i, components in enumerate(components_list))
+    if len(estimators) > 1:
+        print("Performing alignment")
+        map_masker = MultiNiftiMasker(mask_img=masker.mask_img_,).fit()
+        components_list = align_with_last_nii(map_masker, components_filename)
+        comparison_dir = join(output, "comparison")
+        os.mkdir(comparison_dir)
+        Parallel(n_jobs=n_jobs)(
+            delayed(dump_nii_and_pdf)(i, components, comparison_dir)
+            for i, components in enumerate(components_list))
 
 if __name__ == '__main__':
     t0 = time.time()

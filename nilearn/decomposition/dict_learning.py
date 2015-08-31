@@ -200,7 +200,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 # has already been unmasked
                 canica._raw_fit(data)
             components = canica.components_
-        ridge = LinearRegression(fit_intercept=None, n_jobs=self.n_jobs)
+        ridge = Ridge(fit_intercept=None, alpha=0.)
         ridge.fit(components.T, data.T)
         self._dict_init = ridge.coef_.T
         S = np.sqrt(np.sum(self._dict_init ** 2, axis=0))
@@ -217,7 +217,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             Data on which PCA must be calculated. If this is a list,
             the affine is considered the same for all.
 
-        confounds: CSV file path or 2D matrix
+        confounds: CSV file path or 2D matrixf
             This parameter is passed to nilearn.signal.clean. Please see the
             related documentation for details
         """
