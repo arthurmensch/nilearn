@@ -122,7 +122,7 @@ def run_experiment(n_jobs=6, parallel_exp=False):
     except:
         pass
     # dataset = datasets.fetch_adhd(n_subjects=10) #, data_dir=data_dir)
-    dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir=data_dir)
+    dataset = datasets.fetch_hcp_rest(n_subjects=10, data_dir=data_dir)
     mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
     smith = datasets.fetch_atlas_smith_2009()
     dict_init = smith.rsn70
