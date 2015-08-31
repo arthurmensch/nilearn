@@ -147,7 +147,7 @@ def run_experiment(n_jobs=6):
 
     estimators = []
 
-    alphas = [7, 8, 9]
+    alphas = [8]
     for alpha in alphas:
         dict_learning = DictLearning(n_components=n_components,
                                      mask=masker,
@@ -158,7 +158,8 @@ def run_experiment(n_jobs=6):
                                      memory_level=2,
                                      batch_size=20,
                                      verbose=1,
-                                     random_state=0, alpha=alpha, max_nbytes=0,
+                                     random_state=0, alpha=alpha,
+                                     max_nbytes=None,
                                      n_epochs=1)
         estimators.append(dict_learning)
 
