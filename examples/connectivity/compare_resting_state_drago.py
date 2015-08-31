@@ -121,9 +121,9 @@ def run_experiment(n_jobs=6, parallel_exp=False):
         os.makedirs(join(output))
     except:
         pass
-    dataset = datasets.fetch_adhd(n_subjects=10) #, data_dir=data_dir)
-    # dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir=data_dir)
-    # mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
+    # dataset = datasets.fetch_adhd(n_subjects=10) #, data_dir=data_dir)
+    dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir=data_dir)
+    mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
     smith = datasets.fetch_atlas_smith_2009()
     dict_init = smith.rsn70
     n_components = 70
@@ -137,7 +137,7 @@ def run_experiment(n_jobs=6, parallel_exp=False):
     print("[Example] Warming up cache")
     decomposition_estimator = DecompositionEstimator(smoothing_fwhm=4.,
                                                      memory=cache_dir,
-                                                     # mask=mask,
+                                                     mask=mask,
                                                      memory_level=2,
                                                      verbose=1,
                                                      n_jobs=n_jobs)
