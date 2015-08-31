@@ -268,7 +268,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 return_debug_info=debug,
                 verbose=max(0, self.verbose - 1),
                 random_state=self.random_state,
-                shuffle=False,
+                shuffle=True,
                 n_jobs=1)
             self.time_[0] += time.time() - t0
             if debug:

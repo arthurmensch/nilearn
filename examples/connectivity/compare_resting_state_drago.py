@@ -1,10 +1,12 @@
 import glob
+from math import sqrt
 from os.path import join
 import os
 import time
 import pickle
 import datetime
 from joblib import delayed, Parallel
+import math
 import numpy as np
 from nilearn.image import index_img
 from nilearn.input_data import MultiNiftiMasker
@@ -89,7 +91,7 @@ def fit_and_dump(index, estimator, func_filenames, output):
     print('[Example] Learning maps using %s model' % type(estimator).__name__)
     t0 = time.time()
     estimator.fit(func_filenames)
-    timing = time.time() - t0
+    full_time = time.time() - t0
     print('[Example] Dumping results')
     dump_debug_to_pdf(estimator, exp_output)
     components_img = estimator.masker_.inverse_transform(estimator.components_)
@@ -97,6 +99,9 @@ def fit_and_dump(index, estimator, func_filenames, output):
     components_img.to_filename(components_filename)
     print('[Example] Preparing pdf')
     plot_to_pdf(components_img, path=join(exp_output, 'components.pdf'))
+    timing = np.zeros(3)
+    timing[0:2] = estimator.time_
+    timing[2] = full_time
     return components_filename, timing
 
 
@@ -121,8 +126,8 @@ def run_experiment(n_jobs=6, parallel_exp=False):
         os.makedirs(join(output))
     except:
         pass
-    # dataset = datasets.fetch_adhd(n_subjects=10) #, data_dir=data_dir)
-    dataset = datasets.fetch_hcp_rest(n_subjects=10, data_dir=data_dir)
+    dataset = datasets.fetch_adhd(n_subjects=40) #, data_dir=data_dir)
+    # dataset = datasets.fetch_hcp_rest(n_subjects=10, data_dir=data_dir)
     mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
     smith = datasets.fetch_atlas_smith_2009()
     dict_init = smith.rsn70
@@ -137,7 +142,7 @@ def run_experiment(n_jobs=6, parallel_exp=False):
     print("[Example] Warming up cache")
     decomposition_estimator = DecompositionEstimator(smoothing_fwhm=4.,
                                                      memory=cache_dir,
-                                                     mask=mask,
+                                                     # mask=mask,
                                                      memory_level=2,
                                                      verbose=1,
                                                      n_jobs=n_jobs)
@@ -147,17 +152,35 @@ def run_experiment(n_jobs=6, parallel_exp=False):
 
     estimators = []
 
-    alphas = [3]
+    compression_ratios = [0.1, 0.25, 0.5, 1]
+
     estimator_n_jobs = n_jobs if not parallel_exp else 1
-    for alpha in alphas:
+
+    # for compression_ratio in compression_ratios:
+        # sparse_pca = SparsePCA(n_components=n_components,
+        #                        mask=masker,
+        #                        memory=cache_dir,
+        #                        dict_init=dict_init,
+        #                        reduction_ratio=compression_ratio,
+        #                        memory_level=2,
+        #                        batch_size=20,
+        #                        verbose=1,
+        #                        random_state=0, l1_ratio=0.3,
+        #                        n_epochs=1,
+        #                        n_jobs=estimator_n_jobs)
+        # estimators.append(sparse_pca)
+
+    compression_ratios = [0.1, 1]
+    alphas = [4, 5]
+    for compression_ratio, alpha in zip(compression_ratios, alphas):
         dict_learning = DictLearning(n_components=n_components,
                                      mask=masker,
                                      memory=cache_dir,
                                      dict_init=dict_init,
                                      temp_dir=temp_dir,
-                                     reduction_ratio=0.25,
+                                     reduction_ratio=compression_ratio,
                                      memory_level=2,
-                                     batch_size=20,
+                                     batch_size=10,
                                      verbose=1,
                                      random_state=0, alpha=alpha,
                                      max_nbytes=None,
@@ -177,10 +200,11 @@ def run_experiment(n_jobs=6, parallel_exp=False):
                                          for index, estimator
                                          in enumerate(estimators))
 
-    components_filename, timings = zip(*res)
-    timings = np.array(timings)
+    components_filename, timings_list = zip(*res)
+    timings = np.zeros((len(estimators), 3))
+    for i, timing in enumerate(timings_list):
+        timings[i] = np.array(timing)
     np.save(join(output, 'timings'), timings)
-    print(timings)
 
     if len(estimators) > 1:
         print("Performing alignment")
@@ -194,6 +218,6 @@ def run_experiment(n_jobs=6, parallel_exp=False):
 
 if __name__ == '__main__':
     t0 = time.time()
-    run_experiment(n_jobs=3)
+    run_experiment(n_jobs=4, parallel_exp=True)
     time = time.time() - t0
     print('Total_time : %f s' % time)
