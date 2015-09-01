@@ -126,7 +126,7 @@ def run_experiment(n_jobs=6, parallel_exp=False):
         os.makedirs(join(output))
     except:
         pass
-    dataset = datasets.fetch_adhd(n_subjects=40) #, data_dir=data_dir)
+    dataset = datasets.fetch_adhd(n_subjects=20) #, data_dir=data_dir)
     # dataset = datasets.fetch_hcp_rest(n_subjects=10, data_dir=data_dir)
     mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
     smith = datasets.fetch_atlas_smith_2009()
@@ -157,21 +157,21 @@ def run_experiment(n_jobs=6, parallel_exp=False):
     estimator_n_jobs = n_jobs if not parallel_exp else 1
 
     # for compression_ratio in compression_ratios:
-        # sparse_pca = SparsePCA(n_components=n_components,
-        #                        mask=masker,
-        #                        memory=cache_dir,
-        #                        dict_init=dict_init,
-        #                        reduction_ratio=compression_ratio,
-        #                        memory_level=2,
-        #                        batch_size=20,
-        #                        verbose=1,
-        #                        random_state=0, l1_ratio=0.3,
-        #                        n_epochs=1,
-        #                        n_jobs=estimator_n_jobs)
-        # estimators.append(sparse_pca)
+    # sparse_pca = SparsePCA(n_components=n_components,
+    #                        mask=masker,
+    #                        memory=cache_dir,
+    #                        dict_init=dict_init,
+    #                        reduction_ratio=compression_ratio,
+    #                        memory_level=2,
+    #                        batch_size=20,
+    #                        verbose=1,
+    #                        random_state=0, l1_ratio=0.3,
+    #                        n_epochs=1,
+    #                        n_jobs=estimator_n_jobs)
+    # estimators.append(sparse_pca)
 
     compression_ratios = [0.1, 1]
-    alphas = [4, 5]
+    alphas = [3, 3]
     for compression_ratio, alpha in zip(compression_ratios, alphas):
         dict_learning = DictLearning(n_components=n_components,
                                      mask=masker,
@@ -218,6 +218,6 @@ def run_experiment(n_jobs=6, parallel_exp=False):
 
 if __name__ == '__main__':
     t0 = time.time()
-    run_experiment(n_jobs=4, parallel_exp=True)
+    run_experiment(n_jobs=1, parallel_exp=True)
     time = time.time() - t0
     print('Total_time : %f s' % time)

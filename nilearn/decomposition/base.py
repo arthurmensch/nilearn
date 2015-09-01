@@ -153,18 +153,22 @@ class mask_and_reduce(object):
         n_samples = subject_limits[-1]
 
         if self.max_nbytes is not None:
-            if self.temp_dir is None:
-                warnings.warn('Using system temporary folder : may be too small')
-                temp_dir = mkdtemp()
-            else:
-                if not os.path.exists(self.temp_dir):
-                    raise ValueError('Temporary directory does not exist : please'
-                                     'create %s before using it.' % self.temp_dir)
-                temp_dir = self.temp_dir
             max_nbytes = int(self.max_nbytes)
             return_mmap = n_voxels * n_samples * 8 > max_nbytes
         else:
             return_mmap = False
+
+        if return_mmap or self.n_jobs > 1:
+            if self.temp_dir is None:
+                warnings.warn('Using system temporary folder : '
+                              'it may be too small')
+                temp_dir = mkdtemp()
+            else:
+                if not os.path.exists(self.temp_dir):
+                    raise ValueError('Temporary directory does not exist :'
+                                     ' please create %s before using it.'
+                                     % self.temp_dir)
+                temp_dir = self.temp_dir
 
         # We initialize data in memory or on disk
         if not mock:
