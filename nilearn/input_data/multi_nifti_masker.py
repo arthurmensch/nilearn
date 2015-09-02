@@ -9,7 +9,7 @@ import collections
 import itertools
 
 from sklearn.externals.joblib import Memory, Parallel, delayed
-
+from sklearn.externals.joblib.hashing import hash
 from .. import masking
 from .. import image
 from .. import _utils
@@ -258,6 +258,13 @@ class MultiNiftiMasker(NiftiMasker, CacheMixin):
                                        memory=self.memory,
                                        memory_level=self.memory_level,
                                        verbose=self.verbose)
+
+        img = list(niimg_iter)[0]
+        print(hash([self.mask_img_, img]))
+
+        for key in self.mask_img_.__dict__:
+            print("%s : %s" % (key, hash([self.mask_img_.__dict__[key], img.__dict__[key]])))
+        return
 
         if confounds is None:
             confounds = itertools.repeat(None, len(imgs_list))
