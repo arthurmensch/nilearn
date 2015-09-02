@@ -398,6 +398,8 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
         self.mask_img_ = self.masker_.mask_img_
 
         if preload:
+            if self.verbose:
+                print('[mask and reduce] Performing mock run')
             with mask_and_reduce(self.masker_, imgs, confounds,
                                  memory_level=self.memory_level,
                                  memory=self.memory, mock=True,

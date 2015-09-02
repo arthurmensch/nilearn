@@ -115,7 +115,8 @@ def dump_nii_and_pdf(i, components, dump_dir):
     return filename
 
 
-def run_experiment(n_jobs=6, parallel_exp=False):
+def run_experiment(n_jobs=6, parallel_exp=False, dataset='adhd',
+                   init='rsn70'):
     output = os.path.expanduser('~/work/output/compare')
     temp_dir = os.path.expanduser('~/temp')
     cache_dir = os.path.expanduser('~/nilearn_cache')
@@ -126,12 +127,19 @@ def run_experiment(n_jobs=6, parallel_exp=False):
         os.makedirs(join(output))
     except:
         pass
-    dataset = datasets.fetch_adhd(n_subjects=20) #, data_dir=data_dir)
-    # dataset = datasets.fetch_hcp_rest(n_subjects=10, data_dir=data_dir)
-    mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
+
+    if dataset == 'adhd':
+        dataset = datasets.fetch_adhd(n_subjects=40)
+        mask = None
+    elif dataset == 'hcp':
+        dataset = datasets.fetch_hcp_rest(n_subjects=10, data_dir=data_dir)
+        mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
     smith = datasets.fetch_atlas_smith_2009()
-    dict_init = smith.rsn70
-    n_components = 70
+    if init == 'rsn70':
+        dict_init = smith.rsn70
+        n_components = 70
+    elif init == 'rsn20':
+        n_components = 20
     data_filenames = dataset.func
 
     print('First functional nifti image (4D) is at: %s' %
@@ -142,9 +150,9 @@ def run_experiment(n_jobs=6, parallel_exp=False):
     print("[Example] Warming up cache")
     decomposition_estimator = DecompositionEstimator(smoothing_fwhm=4.,
                                                      memory=cache_dir,
-                                                     # mask=mask,
+                                                     mask=mask,
                                                      memory_level=2,
-                                                     verbose=1,
+                                                     verbose=10,
                                                      n_jobs=n_jobs)
     decomposition_estimator.fit(data_filenames, preload=True,
                                 temp_dir=temp_dir)
@@ -152,53 +160,37 @@ def run_experiment(n_jobs=6, parallel_exp=False):
 
     estimators = []
 
-    compression_ratios = [0.1, 0.25, 0.5, 1]
+    compression_ratios = [0.1]
 
     estimator_n_jobs = n_jobs if not parallel_exp else 1
 
-    # for compression_ratio in compression_ratios:
-    # sparse_pca = SparsePCA(n_components=n_components,
-    #                        mask=masker,
-    #                        memory=cache_dir,
-    #                        dict_init=dict_init,
-    #                        reduction_ratio=compression_ratio,
-    #                        memory_level=2,
-    #                        batch_size=20,
-    #                        verbose=1,
-    #                        random_state=0, l1_ratio=0.3,
-    #                        n_epochs=1,
-    #                        n_jobs=estimator_n_jobs)
-    # estimators.append(sparse_pca)
-
-    compression_ratios = [0.1, 1]
-    alphas = [3, 3]
-    for compression_ratio, alpha in zip(compression_ratios, alphas):
-        dict_learning = DictLearning(n_components=n_components,
-                                     mask=masker,
-                                     memory=cache_dir,
-                                     dict_init=dict_init,
-                                     temp_dir=temp_dir,
-                                     reduction_ratio=compression_ratio,
-                                     memory_level=2,
-                                     batch_size=10,
-                                     verbose=1,
-                                     random_state=0, alpha=alpha,
-                                     max_nbytes=None,
-                                     n_epochs=1,
-                                     n_jobs=estimator_n_jobs)
-        estimators.append(dict_learning)
+    for compression_ratio in compression_ratios:
+        sparse_pca = SparsePCA(n_components=n_components,
+                               mask=masker,
+                               memory=cache_dir,
+                               dict_init=dict_init,
+                               reduction_ratio=compression_ratio,
+                               memory_level=2,
+                               batch_size=30,
+                               shuffle=False,
+                               verbose=1,
+                               random_state=0, l1_ratio=0.4,
+                               n_epochs=1,
+                               n_jobs=estimator_n_jobs)
+        estimators.append(sparse_pca)
 
     with open(join(output, 'estimators'), mode='w+') as f:
         pickle.dump(estimators, f)
 
     exp_n_jobs = n_jobs if parallel_exp else 1
 
-    res = Parallel(n_jobs=exp_n_jobs, verbose=10)(delayed(fit_and_dump)(index,
-                                                               estimator,
-                                                               data_filenames,
-                                                               output)
-                                         for index, estimator
-                                         in enumerate(estimators))
+    res = Parallel(n_jobs=exp_n_jobs, verbose=10)\
+        (delayed(fit_and_dump)(index,
+                               estimator,
+                               data_filenames,
+                               output)
+         for index, estimator
+         in enumerate(estimators))
 
     components_filename, timings_list = zip(*res)
     timings = np.zeros((len(estimators), 3))
@@ -218,6 +210,6 @@ def run_experiment(n_jobs=6, parallel_exp=False):
 
 if __name__ == '__main__':
     t0 = time.time()
-    run_experiment(n_jobs=1, parallel_exp=True)
+    run_experiment(n_jobs=3)
     time = time.time() - t0
     print('Total_time : %f s' % time)
