@@ -19,6 +19,17 @@ from matplotlib.backends.backend_pdf import PdfPages
 from nilearn.plotting import plot_prob_atlas, plot_stat_map
 
 
+try:
+    import joblib
+    from sklearn.externals import joblib as skl_joblib
+    print('Monkeypatching scikit-learn embedded joblib')
+    for k, v in vars(joblib).items():
+        setattr(skl_joblib, k, v)
+    del skl_joblib, joblib
+except ImportError:
+    pass
+
+
 def compare(x, y):
     if len(x) < len(y):
         return -1
@@ -119,7 +130,7 @@ def run_experiment(n_jobs=6):
         pass
 
     # dataset = datasets.fetch_hcp_rest(n_subjects=20, data_dir='/volatile3')
-    dataset = datasets.fetch_adhd(n_subjects=10)
+    dataset = datasets.fetch_adhd(n_subjects=20)
     # /storage/data
     # mask = dataset.mask  # /storage/data/HCP_mask/mask.nii.gz
     smith = datasets.fetch_atlas_smith_2009()
@@ -136,13 +147,13 @@ def run_experiment(n_jobs=6):
     decomposition_estimator = DecompositionEstimator(smoothing_fwhm=4.,
                                                      memory="nilearn_cache",
                                                      # mask=mask,
-                                                     memory_level=3,
+                                                     memory_level=2,
                                                      verbose=1,
                                                      n_jobs=n_jobs)
     decomposition_estimator.fit(data_filenames, preload=True)
     masker = decomposition_estimator.masker_
 
-    reduction_ratios = [0.25]
+    reduction_ratios = [0.5]
 
     estimators = []
 
@@ -150,8 +161,8 @@ def run_experiment(n_jobs=6):
         sparse_pca = SparsePCA(n_components=n_components, mask=masker,
                                memory="nilearn_cache", dict_init=dict_init,
                                reduction_ratio=reduction_ratio,
-                               memory_level=3,
-                               alpha=0.2,
+                               memory_level=2,
+                               alpha=0.4,
                                batch_size=20,
                                verbose=1,
                                shuffle=True,
