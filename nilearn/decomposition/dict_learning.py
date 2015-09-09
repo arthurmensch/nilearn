@@ -234,7 +234,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 print('[DictLearning] Learning dictionary')
             t0 = time.time()
             dictionary = self._cache(dict_learning_online,
-                              func_memory_level=2)(
+                                     func_memory_level=2)(
                 data.T,
                 self.n_components,
                 alpha=self.alpha,
@@ -251,9 +251,9 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             t0 = time.time()
             self.components_ = self._cache(sparse_encode,
                                            func_memory_level=2,
-                                           ignore=['n_jobs'])\
-                (data.T, dictionary, algorithm='lasso_cd', alpha=self.alpha,
-                 n_jobs=self.n_jobs, check_input=False).T
+                                           ignore=['n_jobs'])(
+                data.T, dictionary, algorithm='lasso_cd', alpha=self.alpha,
+                n_jobs=self.n_jobs).T
             self.time_[0] += time.time() - t0
 
         # Normalize components

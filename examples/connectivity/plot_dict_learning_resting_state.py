@@ -23,7 +23,7 @@ t0 = time.time()
 ### Load ADHD rest dataset ####################################################
 from nilearn import datasets
 
-adhd_dataset = datasets.fetch_adhd(n_subjects=40)
+adhd_dataset = datasets.fetch_adhd(n_subjects=10)
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
@@ -36,16 +36,16 @@ from nilearn.decomposition import DictLearning, CanICA
 n_components = 30
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
-                             memory="nilearn_cache", memory_level=3,
-                             verbose=2,
-                             random_state=0, alpha=10, in_memory=True,
-                             n_epochs=2)
+                             memory="nilearn_cache", memory_level=2,
+                             verbose=1,
+                             random_state=0, alpha=1,
+                             n_epochs=1)
 canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
-                memory="nilearn_cache",  memory_level=3,
+                memory="nilearn_cache",  memory_level=2,
                 verbose=1,
-                n_init=1, threshold=3.)
+                n_init=10)
 
-estimators = [dict_learning]
+estimators = [dict_learning, canica]
 
 components_imgs = []
 
@@ -53,7 +53,9 @@ for estimator in estimators:
     print('[Example] Learning maps using %s model' % type(estimator).__name__)
     estimator.fit(func_filenames)
     print('[Example] Dumping results')
-    components_img = estimator.masker_.inverse_transform(estimator.components_)
+    # Decomposition estimator embeds their own masker
+    masker = estimator.masker_
+    components_img = masker.inverse_transform(estimator.components_)
     components_img.to_filename('%s_resting_state.nii.gz' %
                                type(estimator).__name__)
     components_imgs.append(components_img)
@@ -67,8 +69,9 @@ from nilearn.image import index_img
 print('[Example] Displaying')
 
 fig, axes = plt.subplots(nrows=len(estimators))
+# We select pertinent cur coordinates for displaying
 cut_coords = find_xyz_cut_coords(index_img(components_imgs[0], 1))
-for estimator, cur_img, ax in zip(estimators, components_imgs, [axes]):
+for estimator, cur_img, ax in zip(estimators, components_imgs, axes):
     plot_prob_atlas(cur_img, view_type="continuous",
                     title="%s" % estimator.__class__.__name__,
                     axes=ax,

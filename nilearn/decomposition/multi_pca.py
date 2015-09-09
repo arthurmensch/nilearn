@@ -157,7 +157,7 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                              n_components=self.n_components,
                              random_state=self.random_state,
                              memory=self.memory,
-                             memory_level=max(0, self.memory_level -1),
+                             memory_level=max(0, self.memory_level - 1),
                              in_memory=self.in_memory) as data:
             self._raw_fit(data)
         return self
