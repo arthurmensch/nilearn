@@ -9,7 +9,7 @@ import numpy as np
 from nilearn.image import index_img
 from nilearn.input_data import MultiNiftiMasker
 from nilearn import datasets
-from nilearn.decomposition import SparsePCA
+from nilearn.decomposition import SparsePCA, DictLearning
 from nilearn.decomposition.base import DecompositionEstimator
 from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
 from nilearn_sandbox._utils.map_alignment import align_list_with_last_nii
@@ -162,20 +162,20 @@ def run_experiment(n_jobs=6, parallel_exp=True, dataset='adhd',
 
     estimator_n_jobs = n_jobs if not parallel_exp else 1
 
-    alphas = [0.1]
+    alphas = [3]
     estimators = []
     for alpha in alphas:
-        sparse_pca = SparsePCA(n_components=n_components, mask=masker,
-                               memory="nilearn_cache", dict_init=dict_init,
-                               reduction_ratio=1,
-                               memory_level=2,
-                               alpha=alpha,
-                               batch_size=20,
-                               verbose=1,
-                               shuffle=True,
-                               random_state=0, l1_ratio=1,
-                               n_jobs=estimator_n_jobs,
-                               n_epochs=3)
+        sparse_pca = DictLearning(n_components=n_components, mask=masker,
+                                  memory="nilearn_cache", dict_init=dict_init,
+                                  reduction_ratio=1,
+                                  memory_level=2,
+                                  alpha=alpha,
+                                  batch_size=20,
+                                  verbose=1,
+                                  random_state=0,
+                                  max_nbytes=None,
+                                  n_jobs=estimator_n_jobs,
+                                  n_epochs=1)
         estimators.append(sparse_pca)
 
     with open(join(output, 'estimators'), mode='w+') as f:

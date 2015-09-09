@@ -18,7 +18,7 @@ from ..input_data import NiftiMapsMasker
 from ..input_data.masker_validation import check_embedded_nifti_masker
 from .._utils.cache_mixin import CacheMixin, cache
 from .._utils.niimg_conversions import check_niimg_4d
-from nilearn.datasets.utils import _get_dataset_dir
+from .._utils.niimg import _safe_get_data
 
 def _delete_file(file_descriptor, file_path, warn=False):
     """Utility function to cleanup a temporary folder if still existing.
@@ -136,9 +136,9 @@ class mask_and_reduce(object):
                 compression_type = self.compression_type
             else:
                 compression_type = 'none'
+
         # Precomputing number of samples for preallocation
         subject_n_samples = np.zeros(len(imgs), dtype='int')
-
         for i, img in enumerate(imgs):
             if reduction_ratio == 'auto':
                 subject_n_samples[i] = min(self.n_components,
@@ -149,7 +149,7 @@ class mask_and_reduce(object):
         subject_limits = np.zeros(subject_n_samples.shape[0]+1,
                                   dtype='int')
         subject_limits[1:] = np.cumsum(subject_n_samples)
-        n_voxels = np.sum(self.masker.mask_img_.get_data())
+        n_voxels = np.sum(_safe_get_data(self.masker.mask_img_))
         n_samples = subject_limits[-1]
 
         if self.max_nbytes is not None:
@@ -171,7 +171,7 @@ class mask_and_reduce(object):
                                          % self.temp_dir)
                     temp_dir = self.temp_dir
 
-        # We initialize data in memory or on disk
+            # We initialize data in memory or on disk
             if return_mmap or self.n_jobs > 1:
                 temp_folder = temp_dir
                 self.file_, self.filename_ = mkstemp(dir=temp_folder)
@@ -196,6 +196,7 @@ class mask_and_reduce(object):
             self.random_state,
             i
         ) for i, (img, confound) in enumerate(zip(imgs, confounds)))
+
         if not mock and not return_mmap and self.n_jobs > 1:
             # We used a memory map for multiprocessing, restoring
             data = np.array(data)
