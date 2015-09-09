@@ -2,9 +2,9 @@ import os
 import numpy as np
 from nose.tools import assert_true, assert_false, assert_is
 import nibabel
-from numpy.testing import assert_equal, assert_array_almost_equal
+from numpy.testing import assert_equal, assert_array_almost_equal, \
+    assert_raises
 
-from nilearn.datasets.utils import _get_dataset_dir
 from nilearn._utils.testing import assert_raises_regex
 from nilearn.input_data import MultiNiftiMasker
 from nilearn.decomposition.base import DecompositionEstimator, mask_and_reduce
@@ -49,9 +49,19 @@ def test_mask_and_reduce():
         cov_diag[i, i] = cov[i, i]
     assert_array_almost_equal(cov, cov_diag)
 
+    # Test that reduced data is not orthogonal using 'range_finder'
+    with mask_and_reduce(masker, data[0], n_components=3,
+                         compression_type='range_finder') as components:
+        assert_true(components.shape == (3, 6 * 8 * 10))
+    cov = components.dot(components.T)
+    cov_diag = np.zeros((3, 3))
+    for i in range(3):
+        cov_diag[i, i] = cov[i, i]
+    assert_raises(AssertionError, assert_array_almost_equal, cov, cov_diag)
+
     # Test memorymap
     with mask_and_reduce(masker, data[0], n_components=3,
-                         max_nbytes=0) as components:
+                         in_memory=False) as components:
         assert_equal(components.shape, (3, 6 * 8 * 10))
         temp_file = components.filename
         assert_true(os.path.exists(os.path.join(temp_file)))
@@ -60,7 +70,7 @@ def test_mask_and_reduce():
 
     # Test mock
     with mask_and_reduce(masker, data[0], n_components=3,
-                         max_nbytes=0,
+                         in_memory=False,
                          n_jobs=1,
                          mock=True) as components:
         assert_is(components, None)
@@ -68,7 +78,7 @@ def test_mask_and_reduce():
 
     # Test n_jobs > 1 with memory map
     with mask_and_reduce(masker, data[0], n_components=3,
-                         max_nbytes=0,
+                         in_memory=False,
                          n_jobs=2) as components:
         assert_equal(components.shape, (3, 6 * 8 * 10))
         temp_file = components.filename
@@ -79,12 +89,11 @@ def test_mask_and_reduce():
 
     # Test n_jobs > 1 with array
     with mask_and_reduce(masker, data[0], n_components=3,
-                         max_nbytes=None,
+                         in_memory=True,
                          n_jobs=2) as components:
         assert_equal(components.shape, (3, 6 * 8 * 10))
         assert_true(isinstance(components, np.ndarray))
         # Should assert that temp file removal has worked
-
 
 
 def test_decomposition_estimator():
@@ -124,3 +133,8 @@ def test_decomposition_estimator():
                         'Need one or more Niimg-like objects as input, '
                         'an empty list was given.',
                         decomposition_estimator.fit, [])
+
+
+# Score is tested in multi_pca
+def test_decomposition_estimator_score():
+    pass

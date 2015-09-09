@@ -41,7 +41,7 @@ def test_multi_pca():
 
     # Test with memory mapped intermediary
     multi_pca_mmap = MultiPCA(mask=mask_img, n_components=3, random_state=0,
-                              max_nbytes=0)
+                              in_memory=False)
     components3 = multi_pca_mmap.fit(data).components_
     np.testing.assert_array_almost_equal(components1, components3)
 

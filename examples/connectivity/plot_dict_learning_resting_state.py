@@ -38,7 +38,7 @@ n_components = 30
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="nilearn_cache", memory_level=3,
                              verbose=2,
-                             random_state=0, alpha=10, max_nbytes=0,
+                             random_state=0, alpha=10, in_memory=True,
                              n_epochs=2)
 canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
                 memory="nilearn_cache",  memory_level=3,
