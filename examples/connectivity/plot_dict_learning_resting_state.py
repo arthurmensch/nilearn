@@ -23,7 +23,7 @@ t0 = time.time()
 ### Load ADHD rest dataset ####################################################
 from nilearn import datasets
 
-adhd_dataset = datasets.fetch_adhd(n_subjects=10)
+adhd_dataset = datasets.fetch_adhd(n_subjects=40)
 func_filenames = adhd_dataset.func  # list of 4D nifti files for each subject
 
 # print basic information on the dataset
@@ -33,7 +33,7 @@ print('First functional nifti image (4D) is at: %s' %
 ### Apply DictLearning ########################################################
 from nilearn.decomposition import DictLearning, CanICA
 
-n_components = 30
+n_components = 20
 
 dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              memory="nilearn_cache", memory_level=2,
@@ -44,7 +44,7 @@ canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
                 memory="nilearn_cache",  memory_level=2,
                 threshold=3.,
                 verbose=1)
-estimators = [canica]
+estimators = [dict_learning, canica]
 
 components_imgs = []
 
@@ -71,7 +71,7 @@ fig, axes = plt.subplots(nrows=len(estimators))
 # We select pertinent cur coordinates for displaying
 cut_coords = find_xyz_cut_coords(index_img(components_imgs[0], 1))
 for estimator, cur_img, ax in zip(estimators, components_imgs, axes):
-    plot_prob_atlas(cur_img, view_type="continuous",
+    plot_prob_atlas(cur_img, view_type="filled_contours",
                     title="%s" % estimator.__class__.__name__,
                     axes=ax,
                     cut_coords=cut_coords, colorbar=False)
