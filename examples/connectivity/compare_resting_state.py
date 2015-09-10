@@ -4,12 +4,13 @@ import os
 import time
 import pickle
 import datetime
+import warnings
 from joblib import delayed, Parallel
 import numpy as np
 from nilearn.image import index_img
 from nilearn.input_data import MultiNiftiMasker
 from nilearn import datasets
-from nilearn.decomposition import SparsePCA
+from nilearn.decomposition import SparsePCA, DictLearning
 from nilearn.decomposition.base import DecompositionEstimator
 from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
 from nilearn_sandbox._utils.map_alignment import align_list_with_last_nii
@@ -88,7 +89,9 @@ def fit_and_dump(index, estimator, func_filenames, output):
     estimator.debug_folder = debug_folder
     print('[Example] Learning maps using %s model' % type(estimator).__name__)
     t0 = time.time()
-    estimator.fit(func_filenames)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        estimator.fit(func_filenames)
     full_time = time.time() - t0
     print('[Example] Dumping results')
     dump_debug_to_pdf(estimator, exp_output)
@@ -113,8 +116,10 @@ def dump_nii_and_pdf(i, components, dump_dir):
     return filename
 
 
-def run_experiment(n_jobs=6, parallel_exp=True, dataset='adhd',
-                   init='rsn70', n_subjects=40):
+def run_experiment(estimators, init='rsn70', n_epochs=1,
+                   dataset='adhd',
+                   n_subjects=40,
+                   n_jobs=6, parallel_exp=True):
     output = os.path.expanduser('~/work/output/compare')
     temp_dir = os.path.expanduser('~/temp')
     cache_dir = os.path.expanduser('~/nilearn_cache')
@@ -162,21 +167,15 @@ def run_experiment(n_jobs=6, parallel_exp=True, dataset='adhd',
 
     estimator_n_jobs = n_jobs if not parallel_exp else 1
 
-    alphas = [0.1]
-    estimators = []
-    for alpha in alphas:
-        sparse_pca = SparsePCA(n_components=n_components, mask=masker,
-                               memory="nilearn_cache", dict_init=dict_init,
-                               reduction_ratio=1,
-                               memory_level=2,
-                               alpha=alpha,
-                               batch_size=20,
-                               verbose=1,
-                               shuffle=True,
-                               random_state=0, l1_ratio=1,
-                               n_jobs=estimator_n_jobs,
-                               n_epochs=3)
-        estimators.append(sparse_pca)
+    for estimator in estimators:
+        # Setting technical parameters
+        estimator.set_params(mask=masker, dict_init=dict_init,
+                             n_components=n_components,
+                             n_epochs=n_epochs,
+                             n_jobs=estimator_n_jobs,
+                             random_state=0,
+                             memory_level=2, memory='nilearn_cache',
+                             verbose=1)
 
     with open(join(output, 'estimators'), mode='w+') as f:
         pickle.dump(estimators, f)
@@ -210,6 +209,12 @@ def run_experiment(n_jobs=6, parallel_exp=True, dataset='adhd',
 
 if __name__ == '__main__':
     t0 = time.time()
-    run_experiment(n_jobs=1, dataset='adhd')
+
+    estimators = []
+    alphas = [0.1, 1, 10]
+    for alpha in alphas:
+        estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                                       reduction_ratio=1))
+    run_experiment(estimators, n_jobs=3, dataset='adhd', n_subjects=40)
     time = time.time() - t0
     print('Total_time : %f s' % time)
