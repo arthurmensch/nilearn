@@ -155,7 +155,7 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
     # This is hacky and should be integrated in the nilearn API in a smooth way
     # Warming up cache with masked images
     print("[Example] Warming up cache")
-    decomposition_estimator = DecompositionEstimator(smoothing_fwhm=4.,
+    decomposition_estimator = DecompositionEstimator(smoothing_fwhm=6.,
                                                      memory=cache_dir,
                                                      mask=mask,
                                                      memory_level=2,
@@ -211,9 +211,9 @@ if __name__ == '__main__':
     t0 = time.time()
 
     estimators = []
-    alphas = [0.1, 1, 10]
-    for alpha in alphas:
-        estimators.append(DictLearning(alpha=alpha, batch_size=20,
+    reduction_ratio = ['auto', 0.99]
+    for reduction_ratio in reduction_ratio:
+        estimators.append(DictLearning(alpha=5, batch_size=20,
                                        reduction_ratio=1))
     run_experiment(estimators, n_jobs=3, dataset='adhd', n_subjects=40)
     time = time.time() - t0
