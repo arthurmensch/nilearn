@@ -142,7 +142,7 @@ class mask_and_reduce(object):
             else:
                 subject_n_samples[i] = int(ceil(check_niimg_4d(img).
                                            shape[3] * reduction_ratio))
-        subject_limits = np.zeros(subject_n_samples.shape[0]+1,
+        subject_limits = np.zeros(subject_n_samples.shape[0] + 1,
                                   dtype='int')
         subject_limits[1:] = np.cumsum(subject_n_samples)
         n_voxels = np.sum(_safe_get_data(self.masker.mask_img_))
