@@ -128,7 +128,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                  target_affine=None, target_shape=None,
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
-                 n_jobs=1, in_memory=True, temp_dir=None, verbose=0,
+                 n_jobs=1, in_memory=True, temp_folder=None, verbose=0,
+                 debug_folder=None,
                  batch_size=10,
                  ):
         DecompositionEstimator.__init__(self, n_components=n_components,
@@ -152,8 +153,22 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.alpha = alpha
         self.dict_init = dict_init
         self.reduction_ratio = reduction_ratio
+        self.debug_folder = debug_folder
         self.batch_size = batch_size
-        self.temp_dir = temp_dir
+        self.temp_folder = temp_folder
+
+    def _dump_debug(self):
+        if hasattr(self, 'debug_info_'):
+            (residual, sparsity, values) = self.debug_info_
+            n_iter = residual.shape[0]
+            components_img = self.masker_.inverse_transform(self.components_)
+            components_img.to_filename(join(self.debug_folder,
+                                            'components_%i.nii.gz' % n_iter))
+            # Debug info
+            np.save(join(self.debug_folder, 'residual'), residual)
+            np.save(join(self.debug_folder, 'values'), values)
+            np.save(join(self.debug_folder, 'time'), self.time_)
+
 
     def _init_dict(self, data):
 
@@ -202,6 +217,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         # Base logic for decomposition estimators
         DecompositionEstimator.fit(self, imgs)
 
+        debug = self.debug_folder is not None
+
         if self.verbose:
             print('[DictLearning] Loading data')
 
@@ -212,7 +229,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                              n_components=self.n_components,
                              random_state=self.random_state,
                              memory_level=max(0, self.memory_level - 1),
-                             temp_folder=self.temp_dir,
+                             temp_folder=self.temp_folder,
                              n_jobs=self.n_jobs,
                              memory=self.memory,
                              in_memory=self.in_memory) as data:
@@ -233,8 +250,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
             t0 = time.time()
-            dictionary = self._cache(dict_learning_online,
-                                     func_memory_level=2)(
+            res = self._cache(dict_learning_online,
+                              func_memory_level=2)(
                 data.T,
                 self.n_components,
                 alpha=self.alpha,
@@ -243,17 +260,22 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 method='cd',
                 return_code=False,
                 dict_init=self._dict_init,
+                return_debug_info=debug,
                 verbose=max(0, self.verbose - 1),
                 random_state=self.random_state,
                 shuffle=True,
                 n_jobs=1)
             self.time_[0] += time.time() - t0
+            if debug:
+                dictionary, self.debug_info_ = res
+            else:
+                dictionary = res
             t0 = time.time()
             self.components_ = self._cache(sparse_encode,
                                            func_memory_level=2,
                                            ignore=['n_jobs'])(
                 data.T, dictionary, algorithm='lasso_cd', alpha=self.alpha,
-                n_jobs=self.n_jobs).T
+                n_jobs=self.n_jobs, check_input=False).T
             self.time_[0] += time.time() - t0
 
         # Normalize components

@@ -17,12 +17,12 @@ def test_dict_learning():
     dict_learning = DictLearning(n_components=4, random_state=0,
                                  dict_init=dict_init,
                                  mask=mask_img,
-                                 smoothing_fwhm=0., n_epochs=1, alpha=2)
+                                 smoothing_fwhm=0., n_epochs=1, alpha=10)
     # Test with intermediary memorymapped unmasked data
     dict_learning_mmap = DictLearning(n_components=4, random_state=0,
                                       dict_init=dict_init,
                                       mask=mask_img,
-                                      smoothing_fwhm=0., n_epochs=1, alpha=2,
+                                      smoothing_fwhm=0., n_epochs=1, alpha=10,
                                       in_memory=False)
     maps = {}
     for estimator in [dict_learning, dict_learning_mmap]:
