@@ -42,10 +42,9 @@ dict_learning = DictLearning(n_components=n_components, smoothing_fwhm=6.,
                              n_epochs=1)
 canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
                 memory="nilearn_cache",  memory_level=2,
-                verbose=1,
-                n_init=10)
-
-estimators = [dict_learning, canica]
+                threshold=3.,
+                verbose=1)
+estimators = [canica]
 
 components_imgs = []
 
