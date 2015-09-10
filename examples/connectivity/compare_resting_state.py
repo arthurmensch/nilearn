@@ -213,8 +213,8 @@ if __name__ == '__main__':
     estimators = []
     reduction_ratio = ['auto', 0.99]
     for reduction_ratio in reduction_ratio:
-        estimators.append(DictLearning(alpha=5, batch_size=20,
-                                       reduction_ratio=1))
+        estimators.append(DictLearning(alpha=10, batch_size=20,
+                                       reduction_ratio=reduction_ratio))
     run_experiment(estimators, n_jobs=3, dataset='adhd', n_subjects=40)
     time = time.time() - t0
     print('Total_time : %f s' % time)
