@@ -1,5 +1,6 @@
 """
-PCA dimension reduction on single subjects
+Base class for decomposition estimators, utilies for masking and reducing group
+data
 """
 import atexit
 import os
@@ -19,24 +20,16 @@ from ..input_data.masker_validation import check_embedded_nifti_masker
 from .._utils.cache_mixin import CacheMixin, cache
 from .._utils.niimg_conversions import check_niimg_4d
 from .._utils.niimg import _safe_get_data
+from .._utils.file_io import _delete_folder
 
-def _delete_file(file_descriptor, file_path, warn=False):
-    """Utility function to cleanup a temporary folder if still existing.
-    Copy from joblib.pool (for independance)"""
-    try:
-        os.close(file_descriptor)
-    except OSError:
-        # Already closed
-        pass
-    if os.path.exists(file_path):
-        os.remove(file_path)
 
 class mask_and_reduce(object):
     """Mask and reduce provided data with provided masker, using a PCA
 
-    Uses a PCA on time series to reduce data size. For multiple image, the
-    concatenation of data is returned, either as an ndarray or a memorymap
-    (useful for big datasets that does not fit in memory).
+    Uses a PCA (randomized for small reduction ratio) or a range finding matrix
+    on time series to reduce data size in time. For multiple image,
+    the concatenation of data is returned, either as an ndarray or a memorymap
+    (useful for big datasets that do not fit in memory).
 
     Parameters
     ----------
@@ -85,8 +78,8 @@ class mask_and_reduce(object):
                  memory_level=0,
                  memory=Memory(cachedir=None),
                  mock=False,
-                 max_nbytes=1e9,
-                 temp_dir=None,
+                 in_memory=True,
+                 temp_folder=None,
                  n_jobs=1):
         self.masker = masker
         self.imgs = imgs
@@ -97,13 +90,16 @@ class mask_and_reduce(object):
         self.random_state = random_state
         self.memory_level = memory_level
         self.memory = memory
-        self.max_nbytes = max_nbytes
+        self.in_memory = in_memory
         self.mock = mock
         self.n_jobs = n_jobs
-        self.temp_dir = temp_dir
+        self.temp_folder = temp_folder
 
     def __enter__(self):
+        return_mmap = not self.in_memory
+
         mock = bool(self.mock)
+
         if mock and self.memory is None:
             warnings.warn('Mock run is useless if memory is disabled.')
 
@@ -146,39 +142,30 @@ class mask_and_reduce(object):
             else:
                 subject_n_samples[i] = int(ceil(check_niimg_4d(img).
                                            shape[3] * reduction_ratio))
-        subject_limits = np.zeros(subject_n_samples.shape[0]+1,
+        subject_limits = np.zeros(subject_n_samples.shape[0] + 1,
                                   dtype='int')
         subject_limits[1:] = np.cumsum(subject_n_samples)
         n_voxels = np.sum(_safe_get_data(self.masker.mask_img_))
         n_samples = subject_limits[-1]
 
-        if self.max_nbytes is not None:
-            max_nbytes = int(self.max_nbytes)
-            return_mmap = n_voxels * n_samples * 8 > max_nbytes
-        else:
-            return_mmap = False
-
         if not mock:
             if return_mmap or self.n_jobs > 1:
-                if self.temp_dir is None:
+                if self.temp_folder is None:
                     warnings.warn('Using system temporary folder : '
                                   'it may be too small')
-                    temp_dir = mkdtemp()
+                    self.temp_folder_ = mkdtemp()
                 else:
                     if not os.path.exists(self.temp_dir):
                         raise ValueError('Temporary directory does not exist :'
                                          ' please create %s before using it.'
                                          % self.temp_dir)
-                    temp_dir = self.temp_dir
+                    self.temp_folder_ = self.temp_folder
 
-            # We initialize data in memory or on disk
-            if return_mmap or self.n_jobs > 1:
-                temp_folder = temp_dir
-                self.file_, self.filename_ = mkstemp(dir=temp_folder)
-                atexit.register(lambda: _delete_file(self.file_,
-                                                     self.filename_,
-                                                     warn=True))
-                data = np.memmap(self.filename_, dtype='float64',
+                # We initialize data in memory or on disk
+                self.file_, filename = mkstemp(dir=self.temp_folder_)
+                atexit.register(lambda: _delete_folder(self.temp_folder_,
+                                                       warn=True))
+                data = np.memmap(filename, dtype='float64',
                                  order='F', mode='w+',
                                  shape=(n_samples, n_voxels))
             else:
@@ -204,7 +191,11 @@ class mask_and_reduce(object):
 
     def __exit__(self, type, value, traceback):
         if hasattr(self, 'file_'):
-            _delete_file(self.file_, self.filename_)
+            # We use low level IO as we cannot use a file context manager
+            # within this context manager
+            os.close(self.file_)
+        if hasattr(self, 'temp_folder_'):
+            _delete_folder(self.temp_folder_)
 
 
 def _load_single_subject(masker, data, subject_limits, subject_n_samples,
@@ -214,7 +205,7 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
                          memory_level,
                          random_state,
                          i):
-    """Utility function for multiprocessing"""
+    """Utility function for multiprocessing from mask_and_reduce"""
     this_data = masker.transform(img, confound)
     if compression_type == 'svd':
         if subject_n_samples[i] <= this_data.shape[0] // 4:
@@ -240,7 +231,6 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
         U = this_data
     if not mock:
         data[subject_limits[i]:subject_limits[i+1], :] = U
-
 
 
 class DecompositionEstimator(BaseEstimator, CacheMixin):
@@ -320,8 +310,8 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
         The number of CPUs to use to do the computation. -1 means
         'all CPUs', -2 'all CPUs but one', and so on.
 
-    max_nbytes: int,
-        Size (in bytes) above which the intermediary unmasked data will be
+    in_memory: boolean,
+        Intermediary unmasked data will be
         stored as a tempory memory map
 
     verbose: integer, optional
@@ -349,7 +339,7 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
                  target_affine=None, target_shape=None,
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
-                 n_jobs=1, max_nbytes=1e9,
+                 n_jobs=1, in_memory=True,
                  verbose=0):
         self.n_components = n_components
         self.random_state = random_state
@@ -369,7 +359,7 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
         self.memory = memory
         self.memory_level = memory_level
         self.n_jobs = n_jobs
-        self.max_nbytes = max_nbytes
+        self.in_memory = in_memory
         self.verbose = verbose
 
     def fit(self, imgs, y=None, confounds=None, preload=False, temp_dir=None):
@@ -404,7 +394,7 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
             with mask_and_reduce(self.masker_, imgs, confounds,
                                  memory_level=self.memory_level,
                                  memory=self.memory, mock=True,
-                                 temp_dir=temp_dir,
+                                 temp_folder=temp_dir,
                                  n_jobs=self.n_jobs) as data:
                 data = None
 
@@ -419,6 +409,53 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
                 raise ValueError("Object has no components_ attribute. "
                                  "This is probably because fit has not "
                                  "been called.")
+
+    def _score(self, data, per_component=True):
+        """Score function based on explained variance
+
+        Parameters
+        ----------
+        data: ndarray,
+            Holds single subject data to be tested against components
+
+        per_component: boolean,
+            Specify whether the explained variance ratio is desired for each
+            map or for the global set of components_
+
+        Returns
+        -------
+        score: ndarray,
+            Holds the score for each subjects. score is two dimensional if
+            per_component = True
+        """
+        return self._cache(explained_variance,
+                           func_memory_level=2)(data,
+                                                self.components_,
+                                                per_component=per_component)
+
+    def _fit_score(self, data):
+        """Score components based on explained variance over data
+
+        Parameters
+        ----------
+        data: ndarray,
+            Holds single subject data to be tested against components
+
+        Returns
+        -------
+        score: ndarray,
+            Holds the score for each maps
+        """
+        self.score_ = self._score(data, per_component=True)
+
+    def _sort_by_score(self, data):
+        """ Sort components by score obtained on test set imgs
+        """
+        if not hasattr(self.score_, '__iter__'):
+            self._fit_score(data)
+        argsort = np.argsort(self.score_)[::-1]
+        self.components_ = self.components_[argsort]
+        self.score_ = self.score_[argsort]
 
     def transform(self, imgs, confounds=None):
         """Project the data into a reduced representation
@@ -478,24 +515,13 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
             resampling_target='maps')
         nifti_maps_masker.fit()
         # XXX: dealing properly with 2D/ list of 2D data?
-        return [nifti_maps_masker.inverse_transform(signal)
-                for signal in loadings]
+        return [nifti_maps_masker.inverse_transform(loading)
+                for loading in loadings]
 
-    def _score_and_store(self, data):
-        self.score_ = self._score(data, per_component=True)
+    def score(self, imgs, confounds=None, per_component=True):
+        """Score function based on explained variance on imgs.
 
-    def _score_and_sort(self, data):
-        """ Sort components by score obtained on test set imgs
-        """
-        self._score_and_store(data)
-        if not hasattr(self.score_, '__iter__'):
-            return
-        argsort = np.argsort(self.score_)[::-1]
-        self.components_ = self.components_[argsort]
-        self.score_ = self.score_[argsort]
-
-    def score(self, imgs, confounds=None, per_component=False):
-        """Score function based on explained variance
+        Should only be used by DecompositionEstimator derived classes
 
         Parameters
         ----------
@@ -530,31 +556,6 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
             data = self.masker_.transform(img, confound)
             score[i] = self._score(data, per_component=per_component)
         return score if len(imgs) > 1 else score[0]
-
-    def _score(self, data,
-               per_component=False):
-        """Score function based on explained variance
-
-        Parameters
-        ----------
-        data: ndarray,
-            Holds single subject data to be tested against components
-
-        per_component: boolean,
-            Specify whether the explained variance ratio is desired for each
-            map or for the global set of components_
-
-        Returns
-        -------
-        score: ndarray,
-            Holds the score for each subjects. score is two dimensional if
-            per_component = True
-        """
-        # If data is not standardized:
-        return self._cache(explained_variance,
-                           func_memory_level=3)(data,
-                                                self.components_,
-                                                per_component=per_component)
 
 
 def explained_variance(X, components, per_component=False):

@@ -1,7 +1,7 @@
 from numpy.testing import assert_almost_equal
 from nilearn.input_data import NiftiMasker
 
-from nose.tools import assert_true
+from nose.tools import assert_true,assert_greater
 import numpy as np
 
 from nilearn.decomposition.tests.test_canica import _make_canica_test_data
@@ -17,13 +17,13 @@ def test_dict_learning():
     dict_learning = DictLearning(n_components=4, random_state=0,
                                  dict_init=dict_init,
                                  mask=mask_img,
-                                 smoothing_fwhm=0., n_epochs=1, alpha=1)
+                                 smoothing_fwhm=0., n_epochs=1, alpha=2)
     # Test with intermediary memorymapped unmasked data
     dict_learning_mmap = DictLearning(n_components=4, random_state=0,
                                       dict_init=dict_init,
                                       mask=mask_img,
-                                      smoothing_fwhm=0., n_epochs=1, alpha=1,
-                                      max_nbytes=0)
+                                      smoothing_fwhm=0., n_epochs=1, alpha=2,
+                                      in_memory=False)
     maps = {}
     for estimator in [dict_learning, dict_learning_mmap]:
         estimator.fit(data)
@@ -46,7 +46,7 @@ def test_dict_learning():
 
     K = np.abs(components.dot(maps.T))
     recovered_maps = np.sum(K > 0.9)
-    assert_true(recovered_maps >= 2)
+    assert_greater(recovered_maps, 2)
 
     # Smoke test n_epochs > 1
     dict_learning = DictLearning(n_components=4, random_state=0,

@@ -25,6 +25,7 @@ pip-log.txt
 coverage
 nosetests_coverage/
 .ropeproject/
+.idea/
 tags
 
 *.zip

@@ -9,7 +9,8 @@ Extracting resting-state networks with ICA
    This page demonstrates the use of multi-subject Independent Component
    Analysis (ICA) of resting-state fMRI data to extract brain networks in
    an data-driven way. Here we use the 'CanICA' approach, that implements
-   a multivariate random effects model across subjects.
+   a multivariate random effects model across subjects. A newer technique,
+   based on dictionary learning, is decribed (:ref:`here <dict_learning>`)
 
 .. topic:: **References**
 

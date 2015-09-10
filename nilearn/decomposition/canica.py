@@ -95,8 +95,8 @@ class CanICA(MultiPCA, CacheMixin):
         The number of CPUs to use to do the computation. -1 means
         'all CPUs', -2 'all CPUs but one', and so on.
 
-    max_nbytes: int,
-        Size (in bytes) above which the intermediary unmasked data will be
+    in_memory: boolean,
+        Intermediary unmasked data will be
         stored as a tempory memory map
 
     verbose: integer, optional
@@ -120,7 +120,7 @@ class CanICA(MultiPCA, CacheMixin):
                  target_affine=None, target_shape=None,
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
-                 n_jobs=1, max_nbytes=1e9, verbose=0
+                 n_jobs=1, in_memory=True, verbose=0
                  ):
 
         super(CanICA, self).__init__(
@@ -133,7 +133,7 @@ class CanICA(MultiPCA, CacheMixin):
             target_affine=target_affine, target_shape=target_shape,
             mask_strategy=mask_strategy, mask_args=mask_args,
             memory=memory, memory_level=memory_level,
-            n_jobs=n_jobs, max_nbytes=max_nbytes, verbose=verbose)
+            n_jobs=n_jobs, in_memory=in_memory, verbose=verbose)
         self.threshold = threshold
         self.n_init = n_init
 

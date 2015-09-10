@@ -81,8 +81,8 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         The number of CPUs to use to do the computation. -1 means
         'all CPUs', -2 'all CPUs but one', and so on.
 
-    max_nbytes: int,
-        Size (in bytes) above which the intermediary unmasked data will be
+    in_memory: boolean,
+        Intermediary unmasked data will be
         stored as a tempory memory map
 
     verbose: integer, optional
@@ -90,7 +90,7 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
 
     Attributes
     ----------
-    `_pca_masker_`: instance of MultiNiftiMasker
+    `masker_`: instance of MultiNiftiMasker
         Masker used to filter and mask data as first step. If an instance of
         MultiNiftiMasker is given in `mask` parameter,
         this is a copy of it. Otherwise, a masker is created using the value
@@ -114,7 +114,7 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                  target_affine=None, target_shape=None,
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
-                 n_jobs=1, max_nbytes=1e9,
+                 n_jobs=1, in_memory=True,
                  verbose=0
                  ):
         self.n_components = n_components
@@ -134,7 +134,7 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                                         mask_args=mask_args,
                                         memory=memory,
                                         memory_level=memory_level,
-                                        n_jobs=n_jobs, max_nbytes=max_nbytes,
+                                        n_jobs=n_jobs, in_memory=in_memory,
                                         verbose=verbose)
         
     def fit(self, imgs, y=None, confounds=None):
@@ -157,8 +157,8 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                              n_components=self.n_components,
                              random_state=self.random_state,
                              memory=self.memory,
-                             memory_level=max(0, self.memory_level -1),
-                             max_nbytes=self.max_nbytes) as data:
+                             memory_level=max(0, self.memory_level - 1),
+                             in_memory=self.in_memory) as data:
             self._raw_fit(data)
         return self
 

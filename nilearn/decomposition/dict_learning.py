@@ -7,23 +7,15 @@ component sparsity
 # License: BSD 3 clause
 
 from __future__ import division
-import os
-from tempfile import mkdtemp
 import warnings
 
-# WindowsError only exist on Windows
 from math import ceil
 from os.path import join
 import time
 
-try:
-    WindowsError
-except NameError:
-    WindowsError = None
-
 import numpy as np
 from sklearn.externals.joblib import Memory
-from sklearn.linear_model import Ridge, LinearRegression
+from sklearn.linear_model import Ridge
 
 from sklearn.decomposition import dict_learning_online, sparse_encode
 
@@ -32,6 +24,7 @@ from sklearn.base import TransformerMixin
 from .canica import CanICA
 from .._utils.cache_mixin import CacheMixin
 from .base import DecompositionEstimator, mask_and_reduce
+
 
 class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
     """Perform a map learning algorithm based on component sparsity,
@@ -108,8 +101,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         The number of CPUs to use to do the computation. -1 means
         'all CPUs', -2 'all CPUs but one', and so on.
 
-    max_nbytes: int,
-        Size (in bytes) above which the intermediary unmasked data will be
+    in_memory: boolean,
+        Intermediary unmasked data will be
         stored as a tempory memory map
 
     verbose: integer, optional
@@ -135,8 +128,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                  target_affine=None, target_shape=None,
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
-                 n_jobs=1, max_nbytes=1e9, temp_dir=None, verbose=0,
-                 debug_folder=None,
+                 n_jobs=1, in_memory=True, temp_dir=None, verbose=0,
                  batch_size=10,
                  ):
         DecompositionEstimator.__init__(self, n_components=n_components,
@@ -154,28 +146,14 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                                         memory=memory,
                                         memory_level=memory_level,
                                         n_jobs=n_jobs,
-                                        max_nbytes=max_nbytes,
+                                        in_memory=in_memory,
                                         verbose=verbose)
         self.n_epochs = n_epochs
         self.alpha = alpha
         self.dict_init = dict_init
         self.reduction_ratio = reduction_ratio
-        self.debug_folder = debug_folder
         self.batch_size = batch_size
         self.temp_dir = temp_dir
-
-    def _dump_debug(self):
-        if hasattr(self, 'debug_info_'):
-            (residual, sparsity, values) = self.debug_info_
-            n_iter = residual.shape[0]
-            components_img = self.masker_.inverse_transform(self.components_)
-            components_img.to_filename(join(self.debug_folder,
-                                            'components_%i.nii.gz' % n_iter))
-            # Debug info
-            np.save(join(self.debug_folder, 'residual'), residual)
-            np.save(join(self.debug_folder, 'values'), values)
-            np.save(join(self.debug_folder, 'time'), self.time_)
-
 
     def _init_dict(self, data):
 
@@ -224,8 +202,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         # Base logic for decomposition estimators
         DecompositionEstimator.fit(self, imgs)
 
-        debug = self.debug_folder is not None
-
         if self.verbose:
             print('[DictLearning] Loading data')
 
@@ -236,10 +212,10 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                              n_components=self.n_components,
                              random_state=self.random_state,
                              memory_level=max(0, self.memory_level - 1),
-                             temp_dir=self.temp_dir,
+                             temp_folder=self.temp_dir,
                              n_jobs=self.n_jobs,
                              memory=self.memory,
-                             max_nbytes=self.max_nbytes) as data:
+                             in_memory=self.in_memory) as data:
             self.time_[1] += time.time() - t0
             if self.verbose:
                 print('[DictLearning] Initializating dictionary')
@@ -249,14 +225,16 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 self.n_epochs = 1
             # Performing more than 10 epochs would probably useless
             if self.n_epochs > 10:
+                warnings.warn('Setting %i epochs is useless as algorithm will'
+                              'have converged: setting `n_epochs` = 10')
                 self.n_epochs = 10
             n_iter = int(ceil((data.shape[1] / self.batch_size * self.n_epochs)))
 
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
             t0 = time.time()
-            res = self._cache(dict_learning_online,
-                              func_memory_level=2)(
+            dictionary = self._cache(dict_learning_online,
+                                     func_memory_level=2)(
                 data.T,
                 self.n_components,
                 alpha=self.alpha,
@@ -265,37 +243,29 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 method='cd',
                 return_code=False,
                 dict_init=self._dict_init,
-                return_debug_info=debug,
                 verbose=max(0, self.verbose - 1),
                 random_state=self.random_state,
                 shuffle=True,
                 n_jobs=1)
             self.time_[0] += time.time() - t0
-            if debug:
-                dictionary, self.debug_info_ = res
-            else:
-                dictionary = res
             t0 = time.time()
             self.components_ = self._cache(sparse_encode,
                                            func_memory_level=2,
-                                           ignore=['n_jobs'])\
-                (data.T, dictionary, algorithm='lasso_cd', alpha=self.alpha,
-                 n_jobs=self.n_jobs, check_input=False).T
+                                           ignore=['n_jobs'])(
+                data.T, dictionary, algorithm='lasso_cd', alpha=self.alpha,
+                n_jobs=self.n_jobs).T
             self.time_[0] += time.time() - t0
-
-        # flip signs in each composant positive part is l1 larger
-        #  than negative part
-        for component in self.components_:
-            if np.sum(component[component > 0]) <\
-                    - np.sum(component[component < 0]):
-                component *= -1
 
         # Normalize components
         S = np.sqrt(np.sum(self.components_ ** 2, axis=1))
         S[S == 0] = 1
         self.components_ /= S[:, np.newaxis]
 
-        self._dump_debug()
-
+        # flip signs in each composant positive part is l1 larger
+        #  than negative part
+        for component in self.components_:
+            if np.sum(component[component > 0]) < - np.sum(
+                    component[component < 0]):
+                component *= -1
 
         return self
