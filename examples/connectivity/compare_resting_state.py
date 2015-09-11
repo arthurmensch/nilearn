@@ -119,7 +119,7 @@ def dump_nii_and_pdf(i, components, dump_dir):
 def run_experiment(estimators, init='rsn70', n_epochs=1,
                    dataset='adhd',
                    n_subjects=40,
-                   smoothing_fwhm=4,
+                   smoothing_fwhm=4.,
                    n_jobs=6, parallel_exp=True):
     output = os.path.expanduser('~/work/output/compare')
     temp_dir = os.path.expanduser('~/temp')
@@ -172,6 +172,7 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
     for estimator in estimators:
         # Setting technical parameters
         estimator.set_params(mask=masker, dict_init=dict_init,
+                             smoothing_fwhm=smoothing_fwhm,
                              n_components=n_components,
                              n_epochs=n_epochs,
                              n_jobs=estimator_n_jobs,
@@ -218,6 +219,6 @@ if __name__ == '__main__':
         estimators.append(DictLearning(alpha=10, batch_size=20,
                                        reduction_ratio=reduction_ratio))
     run_experiment(estimators, n_jobs=3, dataset='hcp', n_subjects=10,
-                   smoothing_fwhm=4)
+                   smoothing_fwhm=4.)
     time = time.time() - t0
     print('Total_time : %f s' % time)
