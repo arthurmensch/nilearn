@@ -144,7 +144,10 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
                                           data_dir=data_dir)
         mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
     smith = datasets.fetch_atlas_smith_2009()
-    if init == 'rsn70':
+    if isinstance(init, int):
+        dict_init = None
+        n_components = init
+    elif init == 'rsn70':
         dict_init = smith.rsn70
         n_components = 70
     elif init == 'rsn20':
@@ -167,7 +170,7 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
                                                      memory_level=2,
                                                      verbose=10,
                                                      n_jobs=n_jobs)
-    decomposition_estimator.fit(data_filenames, preload=True    ,
+    decomposition_estimator.fit(data_filenames, preload=True,
                                 temp_dir=temp_dir)
     masker = decomposition_estimator.masker_
 
@@ -218,11 +221,15 @@ if __name__ == '__main__':
     t0 = time.time()
 
     estimators = []
-    reduction_ratios = [0.1, 0.25, 0.5, 'auto', 1.]
-    for reduction_ratio in reduction_ratios:
-        estimators.append(DictLearning(alpha=10, batch_size=20,
-                                       reduction_ratio=reduction_ratio))
-    run_experiment(estimators, n_jobs=4, dataset='hcp', n_subjects=2,
-                   smoothing_fwhm=4., init='rsn20')
+    # reduction_ratios = [0.1, 0.25, 0.5, 'auto', 1.]
+    # for reduction_ratio in reduction_ratios:
+    #     estimators.append(DictLearning(alpha=15, batch_size=20,
+    #                                    reduction_ratio=reduction_ratio))
+    alphas = [0.1, 1, 10]
+    for alpha in alphas:
+        estimators.append(SparsePCA(alpha=alpha, batch_size=20,
+                                    reduction_ratio=1))
+    run_experiment(estimators, n_jobs=4, dataset='adhd', n_subjects=40,
+                   smoothing_fwhm=6., init=20, n_epochs=1)
     time = time.time() - t0
     print('Total_time : %f s' % time)

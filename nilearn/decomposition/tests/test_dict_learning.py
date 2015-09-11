@@ -54,9 +54,6 @@ def test_dict_learning():
         recovered_maps = np.sum(K > 0.9)
         assert_greater(recovered_maps, 2)
 
-
-    # Test with no dict_init:
-
     # Smoke test n_epochs > 1
     dict_learning = DictLearning(n_components=4, random_state=0,
                                  dict_init=dict_init,

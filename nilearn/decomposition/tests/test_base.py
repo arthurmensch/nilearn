@@ -41,7 +41,8 @@ def test_mask_and_reduce():
         assert_true(components.shape == (5, 6 * 8 * 10))
 
     # Test that reduced data is orthogonal
-    with mask_and_reduce(masker, data[0], n_components=3) as components:
+    with mask_and_reduce(masker, data[0], n_components=3,
+                         compression_type='svd') as components:
         assert_true(components.shape == (3, 6 * 8 * 10))
     cov = components.dot(components.T)
     cov_diag = np.zeros((3, 3))

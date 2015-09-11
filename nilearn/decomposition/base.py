@@ -12,6 +12,7 @@ import numpy as np
 from scipy import linalg
 from sklearn.externals.joblib import Memory, Parallel, delayed
 from sklearn.linear_model import LinearRegression
+from sklearn.utils import check_random_state
 from sklearn.utils.extmath import randomized_svd, randomized_range_finder
 from sklearn.base import BaseEstimator
 
@@ -127,7 +128,7 @@ class mask_and_reduce(object):
             if reduction_ratio == 1:
                 compression_type = 'none'
             else:
-                compression_type = 'svd'
+                compression_type = 'range_finder'
         elif self.compression_type not in ['svd', 'range_finder', 'none']:
             raise ValueError("`compression_type` should be `svd`"
                              "`range_finder` or `none`, got %s."
@@ -178,7 +179,8 @@ class mask_and_reduce(object):
 
         Parallel(n_jobs=self.n_jobs)(delayed(_load_single_subject)(
             self.masker, data, subject_limits, subject_n_samples,
-            compression_type, mock,
+            compression_type, reduction_ratio,
+            mock,
             img, confound,
             self.memory,
             self.memory_level,
@@ -201,7 +203,8 @@ class mask_and_reduce(object):
 
 
 def _load_single_subject(masker, data, subject_limits, subject_n_samples,
-                         compression_type, mock,
+                         compression_type, reduction_ratio,
+                         mock,
                          img, confound,
                          memory,
                          memory_level,
@@ -226,9 +229,14 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
             S = S[:subject_n_samples[i]]
         U = U * S[:, np.newaxis]
     elif compression_type == 'range_finder':
-        Q = randomized_range_finder(this_data, subject_n_samples[i], 3,
-                                    random_state=random_state)
-        U = Q.T.dot(this_data)
+        if reduction_ratio == 1.:
+            random_state = check_random_state(random_state)
+            U = this_data.copy()
+            random_state.shuffle(U)
+        else:
+            Q = randomized_range_finder(this_data, subject_n_samples[i], 3,
+                                        random_state=random_state)
+            U = Q.T.dot(this_data)
     else:  # compression type = 'none'
         U = this_data
     if not mock:

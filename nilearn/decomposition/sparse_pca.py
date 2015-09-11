@@ -112,7 +112,6 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
     def __init__(self, n_components=20,
                  n_epochs=1, l1_ratio=0.1, dict_init=None,
                  random_state=None,
-                 shuffle=False,
                  batch_size=10,
                  reduction_ratio=1.,
                  alpha=0.,
@@ -147,7 +146,6 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.dict_init = dict_init
         self.batch_size = batch_size
         self.reduction_ratio = reduction_ratio
-        self.shuffle = shuffle
         self.debug_folder = debug_folder
 
     def _dump_debug(self):
@@ -234,8 +232,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                                  compression_type='range_finder',
                                  random_state=self.random_state,
                                  memory_level=self.memory_level,
-                                 memory=self.memory,
-                                 max_nbytes=None) as data:
+                                 memory=self.memory) as data:
                 self.time_[1] += time.time() - t0
                 n_iter = (data.shape[0] - 1) // self.batch_size + 1
                 if self.verbose:
@@ -259,7 +256,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                     return_inner_stats=True,
                     inner_stats=inner_stats,
                     iter_offset=iter_offset,
-                    shuffle=self.shuffle,
+                    shuffle=False,
                     n_jobs=1,
                     tol=0.
                     )
@@ -295,7 +292,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         if self.verbose:
             print('[DictLearning] Learning score')
-        self._score_and_store(data)
+        self._fit_score(data)
 
         self._dump_debug()
 
