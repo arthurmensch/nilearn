@@ -205,6 +205,12 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 # has already been unmasked
                 canica._raw_fit(data)
             components = canica.components_
+        S = (components ** 2).sum(axis=1)
+        S[S == 0] = 1
+        components /= S[:, np.newaxis]
+        if self.debug_folder is not None:
+            self.masker_.inverse_transform(components).to_filename(join(self.debug_folder,
+                                        'init.nii.gz'))
         self._dict_init = self._cache(_compute_loadings,
                                       func_memory_level=2)(components, data)
 

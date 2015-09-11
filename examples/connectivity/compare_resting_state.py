@@ -221,14 +221,14 @@ if __name__ == '__main__':
     t0 = time.time()
 
     estimators = []
-    # reduction_ratios = [0.1, 0.25, 0.5, 'auto', 1.]
-    # for reduction_ratio in reduction_ratios:
-    #     estimators.append(DictLearning(alpha=15, batch_size=20,
-    #                                    reduction_ratio=reduction_ratio))
-    alphas = [0.1, 1, 10]
-    for alpha in alphas:
-        estimators.append(SparsePCA(alpha=alpha, batch_size=20,
-                                    reduction_ratio=1))
+    reduction_ratios = ['auto']
+    for reduction_ratio in reduction_ratios:
+        estimators.append(DictLearning(alpha=15, batch_size=20,
+                                       reduction_ratio=reduction_ratio))
+    # alphas = [0.1, 1, 10]
+    # for alpha in alphas:
+    #     estimators.append(SparsePCA(alpha=alpha, batch_size=20,
+    #                                 reduction_ratio=1))
     run_experiment(estimators, n_jobs=4, dataset='adhd', n_subjects=40,
                    smoothing_fwhm=6., init=20, n_epochs=1)
     time = time.time() - t0
