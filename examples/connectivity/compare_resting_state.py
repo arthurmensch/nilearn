@@ -119,6 +119,7 @@ def dump_nii_and_pdf(i, components, dump_dir):
 def run_experiment(estimators, init='rsn70', n_epochs=1,
                    dataset='adhd',
                    n_subjects=40,
+                   smoothing_fwhm=4,
                    n_jobs=6, parallel_exp=True):
     output = os.path.expanduser('~/work/output/compare')
     temp_dir = os.path.expanduser('~/temp')
@@ -155,7 +156,8 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
     # This is hacky and should be integrated in the nilearn API in a smooth way
     # Warming up cache with masked images
     print("[Example] Warming up cache")
-    decomposition_estimator = DecompositionEstimator(smoothing_fwhm=6.,
+    decomposition_estimator = DecompositionEstimator(smoothing_fwhm=
+                                                     smoothing_fwhm,
                                                      memory=cache_dir,
                                                      mask=mask,
                                                      memory_level=2,
@@ -211,10 +213,11 @@ if __name__ == '__main__':
     t0 = time.time()
 
     estimators = []
-    reduction_ratio = ['auto', 0.99]
+    reduction_ratio = [0.1, 0.25, 0.5, 1]
     for reduction_ratio in reduction_ratio:
         estimators.append(DictLearning(alpha=10, batch_size=20,
                                        reduction_ratio=reduction_ratio))
-    run_experiment(estimators, n_jobs=3, dataset='adhd', n_subjects=40)
+    run_experiment(estimators, n_jobs=3, dataset='hcp', n_subjects=10,
+                   smoothing_fwhm=4)
     time = time.time() - t0
     print('Total_time : %f s' % time)
