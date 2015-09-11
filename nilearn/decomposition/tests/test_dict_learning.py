@@ -24,8 +24,13 @@ def test_dict_learning():
                                       mask=mask_img,
                                       smoothing_fwhm=0., n_epochs=1, alpha=10,
                                       in_memory=False)
+
+    dict_learning_auto_init = DictLearning(n_components=4, random_state=0,
+                                 mask=mask_img,
+                                 smoothing_fwhm=0., n_epochs=1, alpha=10)
     maps = {}
-    for estimator in [dict_learning, dict_learning_mmap]:
+    for estimator in [dict_learning, dict_learning_mmap,
+                      dict_learning_auto_init]:
         estimator.fit(data)
         maps[estimator] = estimator.masker_.\
             inverse_transform(estimator.components_).get_data()
@@ -35,18 +40,22 @@ def test_dict_learning():
     # mapping
     assert_almost_equal(maps[dict_learning], maps[dict_learning_mmap])
 
-    maps = maps[dict_learning]
-    S = np.sqrt(np.sum(components ** 2, axis=1))
-    S[S == 0] = 1
-    components /= S[:, np.newaxis]
+    for this_dict_learning in [dict_learning, dict_learning_auto_init]:
+        these_maps = maps[this_dict_learning]
+        S = np.sqrt(np.sum(components ** 2, axis=1))
+        S[S == 0] = 1
+        components /= S[:, np.newaxis]
 
-    S = np.sqrt(np.sum(maps ** 2, axis=1))
-    S[S == 0] = 1
-    maps /= S[:, np.newaxis]
+        S = np.sqrt(np.sum(these_maps ** 2, axis=1))
+        S[S == 0] = 1
+        these_maps /= S[:, np.newaxis]
 
-    K = np.abs(components.dot(maps.T))
-    recovered_maps = np.sum(K > 0.9)
-    assert_greater(recovered_maps, 2)
+        K = np.abs(components.dot(these_maps.T))
+        recovered_maps = np.sum(K > 0.9)
+        assert_greater(recovered_maps, 2)
+
+
+    # Test with no dict_init:
 
     # Smoke test n_epochs > 1
     dict_learning = DictLearning(n_components=4, random_state=0,

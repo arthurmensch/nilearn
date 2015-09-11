@@ -26,6 +26,16 @@ from .._utils.cache_mixin import CacheMixin
 from .base import DecompositionEstimator, mask_and_reduce
 
 
+def _compute_loadings(components, data):
+    ridge = Ridge(fit_intercept=None, alpha=0.)
+    ridge.fit(components.T, data.T)
+    loadings = ridge.coef_.T
+    S = np.sqrt(np.sum(loadings ** 2, axis=0))
+    S[S == 0] = 1
+    loadings /= S[np.newaxis, :]
+    return loadings
+
+
 class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
     """Perform a map learning algorithm based on component sparsity,
      over a CanICA initialization.  This yields more stable maps than CanICA.
@@ -130,7 +140,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                  memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, in_memory=True, temp_folder=None, verbose=0,
                  debug_folder=None,
-                 batch_size=10,
+                 # compression_type=None,
+                 batch_size=10
                  ):
         DecompositionEstimator.__init__(self, n_components=n_components,
                                         random_state=random_state,
@@ -156,6 +167,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.debug_folder = debug_folder
         self.batch_size = batch_size
         self.temp_folder = temp_folder
+        # self.compression_type = compression_type
+
 
     def _dump_debug(self):
         if hasattr(self, 'debug_info_'):
@@ -168,7 +181,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             np.save(join(self.debug_folder, 'residual'), residual)
             np.save(join(self.debug_folder, 'values'), values)
             np.save(join(self.debug_folder, 'time'), self.time_)
-
 
     def _init_dict(self, data):
 
@@ -193,12 +205,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 # has already been unmasked
                 canica._raw_fit(data)
             components = canica.components_
-        ridge = Ridge(fit_intercept=None, alpha=0.)
-        ridge.fit(components.T, data.T)
-        self._dict_init = ridge.coef_.T
-        S = np.sqrt(np.sum(self._dict_init ** 2, axis=0))
-        S[S == 0] = 1
-        self._dict_init /= S[np.newaxis, :]
+        self._dict_init = self._cache(_compute_loadings,
+                                      func_memory_level=2)(components, data)
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
@@ -227,6 +235,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         with mask_and_reduce(self.masker_, imgs, confounds,
                              reduction_ratio=self.reduction_ratio,
                              n_components=self.n_components,
+                             compression_type='svd',
                              random_state=self.random_state,
                              memory_level=max(0, self.memory_level - 1),
                              temp_folder=self.temp_folder,

@@ -7,6 +7,10 @@ import datetime
 import warnings
 from joblib import delayed, Parallel
 import numpy as np
+
+import matplotlib
+matplotlib.use('PDF')
+
 from nilearn.image import index_img
 from nilearn.input_data import MultiNiftiMasker
 from nilearn import datasets
@@ -163,7 +167,7 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
                                                      memory_level=2,
                                                      verbose=10,
                                                      n_jobs=n_jobs)
-    decomposition_estimator.fit(data_filenames, preload=True,
+    decomposition_estimator.fit(data_filenames, preload=True    ,
                                 temp_dir=temp_dir)
     masker = decomposition_estimator.masker_
 
@@ -214,11 +218,11 @@ if __name__ == '__main__':
     t0 = time.time()
 
     estimators = []
-    reduction_ratio = [0.1, 0.25, 0.5, 1]
-    for reduction_ratio in reduction_ratio:
+    reduction_ratios = [0.1, 0.25, 0.5, 'auto', 1.]
+    for reduction_ratio in reduction_ratios:
         estimators.append(DictLearning(alpha=10, batch_size=20,
                                        reduction_ratio=reduction_ratio))
-    run_experiment(estimators, n_jobs=3, dataset='hcp', n_subjects=10,
-                   smoothing_fwhm=4.)
+    run_experiment(estimators, n_jobs=4, dataset='hcp', n_subjects=2,
+                   smoothing_fwhm=4., init='rsn20')
     time = time.time() - t0
     print('Total_time : %f s' % time)

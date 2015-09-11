@@ -73,7 +73,7 @@ class mask_and_reduce(object):
 
     def __init__(self, masker, imgs, confounds=None,
                  reduction_ratio='auto',
-                 compression_type='svd',
+                 compression_type=None,
                  n_components=None, random_state=None,
                  memory_level=0,
                  memory=Memory(cachedir=None),
@@ -112,7 +112,7 @@ class mask_and_reduce(object):
             if self.n_components is None:
                 reduction_ratio = 1
             else:
-                reduction_ratio = self.reduction_ratio
+                reduction_ratio = 'auto'
         else:
             reduction_ratio = float(self.reduction_ratio)
             if reduction_ratio is None or reduction_ratio >= 1:
@@ -123,15 +123,17 @@ class mask_and_reduce(object):
         else:
             confounds = self.confounds
 
-        if self.compression_type not in ['svd', 'range_finder']:
+        if self.compression_type is None:
+            if reduction_ratio == 1:
+                compression_type = 'none'
+            else:
+                compression_type = 'svd'
+        elif self.compression_type not in ['svd', 'range_finder', 'none']:
             raise ValueError("`compression_type` should be `svd`"
-                             " or `range_finder`, got %s."
+                             "`range_finder` or `none`, got %s."
                              % self.compression_type)
         else:
-            if reduction_ratio != 1:
-                compression_type = self.compression_type
-            else:
-                compression_type = 'none'
+            compression_type = self.compression_type
 
         # Precomputing number of samples for preallocation
         subject_n_samples = np.zeros(len(imgs), dtype='int')
@@ -155,10 +157,10 @@ class mask_and_reduce(object):
                                   'it may be too small')
                     self.temp_folder_ = mkdtemp()
                 else:
-                    if not os.path.exists(self.temp_dir):
+                    if not os.path.exists(self.temp_folder):
                         raise ValueError('Temporary directory does not exist :'
                                          ' please create %s before using it.'
-                                         % self.temp_dir)
+                                         % self.temp_folder)
                     self.temp_folder_ = self.temp_folder
 
                 # We initialize data in memory or on disk
