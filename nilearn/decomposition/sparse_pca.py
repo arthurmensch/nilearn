@@ -110,10 +110,11 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
     """
 
     def __init__(self, n_components=20,
-                 n_epochs=1, l1_ratio=0.1, dict_init=None,
+                 n_epochs=1, dict_init=None,
                  random_state=None,
                  batch_size=10,
                  reduction_ratio=1.,
+                 learning_rate=1,
                  alpha=0.,
                  mask=None, smoothing_fwhm=None,
                  standardize=True, detrend=True,
@@ -141,8 +142,8 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                                         )
 
         self.n_epochs = n_epochs
-        self.l1_ratio = l1_ratio
         self.alpha = alpha
+        self.learning_rate = learning_rate
         self.dict_init = dict_init
         self.batch_size = batch_size
         self.reduction_ratio = reduction_ratio
@@ -180,6 +181,12 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                             )
             canica.fit(imgs, confounds=confounds)
             self._dict_init = canica.components_
+        S = (self._dict_init ** 2).sum(axis=1)
+        S[S == 0] = 1
+        self._dict_init /= S[:, np.newaxis]
+        if self.debug_folder is not None:
+            self.masker_.inverse_transform(self._dict_init).to_filename(join(
+                self.debug_folder, 'init.nii.gz'))
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
@@ -242,8 +249,9 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                     dict_learning_online, func_memory_level=2)(
                     data,
                     self.n_components,
+                    l1_ratio=1,
                     alpha=self.alpha,
-                    l1_ratio=self.l1_ratio,
+                    learning_rate=self.learning_rate,
                     n_iter=n_iter,
                     slowing=0,
                     batch_size=self.batch_size,

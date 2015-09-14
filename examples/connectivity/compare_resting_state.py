@@ -132,7 +132,7 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
     output = join(output, datetime.datetime.now().strftime('%Y-%m-%d_%H'
                                                            '-%M-%S'))
     try:
-        os.makedirs(join(output))
+        os.makedirs(output)
     except:
         pass
 
@@ -187,8 +187,9 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
                              memory_level=2, memory='nilearn_cache',
                              verbose=1)
 
-    with open(join(output, 'estimators'), mode='w+') as f:
-        pickle.dump(estimators, f)
+    with open(join(output, 'estimators'), 'w+') as f:
+        for estimator in estimators:
+            f.write("%s\n" % estimator)
 
     exp_n_jobs = n_jobs if parallel_exp else 1
 
@@ -205,7 +206,8 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
     for i, timing in enumerate(timings_list):
         timings[i] = np.array(timing)
     np.save(join(output, 'timings'), timings)
-
+    masker.mask_img_.to_filename(join(output, 'mask_img.nii.gz'))
+    
     if len(estimators) > 1:
         print("Performing alignment")
         map_masker = MultiNiftiMasker(mask_img=masker.mask_img_,).fit()
@@ -221,15 +223,15 @@ if __name__ == '__main__':
     t0 = time.time()
 
     estimators = []
-    reduction_ratios = ['auto']
-    for reduction_ratio in reduction_ratios:
-        estimators.append(DictLearning(alpha=15, batch_size=20,
-                                       reduction_ratio=reduction_ratio))
-    # alphas = [0.1, 1, 10]
-    # for alpha in alphas:
-    #     estimators.append(SparsePCA(alpha=alpha, batch_size=20,
-    #                                 reduction_ratio=1))
+    # reduction_ratios = ['auto']
+    # for reduction_ratio in reduction_ratios:
+    #     estimators.append(DictLearning(alpha=15, batch_size=20,
+    #                                    reduction_ratio=reduction_ratio))
+    alphas = [0.1, 1, 10]
+    for alpha in alphas:
+        estimators.append(SparsePCA(alpha=alpha, batch_size=20,
+                                    reduction_ratio=1))
     run_experiment(estimators, n_jobs=4, dataset='adhd', n_subjects=40,
-                   smoothing_fwhm=6., init=20, n_epochs=1)
+                   smoothing_fwhm=4., init=20, n_epochs=1)
     time = time.time() - t0
     print('Total_time : %f s' % time)
