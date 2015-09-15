@@ -9,6 +9,8 @@ from joblib import delayed, Parallel
 import numpy as np
 
 import matplotlib
+from nilearn._utils import check_niimg
+
 matplotlib.use('PDF')
 
 from nilearn.image import index_img
@@ -154,7 +156,11 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
         dict_init = smith.rsn20
         n_components = 20
     else:
-        raise ValueError('Unsupported init')
+        if os.path.exists(init):
+            dict_init = init
+            n_components = check_niimg(init).get_shape()[3]
+        else:
+            raise ValueError('Unsupported init')
     data_filenames = dataset.func
 
     print('First functional nifti image (4D) is at: %s' %
@@ -227,11 +233,13 @@ if __name__ == '__main__':
     # for reduction_ratio in reduction_ratios:
     #     estimators.append(DictLearning(alpha=15, batch_size=20,
     #                                    reduction_ratio=reduction_ratio))
-    alphas = [0.1, 1, 10]
+    alphas = [0.1]
     for alpha in alphas:
         estimators.append(SparsePCA(alpha=alpha, batch_size=20,
                                     reduction_ratio=1))
-    run_experiment(estimators, n_jobs=4, dataset='adhd', n_subjects=40,
-                   smoothing_fwhm=4., init=20, n_epochs=1)
+    run_experiment(estimators, n_jobs=4, dataset='adhd', n_subjects=10,
+                   smoothing_fwhm=4.,
+                   init="/volatile/arthur/work/output/compare/2015-09-15_10-01-33/experiment_0/components.nii.gz",
+                   n_epochs=1)
     time = time.time() - t0
     print('Total_time : %f s' % time)
