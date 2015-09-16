@@ -339,7 +339,7 @@ if __name__ == '__main__':
     alphas = [10, 15, 20]
     for alpha in alphas:
         estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                       reduction_ratio=1))
+                                       reduction_ratio='auto'))
     # update_schemes = ['mean', 'exp_decay']
     # for update_scheme in update_schemes:
     #     estimators.append(SparsePCA(alpha=0.1, update_scheme=update_scheme,
