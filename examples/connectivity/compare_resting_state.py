@@ -336,16 +336,16 @@ def run_stability(estimator, slices, init='rsn70', n_epochs=1,
 if __name__ == '__main__':
     t0 = time.time()
     estimators = []
-    alphas = [10, 15, 20]
+    alphas = [10, 20, 50, 100]
     for alpha in alphas:
         estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                       reduction_ratio='auto'))
+                                       reduction_ratio=1))
     # update_schemes = ['mean', 'exp_decay']
     # for update_scheme in update_schemes:
     #     estimators.append(SparsePCA(alpha=0.1, update_scheme=update_scheme,
     #                                 batch_size=20,
     #                                 reduction_ratio=1))
-    run_experiment(estimators, n_jobs=3, dataset='adhd', n_subjects=40,
+    run_experiment(estimators, n_jobs=2, dataset='hcp', n_subjects=10,
                    smoothing_fwhm=6.,
                    init=20,
                    n_epochs=1)
