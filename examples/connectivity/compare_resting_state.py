@@ -348,7 +348,7 @@ if __name__ == '__main__':
     run_experiment(estimators, n_jobs=2, dataset='hcp', n_subjects=10,
                    smoothing_fwhm=6.,
                    init=20,
-                   n_epochs=1)
+                   n_epochs=2)
 
     # estimator = SparsePCA(alpha=0.1,
     #                       batch_size=20,
