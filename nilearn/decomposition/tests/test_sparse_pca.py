@@ -64,7 +64,7 @@ def test_component_sign():
 
     sparse_pca = SparsePCA(n_components=4, random_state=rng,
                            mask=mask_img,
-                           smoothing_fwhm=0., l1_ratio=1)
+                           smoothing_fwhm=0.)
     sparse_pca.fit(data)
     for mp in iter_img(sparse_pca.masker_.inverse_transform(
             sparse_pca.components_)):
