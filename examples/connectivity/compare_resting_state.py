@@ -345,9 +345,9 @@ if __name__ == '__main__':
     #     estimators.append(SparsePCA(alpha=0.1, update_scheme=update_scheme,
     #                                 batch_size=20,
     #                                 reduction_ratio=1))
-    run_experiment(estimators, n_jobs=2, dataset='adhd', n_subjects=10,
+    run_experiment(estimators, n_jobs=2, dataset='hcp', n_subjects=10,
                    smoothing_fwhm=6.,
-                   init=70,
+                   init="rsn70",
                    n_epochs=2)
 
     # estimator = SparsePCA(alpha=0.1,
