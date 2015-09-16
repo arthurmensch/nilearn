@@ -205,7 +205,7 @@ class CanICA(MultiPCA, CacheMixin):
         Parameters
         ----------
         data: ndarray or memmap
-            Unmasked data to process*
+            Unmasked data to process
         """
         MultiPCA._raw_fit(self, data)
         self._unmix_components()

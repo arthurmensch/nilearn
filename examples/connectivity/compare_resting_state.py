@@ -145,7 +145,7 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
 
     if dataset == 'adhd':
         dataset = datasets.fetch_adhd(n_subjects=min(40, n_subjects))
-        mask = os.path.expanduser('~/data/ADHD_mask/mask_img.nii.gz')
+        mask = None  # os.path.expanduser('~/data/ADHD_mask/mask_img.nii.gz')
     elif dataset == 'hcp':
         dataset = datasets.fetch_hcp_rest(n_subjects=n_subjects,
                                           data_dir=data_dir)
@@ -249,7 +249,7 @@ def run_stability(estimator, slices, init='rsn70', n_epochs=1,
 
     if dataset == 'adhd':
         dataset = datasets.fetch_adhd(n_subjects=min(40, n_subjects))
-        mask = os.path.expanduser('~/data/ADHD_mask/mask_img.nii.gz')
+        mask = None  # os.path.expanduser('~/data/ADHD_mask/mask_img.nii.gz')
     elif dataset == 'hcp':
         dataset = datasets.fetch_hcp_rest(n_subjects=n_subjects,
                                           data_dir=data_dir)
@@ -345,7 +345,7 @@ if __name__ == '__main__':
     #     estimators.append(SparsePCA(alpha=0.1, update_scheme=update_scheme,
     #                                 batch_size=20,
     #                                 reduction_ratio=1))
-    run_experiment(estimators, n_jobs=2, dataset='hcp', n_subjects=10,
+    run_experiment(estimators, n_jobs=2, dataset='adhd', n_subjects=10,
                    smoothing_fwhm=6.,
                    init=70,
                    n_epochs=2)

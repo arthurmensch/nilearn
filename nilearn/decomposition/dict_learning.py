@@ -182,7 +182,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             np.save(join(self.debug_folder, 'values'), values)
             np.save(join(self.debug_folder, 'time'), self.time_)
 
-    def _init_dict(self, data):
+    def _init_dict(self, imgs, data):
 
         if self.dict_init is not None:
             components = self.masker_.transform(self.dict_init)
@@ -192,7 +192,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                             do_cca=True, threshold=float(self.n_components),
                             n_init=1,
                             # mask parameter is not useful as we bypass masking
-                            mask=None,
+                            mask=self.masker_,
                             random_state=self.random_state,
                             memory=self.memory,
                             memory_level=self.memory_level,
@@ -203,7 +203,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 warnings.simplefilter("ignore", UserWarning)
                 # We use protected function _raw_fit as data
                 # has already been unmasked
-                canica._raw_fit(data)
+                canica.fit(imgs)
             components = canica.components_
         S = (components ** 2).sum(axis=1)
         S[S == 0] = 1
@@ -251,7 +251,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             self.time_[1] += time.time() - t0
             if self.verbose:
                 print('[DictLearning] Initializating dictionary')
-            self._init_dict(data)
+            self._init_dict(imgs, data)
 
             if self.n_epochs < 0:
                 self.n_epochs = 1
