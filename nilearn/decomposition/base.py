@@ -129,10 +129,10 @@ class mask_and_reduce(object):
                 compression_type = 'none'
             else:
                 compression_type = 'range_finder'
-        elif self.compression_type not in ['svd', 'range_finder', 'random',
+        elif self.compression_type not in ['svd', 'range_finder', 'subsample',
                                            'none']:
             raise ValueError("`compression_type` should be `svd`"
-                             "`range_finder`, `random` or `none`, got %s."
+                             "`range_finder`, `subsample` or `none`, got %s."
                              % self.compression_type)
         else:
             compression_type = self.compression_type
@@ -238,13 +238,13 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
             Q = randomized_range_finder(this_data, subject_n_samples[i], 3,
                                         random_state=random_state)
             U = Q.T.dot(this_data)
-    elif compression_type == 'random':
+    elif compression_type == 'subsample':
         if reduction_ratio == 1.:
             U = this_data
         else:
-            random_state = check_random_state(random_state)
-            U = this_data[random_state.permutation(this_data.shape[0])[
-                :subject_n_samples[i]]]
+            indices = np.floor(np.linspace(0, this_data.shape[0]-1,
+                               subject_n_samples[i])).astype('int')
+            U = this_data[indices]
     else:  # compression type = 'none'
         U = this_data
     if not mock:

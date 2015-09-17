@@ -252,7 +252,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             self.time_[1] += time.time() - t0
             if self.verbose:
                 print('[DictLearning] Initializating dictionary')
-            self._init_dict(imgs, data[::10])
+            self._init_dict(imgs, data)
 
             if self.n_epochs < 0:
                 self.n_epochs = 1
@@ -268,7 +268,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             t0 = time.time()
             res = self._cache(dict_learning_online,
                               func_memory_level=2)(
-                data[::10].T,
+                data.T,
                 self.n_components,
                 update_scheme='mean',
                 forget_rate=0.8,
