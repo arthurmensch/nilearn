@@ -131,6 +131,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
     def __init__(self, n_components=20,
                  n_epochs=1, alpha=1, dict_init=None,
                  reduction_ratio='auto',
+                 compression_type='svd',
                  random_state=None,
                  mask=None, smoothing_fwhm=None,
                  standardize=True, detrend=True,
@@ -167,7 +168,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.debug_folder = debug_folder
         self.batch_size = batch_size
         self.temp_folder = temp_folder
-        # self.compression_type = compression_type
+        self.compression_type = compression_type
 
 
     def _dump_debug(self):
@@ -241,7 +242,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         with mask_and_reduce(self.masker_, imgs, confounds,
                              reduction_ratio=self.reduction_ratio,
                              n_components=self.n_components,
-                             compression_type='svd',
+                             compression_type=self.compression_type,
                              random_state=self.random_state,
                              memory_level=max(0, self.memory_level - 1),
                              temp_folder=self.temp_folder,
@@ -251,7 +252,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             self.time_[1] += time.time() - t0
             if self.verbose:
                 print('[DictLearning] Initializating dictionary')
-            self._init_dict(imgs, data)
+            self._init_dict(imgs, data[::10])
 
             if self.n_epochs < 0:
                 self.n_epochs = 1
@@ -267,8 +268,10 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             t0 = time.time()
             res = self._cache(dict_learning_online,
                               func_memory_level=2)(
-                data.T,
+                data[::10].T,
                 self.n_components,
+                update_scheme='mean',
+                forget_rate=0.8,
                 alpha=self.alpha,
                 n_iter=n_iter,
                 batch_size=self.batch_size,
@@ -285,6 +288,10 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 dictionary, self.debug_info_ = res
             else:
                 dictionary = res
+
+            if self.debug_folder is not None:
+                np.save(join(self.debug_folder, 'dictionary'), dictionary)
+
             t0 = time.time()
             self.components_ = self._cache(sparse_encode,
                                            func_memory_level=2,

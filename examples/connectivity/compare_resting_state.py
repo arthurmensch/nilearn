@@ -196,7 +196,7 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
                              n_jobs=estimator_n_jobs,
                              random_state=0,
                              memory_level=2, memory='nilearn_cache',
-                             verbose=1)
+                             verbose=3)
 
     with open(join(output, 'estimators'), 'w+') as f:
         for estimator in estimators:
@@ -299,7 +299,7 @@ def run_stability(estimator, slices, init='rsn70', n_epochs=1,
                          n_jobs=estimator_n_jobs,
                          random_state=0,
                          memory_level=2, memory='nilearn_cache',
-                         verbose=1)
+                         verbose=3)
 
     with open(join(output, 'estimators'), 'w+') as f:
         f.write("%s\n" % estimator)
@@ -336,19 +336,24 @@ def run_stability(estimator, slices, init='rsn70', n_epochs=1,
 if __name__ == '__main__':
     t0 = time.time()
     estimators = []
-    alphas = [10, 20, 50, 100]
-    for alpha in alphas:
-        estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                       reduction_ratio=1))
+    alphas = [20, 30]
+    for reduction_ratio in [1]:
+        for compression_type in ['none']:
+            estimators.append(DictLearning(alpha=15, batch_size=20,
+                                           compression_type=compression_type,
+                                           reduction_ratio=reduction_ratio))
+    # estimators.append(SparsePCA(alpha=0.1, update_scheme='mean',
+    #                             batch_size=20,
+    #                             reduction_ratio=1))
     # update_schemes = ['mean', 'exp_decay']
     # for update_scheme in update_schemes:
     #     estimators.append(SparsePCA(alpha=0.1, update_scheme=update_scheme,
     #                                 batch_size=20,
     #                                 reduction_ratio=1))
-    run_experiment(estimators, n_jobs=2, dataset='hcp', n_subjects=10,
+    run_experiment(estimators, n_jobs=1, dataset='hcp', n_subjects=4,
                    smoothing_fwhm=6.,
                    init="rsn70",
-                   n_epochs=2)
+                   n_epochs=1)
 
     # estimator = SparsePCA(alpha=0.1,
     #                       batch_size=20,
