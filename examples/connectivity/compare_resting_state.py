@@ -336,8 +336,8 @@ def run_stability(estimator, slices, init='rsn70', n_epochs=1,
 if __name__ == '__main__':
     t0 = time.time()
     estimators = []
-    alphas = [10]
-    for reduction_ratio in [0.05]:
+    alphas = [10, 20, 30]
+    for reduction_ratio in [0.1]:
         for compression_type in ['subsample']:
             estimators.append(DictLearning(alpha=15, batch_size=20,
                                            compression_type=compression_type,
@@ -350,7 +350,7 @@ if __name__ == '__main__':
     #     estimators.append(SparsePCA(alpha=0.1, update_scheme=update_scheme,
     #                                 batch_size=20,
     #                                 reduction_ratio=1))
-    run_experiment(estimators, n_jobs=1, dataset='hcp', n_subjects=5,
+    run_experiment(estimators, n_jobs=1, dataset='hcp', n_subjects=10,
                    smoothing_fwhm=6.,
                    init="rsn70",
                    n_epochs=1)
