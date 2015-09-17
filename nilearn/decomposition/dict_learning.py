@@ -271,7 +271,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 data.T,
                 self.n_components,
                 update_scheme='mean',
-                forget_rate=0.8,
+                forget_rate=0.6,
                 alpha=self.alpha,
                 n_iter=n_iter,
                 batch_size=self.batch_size,
