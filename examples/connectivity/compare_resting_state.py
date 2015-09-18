@@ -336,35 +336,19 @@ def run_stability(estimator, slices, init='rsn70', n_epochs=1,
 if __name__ == '__main__':
     t0 = time.time()
     estimators = []
-    alphas = [10, 15, 20]
-    for compression_type in ['subsample', 'svd', 'range_finder']:
-        for alpha in alphas:
-            estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                           compression_type=compression_type,
-                                           reduction_ratio=0.1))
-    # estimators.append(SparsePCA(alpha=0.1, update_scheme='mean',
-    #                             batch_size=20,
-    #                             reduction_ratio=1))
-    # update_schemes = ['mean', 'exp_decay']
-    # for update_scheme in update_schemes:
-    #     estimators.append(SparsePCA(alpha=0.1, update_scheme=update_scheme,
-    #                                 batch_size=20,
-    #                                 reduction_ratio=1))
-    run_experiment(estimators, n_jobs=3, dataset='hcp', n_subjects=40,
+    for forget_rate in [0.6, 1]:
+        estimators.append(DictLearning(alpha=18, batch_size=20,
+                                       compression_type='subsample',
+                                       forget_rate=forget_rate,
+                                       reduction_ratio=0.1))
+    for alphas in [25, 30]:
+        estimators.append(DictLearning(alpha=alphas, batch_size=20,
+                                       compression_type='range_finder',
+                                       reduction_ratio=0.1,
+                                       forget_rate=0.6))
+    run_experiment(estimators, n_jobs=4, dataset='hcp', n_subjects=40,
                    smoothing_fwhm=6.,
                    init="rsn70",
                    n_epochs=1)
-
-    # estimator = SparsePCA(alpha=0.1,
-    #                       batch_size=20,
-    #                       reduction_ratio=1)
-    # # estimator = DictLearning(alpha=15,
-    # #                          batch_size=20,
-    # #                          reduction_ratio=1)
-    # slices = [slice(0, 20), slice(20, 40)]
-    # run_stability(estimator, slices, n_jobs=4, dataset='adhd', n_subjects=40,
-    #               smoothing_fwhm=4.,
-    #               init=70,
-    #               n_epochs=1)
     time = time.time() - t0
     print('Total_time : %f s' % time)

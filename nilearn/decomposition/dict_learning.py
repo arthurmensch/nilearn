@@ -132,6 +132,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                  n_epochs=1, alpha=1, dict_init=None,
                  reduction_ratio='auto',
                  compression_type='svd',
+                 forget_rate=1,
                  random_state=None,
                  mask=None, smoothing_fwhm=None,
                  standardize=True, detrend=True,
@@ -141,7 +142,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                  memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, in_memory=True, temp_folder=None, verbose=0,
                  debug_folder=None,
-                 # compression_type=None,
                  batch_size=10
                  ):
         DecompositionEstimator.__init__(self, n_components=n_components,
@@ -169,6 +169,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.batch_size = batch_size
         self.temp_folder = temp_folder
         self.compression_type = compression_type
+        self.forget_rate = forget_rate
 
 
     def _dump_debug(self):
@@ -271,7 +272,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 data.T,
                 self.n_components,
                 update_scheme='mean',
-                forget_rate=0.6,
+                forget_rate=self.forget_rate,
                 alpha=self.alpha,
                 n_iter=n_iter,
                 batch_size=self.batch_size,
