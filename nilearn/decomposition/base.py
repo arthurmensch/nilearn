@@ -81,7 +81,7 @@ class mask_and_reduce(object):
                  mock=False,
                  in_memory=True,
                  temp_folder=None,
-                 n_jobs=1):
+                 n_jobs=1, power_iter=3):
         self.masker = masker
         self.imgs = imgs
         self.confounds = confounds
@@ -94,6 +94,7 @@ class mask_and_reduce(object):
         self.in_memory = in_memory
         self.mock = mock
         self.n_jobs = n_jobs
+        self.power_iter = power_iter
         self.temp_folder = temp_folder
 
     def __enter__(self):
@@ -186,7 +187,7 @@ class mask_and_reduce(object):
             self.memory,
             self.memory_level,
             self.random_state,
-            i
+            i, self.power_iter
         ) for i, (img, confound) in enumerate(zip(imgs, confounds)))
 
         if not mock and not return_mmap and self.n_jobs > 1:
@@ -210,7 +211,7 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
                          memory,
                          memory_level,
                          random_state,
-                         i):
+                         i, power_iter):
     """Utility function for multiprocessing from mask_and_reduce"""
     this_data = masker.transform(img, confound)
     if compression_type == 'svd':
@@ -219,6 +220,7 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
                             memory_level=memory_level,
                             func_memory_level=1)(this_data.T,
                                                  subject_n_samples[i],
+                                                 n_iter=power_iter,
                                                  random_state=random_state)
             U = U.T
         else:
@@ -235,7 +237,7 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
             U = this_data.copy()
             random_state.shuffle(U)
         else:
-            Q = randomized_range_finder(this_data, subject_n_samples[i], 3,
+            Q = randomized_range_finder(this_data, subject_n_samples[i], power_iter,
                                         random_state=random_state)
             U = Q.T.dot(this_data)
     elif compression_type == 'subsample':

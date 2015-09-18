@@ -132,6 +132,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                  n_epochs=1, alpha=1, dict_init=None,
                  reduction_ratio='auto',
                  compression_type='svd',
+                 power_iter=3,
                  forget_rate=1,
                  random_state=None,
                  mask=None, smoothing_fwhm=None,
@@ -170,6 +171,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.temp_folder = temp_folder
         self.compression_type = compression_type
         self.forget_rate = forget_rate
+        self.power_iter = power_iter
 
 
     def _dump_debug(self):
@@ -244,6 +246,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                              reduction_ratio=self.reduction_ratio,
                              n_components=self.n_components,
                              compression_type=self.compression_type,
+                             power_iter=self.power_iter,
                              random_state=self.random_state,
                              memory_level=max(0, self.memory_level - 1),
                              temp_folder=self.temp_folder,
@@ -309,8 +312,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         # flip signs in each composant positive part is l1 larger
         #  than negative part
         for component in self.components_:
-            if np.sum(component[component > 0]) < - np.sum(
-                    component[component < 0]):
+            if np.sum(component > 0) < np.sum(component < 0):
                 component *= -1
 
         return self

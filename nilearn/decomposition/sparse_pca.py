@@ -113,7 +113,9 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                  n_epochs=1, dict_init=None,
                  alpha=0.,
                  update_scheme='mean',
+                 compression_type='range_finder',
                  forget_rate=1,
+                 power_iter=3,
                  random_state=None,
                  batch_size=10,
                  reduction_ratio=1.,
@@ -145,10 +147,12 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.alpha = alpha
         self.update_scheme = update_scheme
         self.forget_rate = forget_rate
+        self.power_iter = power_iter
         self.n_epochs = n_epochs
         self.dict_init = dict_init
         self.batch_size = batch_size
         self.reduction_ratio = reduction_ratio
+        self.compression_type = compression_type
         self.debug_folder = debug_folder
 
     def _dump_debug(self):
@@ -240,7 +244,8 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
             with mask_and_reduce(self.masker_, img, confound,
                                  reduction_ratio=self.reduction_ratio,
                                  n_components=self.n_components,
-                                 compression_type='range_finder',
+                                 compression_type=self.compression_type,
+                                 power_iter=self.power_iter,
                                  random_state=self.random_state,
                                  memory_level=self.memory_level,
                                  memory=self.memory) as data:
@@ -294,8 +299,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         # flip signs in each composant positive part is l1 larger
         #  than negative part
         for component in self.components_:
-            if np.sum(component[component > 0]) <\
-                    - np.sum(component[component < 0]):
+            if np.sum(component > 0) < np.sum(component < 0):
                 component *= -1
 
         if self.verbose:
