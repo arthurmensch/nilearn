@@ -216,6 +216,8 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
                                     reduction_ratio=
                                     estimator.reduction_ratio,
                                     power_iter=estimator.power_iter,
+                                    feature_compression=estimator.
+                                    feature_compression,
                                     forget_rate=estimator.forget_rate))
 
     exp_n_jobs = n_jobs if parallel_exp else 1
@@ -362,30 +364,37 @@ def run_experiment(estimators, init='rsn70', n_epochs=1,
 
 if __name__ == '__main__':
     t0 = time.time()
+
     estimators = []
-    # for forget_rate in [0.6, 1]:
-    #     estimators.append(DictLearning(alpha=18, batch_size=20,
+    # for reduction_ratio in [0.1, 0.5, 1]:
+    #     estimators.append(DictLearning(alpha=10, batch_size=40,
     #                                    compression_type='subsample',
-    #                                    forget_rate=forget_rate,
+    #                                    forget_rate=1,
     #                                    reduction_ratio=0.1))
-    for compression_type in ('range_finder', 'subsample'):
-        for reduction_ratio in [0.1, 0.25, 1]:
-            estimators.append(SparsePCA(alpha=0.1, batch_size=20,
-                                        forget_rate=1,
-                                        reduction_ratio=0.1,
-                                        compression_type='range_finder'))
+    for compression_type in ['subsample', 'range_finder']:
+        for reduction_ratio in [0.1, 0.25, 0.5]:
+            for alpha in [5, 7, 9, 11, 13]:
+                estimators.append(DictLearning(alpha=10, batch_size=20,
+                                               compression_type='compression_type',
+                                               forget_rate=1,
+                                               reduction_ratio=reduction_ratio,
+                                               feature_compression=1))
+
+    for feature_compression in [0.1, 0.25, 0.5]:
+        estimators.append(DictLearning(alpha=15, batch_size=20,
+                                       compression_type='none',
+                                       forget_rate=1,
+                                       reduction_ratio=1,
+                                       feature_compression=feature_compression)
+                          )
 
     # Baseline
-    estimators.append(DictLearning(alpha=40, batch_size=40,
-                                   compression_type='range_finder',
-                                   forget_rate=1,
-                                   reduction_ratio=0.1))
-    estimators.append(DictLearning(alpha=25, batch_size=40,
+    estimators.append(DictLearning(alpha=15, batch_size=20,
                                    compression_type='subsample',
                                    forget_rate=1,
-                                   reduction_ratio=0.1))
+                                   reduction_ratio=1))
 
-    run_experiment(estimators, n_jobs=5, dataset='hcp', n_subjects=40,
+    run_experiment(estimators, n_jobs=8, dataset='adhd', n_subjects=40,
                    smoothing_fwhm=6.,
                    init="rsn70",
                    n_epochs=1)

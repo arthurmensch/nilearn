@@ -2,6 +2,8 @@
 Base class for decomposition estimators, utilies for masking and reducing group
 data
 """
+from __future__ import division
+
 import atexit
 import os
 from math import ceil
@@ -74,6 +76,7 @@ class mask_and_reduce(object):
 
     def __init__(self, masker, imgs, confounds=None,
                  reduction_ratio='auto',
+                 feature_compression=1,
                  compression_type=None,
                  n_components=None, random_state=None,
                  memory_level=0,
@@ -96,6 +99,7 @@ class mask_and_reduce(object):
         self.n_jobs = n_jobs
         self.power_iter = power_iter
         self.temp_folder = temp_folder
+        self.feature_compression = feature_compression
 
     def __enter__(self):
         return_mmap = not self.in_memory
@@ -151,6 +155,13 @@ class mask_and_reduce(object):
                                   dtype='int')
         subject_limits[1:] = np.cumsum(subject_n_samples)
         n_voxels = np.sum(_safe_get_data(self.masker.mask_img_))
+        if self.feature_compression != 1.:
+            random_state = check_random_state(self.random_state)
+            selection = random_state.permutation(
+                n_voxels)[:int(n_voxels * self.feature_compression)]
+            n_voxels = selection.shape[0]
+        else:
+            selection = None
         n_samples = subject_limits[-1]
 
         if not mock:
@@ -182,6 +193,7 @@ class mask_and_reduce(object):
         Parallel(n_jobs=self.n_jobs)(delayed(_load_single_subject)(
             self.masker, data, subject_limits, subject_n_samples,
             compression_type, reduction_ratio,
+            selection,
             mock,
             img, confound,
             self.memory,
@@ -206,6 +218,7 @@ class mask_and_reduce(object):
 
 def _load_single_subject(masker, data, subject_limits, subject_n_samples,
                          compression_type, reduction_ratio,
+                         selection,
                          mock,
                          img, confound,
                          memory,
@@ -214,6 +227,11 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
                          i, power_iter):
     """Utility function for multiprocessing from mask_and_reduce"""
     this_data = masker.transform(img, confound)
+    random_state = check_random_state(random_state)
+
+    if selection is not None:
+        this_data = this_data[:, selection]
+
     if compression_type == 'svd':
         if subject_n_samples[i] <= this_data.shape[0] // 4:
             U, S, _ = cache(randomized_svd, memory,
@@ -353,6 +371,7 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
 
     def __init__(self, n_components=20,
                  random_state=None,
+                 feature_compression=1,
                  mask=None, smoothing_fwhm=None,
                  standardize=True, detrend=True,
                  low_pass=None, high_pass=None, t_r=None,
@@ -363,6 +382,8 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
                  verbose=0):
         self.n_components = n_components
         self.random_state = random_state
+
+        self.feature_compression = feature_compression
 
         self.mask = mask
 

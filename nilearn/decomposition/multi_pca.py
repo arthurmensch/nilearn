@@ -101,7 +101,7 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         The mask of the data. If no mask was given at masker creation, contains
         the automatically computed mask.
 
-    `components_`: 2D numpy array (n_components x n-voxels)
+    `components_`: 2D numpy array (n_components x n-voxels)ca
         Array of masked extracted components. They can be unmasked thanks to
         the `_pca_masker_` attribute.
     """
@@ -109,6 +109,7 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
     def __init__(self, n_components=20, do_cca=True,
                  random_state=None,
                  mask=None, smoothing_fwhm=None,
+                 feature_compression=1,
                  standardize=False, detrend=False,
                  low_pass=None, high_pass=None, t_r=None,
                  target_affine=None, target_shape=None,
@@ -120,9 +121,11 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.n_components = n_components
         self.do_cca = do_cca
 
+
         DecompositionEstimator.__init__(self, n_components=n_components,
                                         random_state=random_state,
                                         mask=mask,
+                                        feature_compression= self.feature_compression,
                                         smoothing_fwhm=smoothing_fwhm,
                                         standardize=standardize,
                                         detrend=detrend,
@@ -156,6 +159,7 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         with mask_and_reduce(self.masker_, imgs, confounds,
                              n_components=self.n_components,
                              random_state=self.random_state,
+                             feature_compression=self.feature_compression,
                              memory=self.memory,
                              memory_level=max(0, self.memory_level - 1),
                              in_memory=self.in_memory) as data:

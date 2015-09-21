@@ -132,6 +132,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                  n_epochs=1, alpha=1, dict_init=None,
                  reduction_ratio='auto',
                  compression_type='svd',
+                 feature_compression=1,
                  power_iter=3,
                  forget_rate=1,
                  random_state=None,
@@ -148,6 +149,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         DecompositionEstimator.__init__(self, n_components=n_components,
                                         random_state=random_state,
                                         mask=mask,
+                                        feature_compression=
+                                        feature_compression,
                                         smoothing_fwhm=smoothing_fwhm,
                                         standardize=standardize,
                                         detrend=detrend,
@@ -173,7 +176,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.forget_rate = forget_rate
         self.power_iter = power_iter
 
-
     def _dump_debug(self):
         if hasattr(self, 'debug_info_'):
             (residual, sparsity, values) = self.debug_info_
@@ -194,6 +196,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             canica = CanICA(n_components=self.n_components,
                             # CanICA specific parameters
                             do_cca=True, threshold=float(self.n_components),
+                            feature_compression=1,
                             n_init=1,
                             # mask parameter is not useful as we bypass masking
                             mask=self.masker_,
@@ -215,8 +218,13 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         if self.debug_folder is not None:
             self.masker_.inverse_transform(components).to_filename(join(self.debug_folder,
                                         'init.nii.gz'))
+        selection = np.linspace(0, components.shape[1],
+                                int(components.shape[1] *
+                                    self.feature_compression),
+                                endpoint=False).astype('int')
         self._dict_init = self._cache(_compute_loadings,
-                                      func_memory_level=2)(components, data)
+                                      func_memory_level=2)(components[:,
+                                                           selection], data)
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
@@ -246,6 +254,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                              reduction_ratio=self.reduction_ratio,
                              n_components=self.n_components,
                              compression_type=self.compression_type,
+                             feature_compression=self.feature_compression,
                              power_iter=self.power_iter,
                              random_state=self.random_state,
                              memory_level=max(0, self.memory_level - 1),
@@ -265,7 +274,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 warnings.warn('Setting %i epochs is useless as algorithm will'
                               'have converged: setting `n_epochs` = 10')
                 self.n_epochs = 10
-            n_iter = int(ceil((data.shape[1] / self.batch_size * self.n_epochs)))
+            n_iter = int(ceil((data.shape[1] / self.batch_size * self.n_epochs)
+                              ))
 
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
@@ -296,6 +306,18 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             if self.debug_folder is not None:
                 np.save(join(self.debug_folder, 'dictionary'), dictionary)
 
+        with mask_and_reduce(self.masker_, imgs, confounds,
+                             reduction_ratio=self.reduction_ratio,
+                             n_components=self.n_components,
+                             compression_type=self.compression_type,
+                             feature_compression=1,
+                             power_iter=self.power_iter,
+                             random_state=self.random_state,
+                             memory_level=max(0, self.memory_level - 1),
+                             temp_folder=self.temp_folder,
+                             n_jobs=self.n_jobs,
+                             memory=self.memory,
+                             in_memory=self.in_memory) as data:
             t0 = time.time()
             self.components_ = self._cache(sparse_encode,
                                            func_memory_level=2,
