@@ -366,16 +366,16 @@ if __name__ == '__main__':
     t0 = time.time()
 
     estimators = []
-    # for reduction_ratio in [0.1, 0.5, 1]:
-    #     estimators.append(DictLearning(alpha=10, batch_size=40,
-    #                                    compression_type='subsample',
-    #                                    forget_rate=1,
-    #                                    reduction_ratio=0.1))
+    for reduction_ratio in [0.1, 0.5, 1]:
+        estimators.append(DictLearning(alpha=10, batch_size=40,
+                                       compression_type='subsample',
+                                       forget_rate=1,
+                                       reduction_ratio=0.1))
     for compression_type in ['subsample', 'range_finder']:
         for reduction_ratio in [0.1, 0.25, 0.5]:
             for alpha in [5, 7, 9, 11, 13]:
                 estimators.append(DictLearning(alpha=10, batch_size=20,
-                                               compression_type='compression_type',
+                                               compression_type=compression_type,
                                                forget_rate=1,
                                                reduction_ratio=reduction_ratio,
                                                feature_compression=1))
@@ -394,9 +394,9 @@ if __name__ == '__main__':
                                    forget_rate=1,
                                    reduction_ratio=1))
 
-    run_experiment(estimators, n_jobs=8, dataset='adhd', n_subjects=40,
+    run_experiment(estimators, n_jobs=20, dataset='adhd', n_subjects=40,
                    smoothing_fwhm=6.,
-                   init="rsn70",
+                   init="rsn20",
                    n_epochs=1)
     time = time.time() - t0
     print('Total_time : %f s' % time)
