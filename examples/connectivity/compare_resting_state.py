@@ -288,7 +288,7 @@ if __name__ == '__main__':
     t0 = time.time()
 
     estimators = []
-    alphas = [10]
+    alphas = np.arange(4, 18, 2)
     for compression_type in ['svd', 'range_finder', 'subsample']:
         for reduction_ratio in np.linspace(0.1, 1, 9):
             for alpha in alphas:
@@ -303,7 +303,7 @@ if __name__ == '__main__':
     reference = np.ones((len(estimators)), dtype='int')
     for i in range(len(reference)):
         reference[i] = 2 - 1 + (i // 2) * 2
-    run_experiment(estimators, n_split=1, n_jobs=10, dataset='adhd',
+    run_experiment(estimators, n_split=1, n_jobs=20, dataset='adhd',
                    n_subjects=40,
                    smoothing_fwhm=6.,
                    init="rsn70",
