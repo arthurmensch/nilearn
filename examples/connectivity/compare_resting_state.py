@@ -288,10 +288,9 @@ if __name__ == '__main__':
     t0 = time.time()
 
     estimators = []
-    alphas = np.arange(4, 18, 2)
     for compression_type in ['svd', 'range_finder', 'subsample']:
-        for reduction_ratio in np.linspace(0.1, 1, 9):
-            for alpha in alphas:
+        for reduction_ratio in np.linspace(0.1, 1, 10):
+            for alpha in np.linspace(0, 20, 10):
                 for parity in [0, 1]:
                     estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                                    compression_type=
