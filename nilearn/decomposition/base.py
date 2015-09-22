@@ -84,7 +84,8 @@ class mask_and_reduce(object):
                  mock=False,
                  in_memory=True,
                  temp_folder=None,
-                 n_jobs=1, power_iter=3):
+                 n_jobs=1, power_iter=3,
+                 parity=None):
         self.masker = masker
         self.imgs = imgs
         self.confounds = confounds
@@ -100,6 +101,7 @@ class mask_and_reduce(object):
         self.power_iter = power_iter
         self.temp_folder = temp_folder
         self.feature_compression = feature_compression
+        self.parity = parity
 
     def __enter__(self):
         return_mmap = not self.in_memory
@@ -145,12 +147,15 @@ class mask_and_reduce(object):
         # Precomputing number of samples for preallocation
         subject_n_samples = np.zeros(len(imgs), dtype='int')
         for i, img in enumerate(imgs):
+            this_n_samples = check_niimg_4d(img).shape[3]
+            if self.parity is not None:
+                this_n_samples //= 2
             if reduction_ratio == 'auto':
                 subject_n_samples[i] = min(self.n_components,
-                                           check_niimg_4d(img).shape[3])
+                                           this_n_samples)
             else:
-                subject_n_samples[i] = int(ceil(check_niimg_4d(img).
-                                           shape[3] * reduction_ratio))
+                subject_n_samples[i] = int(ceil(this_n_samples
+                                                * reduction_ratio))
         subject_limits = np.zeros(subject_n_samples.shape[0] + 1,
                                   dtype='int')
         subject_limits[1:] = np.cumsum(subject_n_samples)
@@ -199,7 +204,8 @@ class mask_and_reduce(object):
             self.memory,
             self.memory_level,
             self.random_state,
-            i, self.power_iter
+            i, self.power_iter,
+            self.parity,
         ) for i, (img, confound) in enumerate(zip(imgs, confounds)))
 
         if not mock and not return_mmap and self.n_jobs > 1:
@@ -224,9 +230,19 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
                          memory,
                          memory_level,
                          random_state,
-                         i, power_iter):
+                         i, power_iter,
+                         parity):
     """Utility function for multiprocessing from mask_and_reduce"""
     this_data = masker.transform(img, confound)
+    if parity == 0:
+        if this_data.shape[0] % 2 == 1:
+            this_data = this_data[::2]
+            this_data = this_data[:-1]
+        else:
+            this_data = this_data[::2]
+    elif parity == 1:
+        this_data = this_data[1::2]
+
     random_state = check_random_state(random_state)
 
     if selection is not None:
@@ -371,7 +387,7 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
 
     def __init__(self, n_components=20,
                  random_state=None,
-                 feature_compression=1,
+                 # feature_compression=1,
                  mask=None, smoothing_fwhm=None,
                  standardize=True, detrend=True,
                  low_pass=None, high_pass=None, t_r=None,
@@ -379,11 +395,12 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, in_memory=True,
-                 verbose=0):
+                 verbose=0,
+                 parity=None):
         self.n_components = n_components
         self.random_state = random_state
 
-        self.feature_compression = feature_compression
+        # self.feature_compression = feature_compression
 
         self.mask = mask
 
@@ -402,6 +419,7 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
         self.n_jobs = n_jobs
         self.in_memory = in_memory
         self.verbose = verbose
+        self.parity = parity
 
     def fit(self, imgs, y=None, confounds=None, preload=False, temp_dir=None):
         """Base fit for decomposition estimators : compute the embedded masker
