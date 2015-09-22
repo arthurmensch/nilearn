@@ -114,8 +114,8 @@ def run_single_experiment(index, estimator, func_filenames, output):
     components_img = estimator.masker_.inverse_transform(estimator.components_)
     components_filename = join(exp_output, 'components.nii.gz')
     components_img.to_filename(components_filename)
-    print('[Example] Preparing pdf')
-    plot_to_pdf(components_img, path=join(exp_output, 'components.pdf'))
+    # print('[Example] Preparing pdf')
+    # plot_to_pdf(components_img, path=join(exp_output, 'components.pdf'))
     timing = np.zeros(3)
     timing[0:2] = estimator.time_
     timing[2] = full_time
