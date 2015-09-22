@@ -67,33 +67,33 @@ def dump_single_experiment_debug(estimator, output):
             f.write(str(estimator.score_))
             f.write('\n')
         f.write('Timings :')
-        f.write("Math %f - IO %f" % (estimator.time_[0], estimator.time_[1]))
+        f.write("Math %.2f - IO %.2f" % (estimator.time_[0], estimator.time_[1]))
         f.write('\n')
-    evolution = sorted(glob.glob(join(output, 'debug', 'components_*.nii.gz')),
-                       compare)
-    with PdfPages(join(output, 'evolution.pdf')) as pdf:
-        for i in range(0, len(evolution), 5):
-            fig, axes = plt.subplots(5, 1, figsize=a4_size, squeeze=False)
-            axes = axes.reshape(-1)
-            for j, ax in enumerate(axes):
-                if i + j < len(evolution):
-                    plot_prob_atlas(evolution[i + j], axes=ax)
-                else:
-                    ax.axis('off')
-            pdf.savefig(fig)
-            plt.close()
-
-    with PdfPages(join(output, 'evolution_single.pdf')) as pdf:
-        for i in range(0, len(evolution), 5):
-            fig, axes = plt.subplots(5, 1, figsize=a4_size, squeeze=False)
-            axes = axes.reshape(-1)
-            for j, ax in enumerate(axes):
-                if i + j < len(evolution):
-                    plot_stat_map(index_img(evolution[i + j], 0), axes=ax)
-                else:
-                    ax.axis('off')
-            pdf.savefig(fig)
-            plt.close()
+    # evolution = sorted(glob.glob(join(output, 'debug', 'components_*.nii.gz')),
+    #                    compare)
+    # with PdfPages(join(output, 'evolution.pdf')) as pdf:
+    #     for i in range(0, len(evolution), 5):
+    #         fig, axes = plt.subplots(5, 1, figsize=a4_size, squeeze=False)
+    #         axes = axes.reshape(-1)
+    #         for j, ax in enumerate(axes):
+    #             if i + j < len(evolution):
+    #                 plot_prob_atlas(evolution[i + j], axes=ax)
+    #             else:
+    #                 ax.axis('off')
+    #         pdf.savefig(fig)
+    #         plt.close()
+    #
+    # with PdfPages(join(output, 'evolution_single.pdf')) as pdf:
+    #     for i in range(0, len(evolution), 5):
+    #         fig, axes = plt.subplots(5, 1, figsize=a4_size, squeeze=False)
+    #         axes = axes.reshape(-1)
+    #         for j, ax in enumerate(axes):
+    #             if i + j < len(evolution):
+    #                 plot_stat_map(index_img(evolution[i + j], 0), axes=ax)
+    #             else:
+    #                 ax.axis('off')
+    #         pdf.savefig(fig)
+    #         plt.close()
 
 
 def run_single_experiment(index, estimator, func_filenames, output):
@@ -272,9 +272,8 @@ def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
         os.mkdir(comparison_dir)
         corr_list = Parallel(n_jobs=n_jobs)(
             delayed(dump_comparison)(i, map_masker, components,
-                                      components_filename[
-                                                        reference[i]],
-                                      comparison_dir)
+                                     components_filename[reference[i]],
+                                     comparison_dir)
             for i, components in enumerate(components_list))
         np.save('correlations', np.array(corr_list))
         for i, score in enumerate(corr_list):
@@ -283,6 +282,7 @@ def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
     with open(join(output, 'results.txt'), 'w+') as f:
         for exp_dict in result_dict:
             f.write("%s\n" % exp_dict)
+
 
 if __name__ == '__main__':
     t0 = time.time()
@@ -294,7 +294,8 @@ if __name__ == '__main__':
             for alpha in alphas:
                 for parity in [0, 1]:
                     estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                                   compression_type=compression_type,
+                                                   compression_type=
+                                                   compression_type,
                                                    random_state=0,
                                                    forget_rate=1,
                                                    reduction_ratio=1,
