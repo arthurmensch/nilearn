@@ -159,7 +159,7 @@ class MultiPCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         with mask_and_reduce(self.masker_, imgs, confounds,
                              n_components=self.n_components,
                              random_state=self.random_state,
-                             feature_compression=self.feature_compression,
+                             # feature_compression=self.feature_compression,
                              memory=self.memory,
                              memory_level=max(0, self.memory_level - 1),
                              in_memory=self.in_memory) as data:

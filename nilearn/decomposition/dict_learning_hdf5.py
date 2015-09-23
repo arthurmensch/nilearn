@@ -12,7 +12,6 @@ import warnings
 from math import ceil
 from os.path import join
 import time
-from itertools import chain, repeat
 
 import numpy as np
 from sklearn.externals.joblib import Memory
@@ -26,26 +25,6 @@ from sklearn.utils import gen_batches
 from .canica import CanICA
 from .._utils.cache_mixin import CacheMixin
 from .base import DecompositionEstimator, mask_and_reduce
-
-
-def _compute_loadings(components, data, in_memory=False):
-    n_samples, n_features = data.shape
-    n_components, n_features = components.shape
-    ridge = Ridge(fit_intercept=None, alpha=0.)
-    if in_memory:
-        in_core_batch_size = n_features
-    else:
-        in_core_batch_size = min(n_features, 1000)
-    batches = gen_batches(n_samples, in_core_batch_size)
-    loadings = np.empty((n_components, n_samples), dtype='float64')
-    for batch in batches:
-        ridge.fit(components.T, np.asarray(data[batch].T))
-        loadings[:, batch] = ridge.coef_.T
-
-    S = np.sqrt(np.sum(loadings ** 2, axis=0))
-    S[S == 0] = 1
-    loadings /= S[np.newaxis, :]
-    return loadings
 
 
 class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
@@ -144,7 +123,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                  n_epochs=1, alpha=1, dict_init=None,
                  reduction_ratio='auto',
                  compression_type='svd',
-                 # feature_compression=1,
                  power_iter=3,
                  forget_rate=1,
                  random_state=None,
@@ -162,8 +140,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         DecompositionEstimator.__init__(self, n_components=n_components,
                                         random_state=random_state,
                                         mask=mask,
-                                        # feature_compression=
-                                        # feature_compression,
                                         smoothing_fwhm=smoothing_fwhm,
                                         standardize=standardize,
                                         detrend=detrend,
@@ -192,156 +168,55 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
 
     def _dump_debug(self):
         if hasattr(self, 'debug_info_'):
-            n_iter = len(self.debug_info_['residuals'])
-            # Debug infos
-            np.save(join(self.debug_folder, 'residual'),
-                    self.debug_info_['residuals'])
-            np.save(join(self.debug_folder, 'density'),
-                    self.debug_info_['density'])
-            np.save(join(self.debug_folder, 'values'),
-                    self.debug_info_['values'])
+            (residual, sparsity, values) = self.debug_info_
+            n_iter = residual.shape[0]
+            components_img = self.masker_.inverse_transform(self.components_)
+            components_img.to_filename(join(self.debug_folder,
+                                            'components_%i.nii.gz' % n_iter))
+            # Debug info
+            np.save(join(self.debug_folder, 'residual'), residual)
+            np.save(join(self.debug_folder, 'values'), values)
             np.save(join(self.debug_folder, 'time'), self.time_)
 
-    def _init_dict(self, imgs):
-        if self.dict_init is None:
-            canica = CanICA(n_components=self.n_components,
-                            # CanICA specific parameters
-                            do_cca=True, threshold=float(self.n_components),
-                            n_init=1,
-                            # mask parameter is not useful as we bypass masking
-                            mask=self.masker_,
-                            random_state=self.random_state,
-                            memory=self.memory,
-                            memory_level=self.memory_level,
-                            n_jobs=self.n_jobs,
-                            verbose=self.verbose
-                            )
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", UserWarning)
-                # We use protected function _raw_fit as data
-                # has already been unmasked
-                canica.fit(imgs)
-            components = canica.components_
-        else:
-            components = self.masker_.transform(self.dict_init)
-        S = (components ** 2).sum(axis=1)
-        S[S == 0] = 1
-        components /= S[:, np.newaxis]
-        self.components_init_ = components
 
-    def _init_loadings(self, data):
-        if not hasattr(self, 'components_init_'):
-            raise ValueError('components_init_ need to be set before calling'
-                             '_init_loadings')
-        if self.debug_folder is not None:
-            self.masker_.inverse_transform(self.components_init_).to_filename(
-                join(self.debug_folder, 'init.nii.gz'))
-        self._loadings_init = self._cache(_compute_loadings,
-                                      func_memory_level=2)(self.components_init_,
-                                                           data,
-                                                           in_memory=False)
-
-    def fit(self, imgs, y=None, confounds=None):
-        """Compute the mask and the ICA maps across subjects
-
-        Parameters
-        ----------
-        imgs: list of Niimg-like objects
-            See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
-            Data on which PCA must be calculated. If this is a list,
-            the affine is considered the same for all.
-
-        confounds: CSV file path or 2D matrixf
-            This parameter is passed to nilearn.signal.clean. Please see the
-            related documentation for details
-        """
-        # Base logic for decomposition estimators
-        DecompositionEstimator.fit(self, imgs)
-
-        self.time_ = np.zeros(2)
-
-        if self.verbose:
-            print('[DictLearning] Learning initial components')
-        t0 = time.time()
-        self._init_dict(imgs)
-        self.time_ += time.time() - t0
+    def _raw_fit(self, data):
+        # data n_samples x n_features
+        debug = self.debug_folder is not None
 
         if self.verbose:
             print('[DictLearning] Loading data')
+
+        self.time_ = np.zeros(2)
         t0 = time.time()
-        with mask_and_reduce(self.masker_, imgs, confounds,
-                             reduction_ratio=self.reduction_ratio,
-                             n_components=self.n_components,
-                             compression_type=self.compression_type,
-                             # feature_compression=self.feature_compression,
-                             shuffle_feature=True,
-                             power_iter=self.power_iter,
-                             random_state=self.random_state,
-                             memory_level=max(0, self.memory_level - 1),
-                             temp_folder=self.temp_folder,
-                             n_jobs=self.n_jobs,
-                             memory=self.memory,
-                             in_memory=self.in_memory,
-                             parity=self.parity) as data:
-            self.time_[1] += time.time() - t0
-            self._raw_fit(data)
 
-    def _raw_fit(self, data):
-        """Compute the mask and the maps across subjects, using raw_data. Can
-        only be called directly is dict_init and mask_img, or
-        components_init_ is provided
-
-        Parameters
-        ----------
-        data: ndarray,
-            Shape (n_samples, n_features)
-        """
-
-        debug = self.debug_folder is not None
-
-        if not hasattr(self, 'time_'):
-            self.time_ = np.zeros(2)
-        if not hasattr(self, 'components_init_'):
-            if self.dict_init is not None:
-                if not hasattr(self, 'masker_'):
-                    DecompositionEstimator.fit(self, None)
-                self.components_init_ = self.masker_.transform(self.dict_init)
-            else:
-                raise ValueError('Calling _raw_fit directly is not possible '
-                                 'whithout providing dict_init and mask_img, '
-                                 'or setting components_init_')
+        self.time_[1] += time.time() - t0
+        if self.verbose:
+            print('[DictLearning] Initializating dictionary')
+        self._init_dict(data)
 
         if self.n_epochs < 0:
             self.n_epochs = 1
+        # Performing more than 10 epochs would probably useless
+        if self.n_epochs > 10:
+            warnings.warn('Setting %i epochs is useless as algorithm will'
+                          'have converged: setting `n_epochs` = 10')
+            self.n_epochs = 10
 
         n_samples, n_features = data.shape
-        if self.in_memory:
-            in_core_batch_size = n_features
-        else:
-            in_core_batch_size = min(n_features, self.batch_size * 100)
-
-        batches = gen_batches(n_features, in_core_batch_size)
-        batches = chain.from_iterable(repeat(tuple(batches), self.n_epochs))
+        batches = gen_batches(n_features, self.batch_size * 100)
+        batches = i
         inner_stats = None
+        dict_init = self._dict_init
         iter_offset = 0
-
-        if self.verbose:
-            print('[DictLearning] Computing initial loadings')
-        t0 = time.time()
-        self._init_loadings(data)
-        self.time_[0] += time.time() - t0
-
-        dict_init = self._loadings_init
 
         if self.verbose:
             print('[DictLearning] Learning dictionary')
         for batch in batches:
             t0 = time.time()
             n_iter = (batch.stop - batch.start) // self.batch_size
-            print(data[:, batch].T.flags)
             res = self._cache(dict_learning_online,
                               func_memory_level=2)(
-                np.asarray(data[:, batch].T, order='C'),
+                np.array(data[:, batch]),
                 self.n_components,
                 update_scheme='mean',
                 forget_rate=self.forget_rate,
@@ -377,15 +252,15 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         if self.debug_folder is not None:
             np.save(join(self.debug_folder, 'dictionary'), dictionary)
 
-        batches = gen_batches(n_features, in_core_batch_size)
-        self.components_ = np.empty((self.n_components, n_features),
+        batches = gen_batches(n_features, self.batch_size * 100)
+        self.components_ = np.array((self.n_components, n_features),
                                     dtype='float64')
         for batch in batches:
             t0 = time.time()
             self.components_[:, batch] = self._cache(sparse_encode,
                                                      func_memory_level=2,
                                                      ignore=['n_jobs'])(
-                np.asarray(data[:, batch].T, order='C'), dictionary, algorithm='lasso_cd',
+                np.array(data[:, batch]), dictionary, algorithm='lasso_cd',
                 alpha=self.alpha, n_jobs=self.n_jobs, check_input=False).T
             self.time_[0] += time.time() - t0
 

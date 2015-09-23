@@ -9,7 +9,7 @@ import os
 from math import ceil
 from tempfile import mkstemp, mkdtemp
 import warnings
-
+import h5py
 import numpy as np
 from scipy import linalg
 from sklearn.externals.joblib import Memory, Parallel, delayed
@@ -23,8 +23,13 @@ from ..input_data.masker_validation import check_embedded_nifti_masker
 from .._utils.cache_mixin import CacheMixin, cache
 from .._utils.niimg_conversions import check_niimg_4d
 from .._utils.niimg import _safe_get_data
-from .._utils.file_io import _delete_folder
 
+
+def _remove_if_exists(filename):
+    try:
+        os.remove(filename)
+    except:
+        pass
 
 class mask_and_reduce(object):
     """Mask and reduce provided data with provided masker, using a PCA
@@ -76,7 +81,8 @@ class mask_and_reduce(object):
 
     def __init__(self, masker, imgs, confounds=None,
                  reduction_ratio='auto',
-                 feature_compression=1,
+                 # feature_compression=1,
+                 shuffle_feature=False,
                  compression_type=None,
                  n_components=None, random_state=None,
                  memory_level=0,
@@ -100,8 +106,9 @@ class mask_and_reduce(object):
         self.n_jobs = n_jobs
         self.power_iter = power_iter
         self.temp_folder = temp_folder
-        self.feature_compression = feature_compression
+        # self.feature_compression = feature_compression
         self.parity = parity
+        self.shuffle_features = shuffle_feature
 
     def __enter__(self):
         return_mmap = not self.in_memory
@@ -160,11 +167,17 @@ class mask_and_reduce(object):
                                   dtype='int')
         subject_limits[1:] = np.cumsum(subject_n_samples)
         n_voxels = np.sum(_safe_get_data(self.masker.mask_img_))
-        if self.feature_compression != 1.:
+        # if self.feature_compression != 1.:
+        #     random_state = check_random_state(self.random_state)
+        #     selection = random_state.permutation(
+        #         n_voxels)[:int(n_voxels * self.feature_compression)]
+        #     n_voxels = selection.shape[0]
+        # else:
+        #     selection = None
+
+        if self.shuffle_features:
             random_state = check_random_state(self.random_state)
-            selection = random_state.permutation(
-                n_voxels)[:int(n_voxels * self.feature_compression)]
-            n_voxels = selection.shape[0]
+            selection = random_state.permutation(n_voxels)
         else:
             selection = None
         n_samples = subject_limits[-1]
@@ -183,12 +196,15 @@ class mask_and_reduce(object):
                     self.temp_folder_ = self.temp_folder
 
                 # We initialize data in memory or on disk
-                self.file_, filename = mkstemp(dir=self.temp_folder_)
-                atexit.register(lambda: _delete_folder(self.temp_folder_,
-                                                       warn=True))
-                data = np.memmap(filename, dtype='float64',
-                                 order='F', mode='w+',
-                                 shape=(n_samples, n_voxels))
+                self.file_, self.filename_ = mkstemp(dir=self.temp_folder_)
+                atexit.register(lambda: _remove_if_exists(self.filename_))
+                f = h5py.File(self.filename_, 'r+')
+                data = f.create_dataset('data', (n_samples, n_voxels),
+                                        dtype='float64', chunks=(n_samples,
+                                                                 2000))
+                # data = np.memmap(filename, dtype='float64',
+                #                  order='F', mode='w+',
+                #                  shape=(n_samples, n_voxels))
             else:
                 data = np.empty((n_samples, n_voxels), order='F',
                                 dtype='float64')
@@ -218,8 +234,7 @@ class mask_and_reduce(object):
             # We use low level IO as we cannot use a file context manager
             # within this context manager
             os.close(self.file_)
-        if hasattr(self, 'temp_folder_'):
-            _delete_folder(self.temp_folder_)
+            os.remove(self.filename_)
 
 
 def _load_single_subject(masker, data, subject_limits, subject_n_samples,
@@ -431,7 +446,7 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
             Data on which the mask is calculated. If this is a list,
             the affine is considered the same for all.
         """
-        if imgs is None or (hasattr(imgs, '__iter__') and len(imgs) == 0):
+        if hasattr(imgs, '__iter__') and len(imgs) == 0:
             # Common error that arises from a null glob. Capture
             # it early and raise a helpful message
             raise ValueError('Need one or more Niimg-like objects as input, '

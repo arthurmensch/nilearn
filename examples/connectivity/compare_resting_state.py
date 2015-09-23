@@ -283,23 +283,30 @@ def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
 
 if __name__ == '__main__':
     t0 = time.time()
-
+    temp_folder = '/volatile3/tmp'
     estimators = []
-    for compression_type in ['svd', 'range_finder', 'subsample']:
-        for reduction_ratio in np.linspace(0.1, 1, 10):
-            for alpha in np.linspace(0, 20, 10):
-                for parity in [0, 1]:
-                    estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                                   compression_type=
-                                                   compression_type,
-                                                   random_state=0,
-                                                   forget_rate=1,
-                                                   reduction_ratio=1,
-                                                   parity=parity))
+    for compression_type in ['subsample']:
+        for reduction_ratio in [1.]:  # np.linspace(0.1, 1, 10):
+            for alpha in [5]:  # np.linspace(0, 20, 10):
+                # estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                #                                compression_type=
+                #                                compression_type,
+                #                                random_state=0,
+                #                                forget_rate=1,
+                #                                reduction_ratio=1,
+                #                                in_memory=False,
+                #                                temp_folder=temp_folder))
+                estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                                       compression_type=
+                                       compression_type,
+                                       random_state=0,
+                                       forget_rate=1,
+                                       reduction_ratio=1,
+                                       in_memory=True))
     reference = np.ones((len(estimators)), dtype='int')
     for i in range(len(reference)):
         reference[i] = 2 - 1 + (i // 2) * 2
-    run_experiment(estimators, n_split=1, n_jobs=20, dataset='adhd',
+    run_experiment(estimators, n_split=1, n_jobs=2, dataset='adhd',
                    n_subjects=40,
                    smoothing_fwhm=6.,
                    init="rsn70",

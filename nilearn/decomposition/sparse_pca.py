@@ -250,6 +250,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                                  memory_level=self.memory_level,
                                  memory=self.memory) as data:
                 self.time_[1] += time.time() - t0
+                # n_iter = data.shape[0] // self.batch_size ???
                 n_iter = (data.shape[0] - 1) // self.batch_size + 1
                 if self.verbose:
                     print('[DictLearning] Learning dictionary')
