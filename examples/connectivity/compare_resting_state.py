@@ -397,7 +397,7 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
                                reduction_ratio=
                                reduction_ratio,
                                temp_folder=temp_folder,
-                               n_jobs=1)
+                               n_jobs=n_jobs)
     mask_reducer.fit(data_filenames)
 
     data = mask_reducer.data_
@@ -521,7 +521,7 @@ if __name__ == '__main__':
                                  dataset='hcp',
                                  reduction_ratio=1,
                                  compression_type='subsample',
-                                 n_subjects=1,
+                                 n_subjects=4,
                                  smoothing_fwhm=6.,
                                  n_jobs=6, parallel_exp=True,
                                  reference=None)
