@@ -23,12 +23,9 @@ from nilearn import datasets
 from nilearn.decomposition import SparsePCA, DictLearning, CanICA
 from nilearn.decomposition.base import DecompositionEstimator
 from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
-from nilearn_sandbox._utils.map_alignment import align_list_with_last_nii, \
-    spatial_correlation, align_many_to_one_nii
+from nilearn_sandbox._utils.map_alignment import spatial_correlation, align_many_to_one_nii
 
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
-from nilearn.plotting import plot_prob_atlas, plot_stat_map
 
 
 def compare(x, y):
@@ -143,7 +140,7 @@ def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
                    smoothing_fwhm=4.,
                    n_jobs=6, parallel_exp=True,
                    reference=None):
-    output = os.path.expanduser('~/work/output/compare')
+    output = os.path.expanduser('~/output/compare')
     temp_dir = os.path.expanduser('~/temp')
     cache_dir = os.path.expanduser('~/nilearn_cache')
     data_dir = os.path.expanduser('~/data')
