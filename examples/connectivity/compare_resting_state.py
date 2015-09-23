@@ -325,7 +325,7 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
                                  n_jobs=6, parallel_exp=True,
                                  reference=None):
     output = os.path.expanduser('~/output/compare')
-    temp_dir = os.path.expanduser('~/temp')
+    temp_folder = os.path.expanduser('~/temp')
     cache_dir = os.path.expanduser('~/nilearn_cache')
     data_dir = os.path.expanduser('~/data')
     output = join(output, datetime.datetime.now().strftime('%Y-%m-%d_%H'
@@ -484,7 +484,6 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
 
 if __name__ == '__main__':
     t0 = time.time()
-    temp_folder = '/volatile3/tmp'
     estimators = []
     # for compression_type in ['subsample']:
     #     for reduction_ratio in [1.]:  # np.linspace(0.1, 1, 10):
@@ -522,7 +521,7 @@ if __name__ == '__main__':
                                  dataset='hcp',
                                  reduction_ratio=1,
                                  compression_type='subsample',
-                                 n_subjects=40,
+                                 n_subjects=1,
                                  smoothing_fwhm=6.,
                                  n_jobs=6, parallel_exp=True,
                                  reference=None)
