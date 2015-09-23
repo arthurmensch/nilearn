@@ -325,7 +325,7 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
                                  n_jobs=6, parallel_exp=True,
                                  reference=None):
     output = os.path.expanduser('~/output/compare')
-    temp_folder = os.path.expanduser('~/temp')
+    temp_folder = '/dev/shm'
     cache_dir = os.path.expanduser('~/nilearn_cache')
     data_dir = os.path.expanduser('~/data')
     output = join(output, datetime.datetime.now().strftime('%Y-%m-%d_%H'
@@ -513,7 +513,7 @@ if __name__ == '__main__':
     #                n_epochs=1,
     #                reference=reference)
 
-    for alpha in [30]:
+    for alpha in [10, 20, 30, 40, 50]:
         estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                       random_state=0))
     run_dict_learning_experiment(estimators, n_split=1, init='rsn70',
@@ -521,7 +521,7 @@ if __name__ == '__main__':
                                  dataset='hcp',
                                  reduction_ratio=1,
                                  compression_type='subsample',
-                                 n_subjects=4,
+                                 n_subjects=40,
                                  smoothing_fwhm=6.,
                                  n_jobs=6, parallel_exp=True,
                                  reference=None)
