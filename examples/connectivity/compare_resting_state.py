@@ -325,7 +325,7 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
                                  n_jobs=6, parallel_exp=True,
                                  reference=None):
     output = os.path.expanduser('~/output/compare')
-    temp_folder = '/dev/shm'
+    temp_folder = os.path.expanduser('~/temp')
     cache_dir = os.path.expanduser('~/nilearn_cache')
     data_dir = os.path.expanduser('~/data')
     output = join(output, datetime.datetime.now().strftime('%Y-%m-%d_%H'
