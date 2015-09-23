@@ -9,7 +9,7 @@ import os
 from math import ceil
 from tempfile import mkstemp, mkdtemp
 import warnings
-import h5py
+# import h5py
 import numpy as np
 from scipy import linalg
 from sklearn.externals.joblib import Memory, Parallel, delayed
@@ -80,9 +80,8 @@ class mask_and_reduce(object):
     """
 
     def __init__(self, masker, imgs, confounds=None,
+                 shuffle_features=False,
                  reduction_ratio='auto',
-                 # feature_compression=1,
-                 shuffle_feature=False,
                  compression_type=None,
                  n_components=None, random_state=None,
                  memory_level=0,
@@ -106,11 +105,114 @@ class mask_and_reduce(object):
         self.n_jobs = n_jobs
         self.power_iter = power_iter
         self.temp_folder = temp_folder
+        self.shuffle_features = shuffle_features
+        self.parity = parity
+
+    def __enter__(self):
+        mask_reducer = MaskReducer(self.masker,
+                 reduction_ratio=self.reduction_ratio,
+                 shuffle_feature=self.shuffle_features,
+                 compression_type=self.compression_type,
+                 n_components=self.n_components, random_state=self.random_state,
+                 memory_level=self.memory_level,
+                 memory=self.memory,
+                 mock=self.mock,
+                 in_memory=self.in_memory,
+                 temp_folder=self.temp_folder,
+                 n_jobs=1, power_iter=self.power_iter,
+                 parity=self.parity)
+        mask_reducer.fit(self.imgs, confounds=self.confounds)
+        if hasattr(mask_reducer, 'file_'):
+            self.filename_ = mask_reducer.filename_
+            self.file_ = mask_reducer.file_
+        return mask_reducer.data_
+
+    def __exit__(self, type, value, traceback):
+        if hasattr(self, 'file_'):
+            # We use low level IO as we cannot use a file context manager
+            # within this context manager
+            os.close(self.file_)
+            os.remove(self.filename_)
+
+
+class MaskReducer(BaseEstimator):
+    """Mask and reduce provided data with provided masker, using a PCA
+
+    Uses a PCA (randomized for small reduction ratio) or a range finding matrix
+    on time series to reduce data size in time. For multiple image,
+    the concatenation of data is returned, either as an ndarray or a memorymap
+    (useful for big datasets that do not fit in memory).
+
+    Parameters
+    ----------
+    masker: NiftiMasker or MultiNiftiMasker
+        Masker to use to mask provided data
+
+    imgs: list of Niimg-like objects
+        See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
+        List of subject data
+
+    confounds: CSV file path or 2D matrix
+        This parameter is passed to signal.clean. Please see the
+        corresponding documentation for details.
+
+    reduction_ratio: 'auto' or float
+        How to reduce the data. If 'auto', reduce it to the provided number of
+        components. If float between 0. and 1., data will be reduced to the
+        provided ratio. Default: 'auto'
+
+    n_components: integer, optional
+        Number of components to be extracted by the PCA
+
+    random_state: int or RandomState
+        Pseudo number generator state used for random sampling.
+
+    memory_level: integer, optional
+        Integer indicating the level of memorization. The higher, the more
+        function calls are cached.
+
+    memory: joblib.Memory
+        Used to cache the function calls.
+
+    memory_mode: {'auto', 'array', 'memorymap'}
+        Whether to return a memorymap or and ndarray. Default: 'auto'
+
+    Retuns
+    ------
+    data: ndarray or memorymap
+        Concatenation of reduced data
+    """
+
+    def __init__(self, masker,
+                 reduction_ratio='auto',
+                 # feature_compression=1,
+                 shuffle_feature=False,
+                 compression_type=None,
+                 n_components=None, random_state=None,
+                 memory_level=0,
+                 memory=Memory(cachedir=None),
+                 mock=False,
+                 in_memory=True,
+                 temp_folder=None,
+                 n_jobs=1, power_iter=3,
+                 parity=None):
+        self.masker = masker
+        self.reduction_ratio = reduction_ratio
+        self.compression_type = compression_type
+        self.n_components = n_components
+        self.random_state = random_state
+        self.memory_level = memory_level
+        self.memory = memory
+        self.in_memory = in_memory
+        self.mock = mock
+        self.n_jobs = n_jobs
+        self.power_iter = power_iter
+        self.temp_folder = temp_folder
         # self.feature_compression = feature_compression
         self.parity = parity
         self.shuffle_features = shuffle_feature
 
-    def __enter__(self):
+    def fit(self, imgs, confounds=None):
         return_mmap = not self.in_memory
 
         mock = bool(self.mock)
@@ -118,10 +220,10 @@ class mask_and_reduce(object):
         if mock and self.memory is None:
             warnings.warn('Mock run is useless if memory is disabled.')
 
-        if not hasattr(self.imgs, '__iter__'):
-            imgs = [self.imgs]
+        if not hasattr(imgs, '__iter__'):
+            imgs = [imgs]
         else:
-            imgs = self.imgs
+            imgs = imgs
 
         if self.reduction_ratio == 'auto':
             if self.n_components is None:
@@ -133,10 +235,8 @@ class mask_and_reduce(object):
             if reduction_ratio is None or reduction_ratio >= 1:
                 reduction_ratio = 1
 
-        if self.confounds is None:
+        if confounds is None:
             confounds = [None] * len(imgs)
-        else:
-            confounds = self.confounds
 
         if self.compression_type is None:
             if reduction_ratio == 1:
@@ -198,13 +298,13 @@ class mask_and_reduce(object):
                 # We initialize data in memory or on disk
                 self.file_, self.filename_ = mkstemp(dir=self.temp_folder_)
                 atexit.register(lambda: _remove_if_exists(self.filename_))
-                f = h5py.File(self.filename_, 'r+')
-                data = f.create_dataset('data', (n_samples, n_voxels),
-                                        dtype='float64', chunks=(n_samples,
-                                                                 2000))
-                # data = np.memmap(filename, dtype='float64',
-                #                  order='F', mode='w+',
-                #                  shape=(n_samples, n_voxels))
+                # f = h5py.File(self.filename_, 'r+')
+                # data = f.create_dataset('data', (n_samples, n_voxels),
+                #                         dtype='float64', chunks=(n_samples,
+                #                                                  min(n_voxels, 200)))
+                data = np.memmap(self.filename_, dtype='float64',
+                                 order='F', mode='w+',
+                                 shape=(n_samples, n_voxels))
             else:
                 data = np.empty((n_samples, n_voxels), order='F',
                                 dtype='float64')
@@ -227,14 +327,10 @@ class mask_and_reduce(object):
         if not mock and not return_mmap and self.n_jobs > 1:
             # We used a memory map for multiprocessing, restoring
             data = np.array(data)
-        return data
+        self.data_ = data
+        self.subject_limits_ = subject_limits
 
-    def __exit__(self, type, value, traceback):
-        if hasattr(self, 'file_'):
-            # We use low level IO as we cannot use a file context manager
-            # within this context manager
-            os.close(self.file_)
-            os.remove(self.filename_)
+        return self
 
 
 def _load_single_subject(masker, data, subject_limits, subject_n_samples,
@@ -436,7 +532,7 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
         self.verbose = verbose
         self.parity = parity
 
-    def fit(self, imgs, y=None, confounds=None, preload=False, temp_dir=None):
+    def fit(self, imgs, y=None, confounds=None):
         """Base fit for decomposition estimators : compute the embedded masker
 
         Parameters
@@ -462,15 +558,7 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
             self.masker_.fit()
         self.mask_img_ = self.masker_.mask_img_
 
-        if preload:
-            if self.verbose:
-                print('[mask and reduce] Performing mock run')
-            with mask_and_reduce(self.masker_, imgs, confounds,
-                                 memory_level=self.memory_level,
-                                 memory=self.memory, mock=True,
-                                 temp_folder=temp_dir,
-                                 n_jobs=self.n_jobs) as data:
-                data = None
+        return self
 
     def _check_components_(self):
         if not hasattr(self, 'components_'):

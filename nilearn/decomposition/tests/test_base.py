@@ -64,7 +64,7 @@ def test_mask_and_reduce():
     with mask_and_reduce(masker, data[0], n_components=3,
                          in_memory=False) as components:
         assert_equal(components.shape, (3, 6 * 8 * 10))
-        temp_file = components.filename
+        temp_file = components.file.filename
         assert_true(os.path.exists(os.path.join(temp_file)))
     # Assert that temp file removal has worked
     assert_false(os.path.exists(temp_file))
@@ -82,7 +82,7 @@ def test_mask_and_reduce():
                          in_memory=False,
                          n_jobs=2) as components:
         assert_equal(components.shape, (3, 6 * 8 * 10))
-        temp_file = components.filename
+        temp_file = components.file.filename
         assert_true(os.path.exists(os.path.join(temp_file)))
     # Assert that temp file removal has worked
     assert_false(os.path.exists(temp_file))

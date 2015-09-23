@@ -9,7 +9,7 @@ from nilearn._utils.testing import assert_less_equal
 from nilearn.image import iter_img
 
 
-def test_dict_learning():
+def test_sparse_pca():
     data, mask_img, components, rng = _make_canica_test_data(n_subjects=8)
     mask = NiftiMasker(mask_img=mask_img).fit()
     dict_init = mask.inverse_transform(components)

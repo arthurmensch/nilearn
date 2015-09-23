@@ -21,7 +21,7 @@ from nilearn.image import index_img
 from nilearn.input_data import MultiNiftiMasker
 from nilearn import datasets
 from nilearn.decomposition import SparsePCA, DictLearning, CanICA
-from nilearn.decomposition.base import DecompositionEstimator
+from nilearn.decomposition.base import DecompositionEstimator, MaskReducer
 from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
 from nilearn_sandbox._utils.map_alignment import spatial_correlation, align_many_to_one_nii
 
@@ -119,6 +119,32 @@ def run_single_experiment(index, estimator, func_filenames, output):
     return components_filename, timing
 
 
+def run_raw_single_experiment(index, estimator, data, output):
+    exp_output = join(output, "experiment_%i" % index)
+    os.mkdir(exp_output)
+    if type(estimator).__name__:
+        debug_folder = join(exp_output, 'debug')
+        os.mkdir(debug_folder)
+    estimator.debug_folder = debug_folder
+    print('[Example] Learning maps using %s model' % type(estimator).__name__)
+    t0 = time.time()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        estimator._raw_fit(data)
+    full_time = time.time() - t0
+    print('[Example] Dumping results')
+    dump_single_experiment_debug(estimator, exp_output)
+    components_img = estimator.masker_.inverse_transform(estimator.components_)
+    components_filename = join(exp_output, 'components.nii.gz')
+    components_img.to_filename(components_filename)
+    # print('[Example] Preparing pdf')
+    # plot_to_pdf(components_img, path=join(exp_output, 'components.pdf'))
+    timing = np.zeros(3)
+    timing[0:2] = estimator.time_
+    timing[2] = full_time
+    return components_filename, timing
+
+
 def dump_comparison(i, masker, components, reference, dump_dir):
     print("[Example] Dropping aligned components % i" % i)
     filename = join(dump_dir, "experiment_%i.nii.gz" % i)
@@ -201,9 +227,18 @@ def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
                                                      memory_level=2,
                                                      verbose=10,
                                                      n_jobs=n_jobs)
-    decomposition_estimator.fit(data_filenames, preload=True,
-                                temp_dir=temp_dir)
+    decomposition_estimator.fit(data_filenames)
     masker = decomposition_estimator.masker_
+
+
+    print("[Example] Warming up cache")
+    mask_reducer = MaskReducer(masker,
+                               memory_level=2,
+                               memory=cache_dir, mock=True,
+                               in_memory=True,
+                               temp_folder=temp_folder,
+                               n_jobs=n_jobs)
+    mask_reducer.fit(data_filenames)
 
     estimator_n_jobs = n_jobs if not parallel_exp else 1
 
@@ -281,36 +316,215 @@ def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
             f.write("%s\n" % exp_dict)
 
 
+def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
+                                 compression_type='subsample',
+                                 dataset='adhd',
+                                 reduction_ratio=1,
+                                 n_subjects=40,
+                                 smoothing_fwhm=4.,
+                                 n_jobs=6, parallel_exp=True,
+                                 reference=None):
+    output = os.path.expanduser('~/output/compare')
+    temp_dir = os.path.expanduser('~/temp')
+    cache_dir = os.path.expanduser('~/nilearn_cache')
+    data_dir = os.path.expanduser('~/data')
+    output = join(output, datetime.datetime.now().strftime('%Y-%m-%d_%H'
+                                                           '-%M-%S'))
+    try:
+        os.makedirs(output)
+    except:
+        pass
+
+    if dataset == 'adhd':
+        dataset = datasets.fetch_adhd(n_subjects=min(40, n_subjects))
+        mask = os.path.expanduser('~/data/ADHD_mask/mask_img.nii.gz')
+    elif dataset == 'hcp':
+        dataset = datasets.fetch_hcp_rest(n_subjects=n_subjects,
+                                          data_dir=data_dir)
+        mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
+    smith = datasets.fetch_atlas_smith_2009()
+    if isinstance(init, int):
+        dict_init = None
+        n_components = init
+    elif init == 'rsn70':
+        dict_init = smith.rsn70
+        n_components = 70
+    elif init == 'rsn20':
+        dict_init = smith.rsn20
+        n_components = 20
+    else:
+        if os.path.exists(init):
+            dict_init = init
+            n_components = check_niimg(init).get_shape()[3]
+        else:
+            raise ValueError('Unsupported init')
+    data_filenames = dataset.func
+
+    print('First functional nifti image (4D) is at: %s' %
+          dataset.func[0])
+
+    slices = list(gen_even_slices(len(data_filenames), n_split))
+    result_dict = []
+
+    # For alignment
+    if reference is None:
+        reference = np.ones((len(estimators) * len(slices)), dtype='int')
+        if n_split > 1:
+            for i in range(len(reference)):
+                reference[i] = len(slices) - 1 + \
+                               (i // len(slices)) * len(slices)
+    print(reference)
+
+    # This is hacky and should be integrated in the nilearn API in a smooth way
+    # Warming up cache with masked images
+    decomposition_estimator = DecompositionEstimator(smoothing_fwhm=
+                                                     smoothing_fwhm,
+                                                     memory=cache_dir,
+                                                     mask=mask,
+                                                     memory_level=2,
+                                                     verbose=10,
+                                                     n_jobs=n_jobs)
+    decomposition_estimator.fit(data_filenames)
+    masker = decomposition_estimator.masker_
+
+    print("[Example] Warming up cache")
+    mask_reducer = MaskReducer(masker,
+                               memory_level=2,
+                               memory=cache_dir, mock=False,
+                               in_memory=False,
+                               compression_type=
+                               compression_type,
+                               reduction_ratio=
+                               reduction_ratio,
+                               temp_folder=temp_folder,
+                               n_jobs=1)
+    mask_reducer.fit(data_filenames)
+
+    data = mask_reducer.data_
+    subject_limits = mask_reducer.subject_limits_
+
+    estimator_n_jobs = n_jobs if not parallel_exp else 1
+
+    for estimator in estimators:
+        # Setting technical parameters
+        estimator.set_params(mask=masker, dict_init=dict_init,
+                             smoothing_fwhm=smoothing_fwhm,
+                             reduction_ratio=reduction_ratio,
+                             n_components=n_components,
+                             n_epochs=n_epochs,
+                             n_jobs=estimator_n_jobs,
+                             in_memory=False,
+                             memory_level=2, memory='nilearn_cache',
+                             verbose=3)
+    with open(join(output, 'estimators'), 'w+') as f:
+        for i, (estimator,
+                this_slice) in enumerate(itertools.product(estimators,
+                                                           slices)):
+            f.write("%s\n" % estimator)
+            result_dict.append(dict(type=type(estimator).__name__,
+                                    alpha=estimator.alpha,
+                                    batch_size=estimator.batch_size,
+                                    compression_type=
+                                    estimator.compression_type,
+                                    reduction_ratio=
+                                    estimator.reduction_ratio,
+                                    power_iter=estimator.power_iter,
+                                    forget_rate=estimator.forget_rate,
+                                    slice=this_slice))
+
+    exp_n_jobs = n_jobs if parallel_exp else 1
+
+    res = Parallel(n_jobs=exp_n_jobs, verbose=10)(
+        delayed(run_raw_single_experiment)(i,
+                                           estimator,
+                                           data[subject_limits[
+                                               this_slice.start]:
+                                               subject_limits[
+                                                   this_slice.stop]],
+                                           output)
+         for i, (estimator,
+                 this_slice) in enumerate(
+            itertools.product(estimators, slices)))
+
+    components_filename, timings_list = zip(*res)
+    timings = np.zeros((len(estimators) * len(slices), 3))
+    for i, timing in enumerate(timings_list):
+        timings[i] = np.array(timing)
+        result_dict[i]['math_time'] = timings[i, 0]
+        result_dict[i]['io_time'] = timings[i, 1]
+        result_dict[i]['total_time'] = timings[i, 2]
+    np.save(join(output, 'timings'), timings)
+
+    masker.mask_img_.to_filename(join(output, 'mask_img.nii.gz'))
+
+    if len(slices) * len(estimators) > 1:
+        print("Performing alignment")
+        map_masker = MultiNiftiMasker(mask_img=masker.mask_img_,).fit()
+        components_list = []
+        for i, target_components in enumerate(components_filename):
+            components_list.append(align_many_to_one_nii(map_masker,
+                                                    components_filename[
+                                                        reference[i]],
+                                                    target_components))
+        comparison_dir = join(output, "comparison")
+        os.mkdir(comparison_dir)
+        corr_list = Parallel(n_jobs=n_jobs)(
+            delayed(dump_comparison)(i, map_masker, components,
+                                     components_filename[reference[i]],
+                                     comparison_dir)
+            for i, components in enumerate(components_list))
+        np.save('correlations', np.array(corr_list))
+        for i, score in enumerate(corr_list):
+            result_dict[i]['score'] = score
+    pickle.dump(result_dict, open(join(output, 'results'), 'w+'))
+    with open(join(output, 'results.txt'), 'w+') as f:
+        for exp_dict in result_dict:
+            f.write("%s\n" % exp_dict)
+
+
 if __name__ == '__main__':
     t0 = time.time()
     temp_folder = '/volatile3/tmp'
     estimators = []
-    for compression_type in ['subsample']:
-        for reduction_ratio in [1.]:  # np.linspace(0.1, 1, 10):
-            for alpha in [5]:  # np.linspace(0, 20, 10):
-                # estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                #                                compression_type=
-                #                                compression_type,
-                #                                random_state=0,
-                #                                forget_rate=1,
-                #                                reduction_ratio=1,
-                #                                in_memory=False,
-                #                                temp_folder=temp_folder))
-                estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                       compression_type=
-                                       compression_type,
-                                       random_state=0,
-                                       forget_rate=1,
-                                       reduction_ratio=1,
-                                       in_memory=True))
-    reference = np.ones((len(estimators)), dtype='int')
-    for i in range(len(reference)):
-        reference[i] = 2 - 1 + (i // 2) * 2
-    run_experiment(estimators, n_split=1, n_jobs=2, dataset='adhd',
-                   n_subjects=40,
-                   smoothing_fwhm=6.,
-                   init="rsn70",
-                   n_epochs=1,
-                   reference=reference)
+    # for compression_type in ['subsample']:
+    #     for reduction_ratio in [1.]:  # np.linspace(0.1, 1, 10):
+    #         for alpha in [5]:  # np.linspace(0, 20, 10):
+    #             # estimators.append(DictLearning(alpha=alpha, batch_size=20,
+    #             #                                compression_type=
+    #             #                                compression_type,
+    #             #                                random_state=0,
+    #             #                                forget_rate=1,
+    #             #                                reduction_ratio=1,
+    #             #                                in_memory=False,
+    #             #                                temp_folder=temp_folder))
+    #             estimators.append(DictLearning(alpha=alpha, batch_size=20,
+    #                                    compression_type=
+    #                                    compression_type,
+    #                                    random_state=0,
+    #                                    forget_rate=1,
+    #                                    reduction_ratio=1,
+    #                                    in_memory=True))
+    # reference = np.ones((len(estimators)), dtype='int')
+    # for i in range(len(reference)):
+    #     reference[i] = 2 - 1 + (i // 2) * 2
+    # run_experiment(estimators, n_split=1, n_jobs=2, dataset='adhd',
+    #                n_subjects=40,
+    #                smoothing_fwhm=6.,
+    #                init="rsn70",
+    #                n_epochs=1,
+    #                reference=reference)
+
+    for alpha in [30]:
+        estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                                      random_state=0))
+    run_dict_learning_experiment(estimators, n_split=1, init='rsn70',
+                                 n_epochs=1,
+                                 dataset='hcp',
+                                 reduction_ratio=1,
+                                 compression_type='subsample',
+                                 n_subjects=40,
+                                 smoothing_fwhm=6.,
+                                 n_jobs=6, parallel_exp=True,
+                                 reference=None)
     time = time.time() - t0
     print('Total_time : %f s' % time)

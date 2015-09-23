@@ -26,7 +26,7 @@ import time
 from .._utils import as_ndarray
 from .canica import CanICA
 from .._utils.cache_mixin import CacheMixin
-from .base import DecompositionEstimator, mask_and_reduce
+from .base import DecompositionEstimator, mask_and_reduce, MaskReducer
 
 
 class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
@@ -241,45 +241,48 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         for record, (img, confound) in enumerate(imgs_confounds_list):
             t0 = time.time()
-            with mask_and_reduce(self.masker_, img, confound,
+            mask_reducer = MaskReducer(self.masker_,
                                  reduction_ratio=self.reduction_ratio,
                                  n_components=self.n_components,
                                  compression_type=self.compression_type,
                                  power_iter=self.power_iter,
                                  random_state=self.random_state,
                                  memory_level=self.memory_level,
-                                 memory=self.memory) as data:
-                self.time_[1] += time.time() - t0
-                # n_iter = data.shape[0] // self.batch_size ???
-                n_iter = (data.shape[0] - 1) // self.batch_size + 1
-                if self.verbose:
-                    print('[DictLearning] Learning dictionary')
-                t0 = time.time()
-                res = self._cache(
-                    dict_learning_online, func_memory_level=2)(
-                    data,
-                    self.n_components,
-                    l1_ratio=1,
-                    alpha=self.alpha,
-                    update_scheme=self.update_scheme,
-                    forget_rate=self.forget_rate,
-                    n_iter=n_iter,
-                    slowing=0,
-                    batch_size=self.batch_size,
-                    method='ridge',
-                    dict_init=dict_init,
-                    return_code=False,
-                    verbose=max(0, self.verbose - 1),
-                    random_state=self.random_state,
-                    return_debug_info=keep_debug_info,
-                    return_inner_stats=True,
-                    inner_stats=inner_stats,
-                    iter_offset=iter_offset,
-                    shuffle=False,
-                    n_jobs=1,
-                    tol=0.
-                    )
-                self.time_[0] += time.time() - t0
+                                 memory=self.memory).fit(img)
+            mask_reducer.fit(img, confound)
+            data = mask_reducer.data_
+            self.time_[1] += time.time() - t0
+            # n_iter = data.shape[0] // self.batch_size ???
+            n_iter = (data.shape[0] - 1) // self.batch_size + 1
+            if self.verbose:
+                print('[DictLearning] Learning dictionary')
+            t0 = time.time()
+            res = self._cache(
+                dict_learning_online, func_memory_level=2)(
+                data,
+                self.n_components,
+                l1_ratio=1,
+                alpha=self.alpha,
+                update_scheme=self.update_scheme,
+                forget_rate=self.forget_rate,
+                n_iter=n_iter,
+                slowing=0,
+                batch_size=self.batch_size,
+                method='ridge',
+                dict_init=dict_init,
+                return_code=False,
+                verbose=max(0, self.verbose - 1),
+                random_state=self.random_state,
+                return_debug_info=keep_debug_info,
+                return_inner_stats=True,
+                inner_stats=inner_stats,
+                iter_offset=iter_offset,
+                shuffle=False,
+                n_jobs=1,
+                tol=0.
+                )
+            self.time_[0] += time.time() - t0
+
             if keep_debug_info:
                 (self.components_, inner_stats), debug_info = res
                 if not hasattr(self, 'debug_info_'):
@@ -305,7 +308,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         if self.verbose:
             print('[DictLearning] Learning score')
-        self._fit_score(data)
+        self._fit_score(mask_reducer.data_)
 
         self._dump_debug()
 

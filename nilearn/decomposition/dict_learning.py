@@ -25,7 +25,7 @@ from sklearn.utils import gen_batches
 
 from .canica import CanICA
 from .._utils.cache_mixin import CacheMixin
-from .base import DecompositionEstimator, mask_and_reduce
+from .base import DecompositionEstimator, mask_and_reduce, MaskReducer
 
 
 def _compute_loadings(components, data, in_memory=False):
@@ -269,7 +269,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         if self.verbose:
             print('[DictLearning] Loading data')
         t0 = time.time()
-        with mask_and_reduce(self.masker_, imgs, confounds,
+        mask_reducer = MaskReducer(self.masker_,
                              reduction_ratio=self.reduction_ratio,
                              n_components=self.n_components,
                              compression_type=self.compression_type,
@@ -282,9 +282,10 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                              n_jobs=self.n_jobs,
                              memory=self.memory,
                              in_memory=self.in_memory,
-                             parity=self.parity) as data:
-            self.time_[1] += time.time() - t0
-            self._raw_fit(data)
+                             parity=self.parity)
+        mask_reducer.fit(imgs, confounds)
+        self.time_[1] += time.time() - t0
+        self._raw_fit(mask_reducer.data_)
 
     def _raw_fit(self, data):
         """Compute the mask and the maps across subjects, using raw_data. Can
@@ -338,7 +339,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         for batch in batches:
             t0 = time.time()
             n_iter = (batch.stop - batch.start) // self.batch_size
-            print(data[:, batch].T.flags)
             res = self._cache(dict_learning_online,
                               func_memory_level=2)(
                 np.asarray(data[:, batch].T, order='C'),
