@@ -273,7 +273,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                              reduction_ratio=self.reduction_ratio,
                              n_components=self.n_components,
                              compression_type=self.compression_type,
-                             shuffle_features=False,
                              power_iter=self.power_iter,
                              random_state=self.random_state,
                              memory_level=max(0, self.memory_level - 1),
