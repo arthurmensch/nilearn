@@ -81,7 +81,7 @@ class mask_and_reduce(object):
     """
 
     def __init__(self, masker, imgs, confounds=None,
-                 shuffle_features=False,
+                 # shuffle_features=False,
                  reduction_ratio='auto',
                  compression_type=None,
                  n_components=None, random_state=None,
@@ -106,13 +106,13 @@ class mask_and_reduce(object):
         self.n_jobs = n_jobs
         self.power_iter = power_iter
         self.temp_folder = temp_folder
-        self.shuffle_features = shuffle_features
+        # self.shuffle_features = shuffle_features
         self.parity = parity
 
     def __enter__(self):
         mask_reducer = MaskReducer(self.masker,
                  reduction_ratio=self.reduction_ratio,
-                 shuffle_feature=self.shuffle_features,
+                 # shuffle_feature=self.shuffle_features,
                  compression_type=self.compression_type,
                  n_components=self.n_components, random_state=self.random_state,
                  memory_level=self.memory_level,
@@ -187,7 +187,7 @@ class MaskReducer(BaseEstimator):
     def __init__(self, masker,
                  reduction_ratio='auto',
                  # feature_compression=1,
-                 shuffle_feature=False,
+                 # shuffle_features=False,
                  compression_type=None,
                  n_components=None, random_state=None,
                  memory_level=0,
@@ -213,7 +213,7 @@ class MaskReducer(BaseEstimator):
         self.temp_folder = temp_folder
         # self.feature_compression = feature_compression
         self.parity = parity
-        self.shuffle_features = shuffle_feature
+        # self.shuffle_features = shuffle_features
 
     def fit(self, imgs, confounds=None):
         return_mmap = not self.in_memory
@@ -278,11 +278,11 @@ class MaskReducer(BaseEstimator):
         # else:
         #     selection = None
 
-        if self.shuffle_features:
-            random_state = check_random_state(self.random_state)
-            selection = random_state.permutation(n_voxels)
-        else:
-            selection = None
+        # if self.shuffle_features:
+        #     random_state = check_random_state(self.random_state)
+        #     selection = random_state.permutation(n_voxels)
+        # else:
+        #     selection = None
         n_samples = subject_limits[-1]
 
         if not mock:
@@ -321,7 +321,7 @@ class MaskReducer(BaseEstimator):
         Parallel(n_jobs=self.n_jobs)(delayed(_load_single_subject)(
             self.masker, data, subject_limits, subject_n_samples,
             compression_type, reduction_ratio,
-            selection,
+            # selection,
             mock,
             img, confound,
             self.memory,
@@ -342,7 +342,7 @@ class MaskReducer(BaseEstimator):
 
 def _load_single_subject(masker, data, subject_limits, subject_n_samples,
                          compression_type, reduction_ratio,
-                         selection,
+                         # selection,
                          mock,
                          img, confound,
                          memory,
@@ -363,8 +363,8 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
 
     random_state = check_random_state(random_state)
 
-    if selection is not None:
-        this_data = this_data[:, selection]
+    # if selection is not None:
+    #     this_data = this_data[:, selection]
 
     if compression_type == 'svd':
         if subject_n_samples[i] <= this_data.shape[0] // 4:
