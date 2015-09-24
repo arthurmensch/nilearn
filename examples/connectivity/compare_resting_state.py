@@ -369,10 +369,9 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
     # For alignment
     if reference is None:
         reference = np.ones((len(estimators) * len(slices)), dtype='int')
-        if n_split > 1:
-            for i in range(len(reference)):
-                reference[i] = len(slices) - 1 + \
-                               (i // len(slices)) * len(slices)
+        for i in range(len(reference)):
+            reference[i] = len(slices) - 1 + \
+                           (i // len(slices)) * len(slices)
     print(reference)
 
     # This is hacky and should be integrated in the nilearn API in a smooth way
@@ -397,6 +396,7 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
                                reduction_ratio=
                                reduction_ratio,
                                temp_folder=temp_folder,
+                               mem_name='concat',
                                n_jobs=n_jobs)
     mask_reducer.fit(data_filenames)
 
@@ -519,7 +519,7 @@ if __name__ == '__main__':
     run_dict_learning_experiment(estimators, n_split=1, init='rsn70',
                                  n_epochs=1,
                                  dataset='hcp',
-                                 reduction_ratio=1,
+                                 reduction_ratio=0.25,
                                  compression_type='subsample',
                                  n_subjects=40,
                                  smoothing_fwhm=6.,

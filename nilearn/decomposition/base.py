@@ -7,6 +7,7 @@ from __future__ import division
 import atexit
 import os
 from math import ceil
+from os.path import join
 from tempfile import mkstemp, mkdtemp
 import warnings
 # import h5py
@@ -194,6 +195,7 @@ class MaskReducer(BaseEstimator):
                  mock=False,
                  in_memory=True,
                  temp_folder=None,
+                 mem_name=None,
                  n_jobs=1, power_iter=3,
                  parity=None):
         self.masker = masker
@@ -204,6 +206,7 @@ class MaskReducer(BaseEstimator):
         self.memory_level = memory_level
         self.memory = memory
         self.in_memory = in_memory
+        self.mem_name = mem_name
         self.mock = mock
         self.n_jobs = n_jobs
         self.power_iter = power_iter
@@ -296,8 +299,12 @@ class MaskReducer(BaseEstimator):
                     self.temp_folder_ = self.temp_folder
 
                 # We initialize data in memory or on disk
-                self.file_, self.filename_ = mkstemp(dir=self.temp_folder_)
-                atexit.register(lambda: _remove_if_exists(self.filename_))
+                if self.mem_name is None:
+                    self.file_, self.filename_ = mkstemp(dir=self.temp_folder_)
+                    atexit.register(lambda: _remove_if_exists(self.filename_))
+                else:
+                    self.filename_ = join(self.temp_folder_, self.mem_name)
+                    self.file_ = open(self.filename_, 'w+').fileno()
                 # f = h5py.File(self.filename_, 'r+')
                 # data = f.create_dataset('data', (n_samples, n_voxels),
                 #                         dtype='float64', chunks=(n_samples,
