@@ -372,8 +372,7 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
     if reference is None:
         reference = np.ones((len(estimators) * len(slices)), dtype='int')
         for i in range(len(reference)):
-            reference[i] = len(slices) - 1 + \
-                           (i // len(slices)) * len(slices)
+            reference[i] = (i // len(estimators)) * len(estimators)
     print(reference)
 
     # This is hacky and should be integrated in the nilearn API in a smooth way
