@@ -270,19 +270,6 @@ class MaskReducer(BaseEstimator):
                                   dtype='int')
         subject_limits[1:] = np.cumsum(subject_n_samples)
         n_voxels = np.sum(_safe_get_data(self.masker.mask_img_))
-        # if self.feature_compression != 1.:
-        #     random_state = check_random_state(self.random_state)
-        #     selection = random_state.permutation(
-        #         n_voxels)[:int(n_voxels * self.feature_compression)]
-        #     n_voxels = selection.shape[0]
-        # else:
-        #     selection = None
-
-        # if self.shuffle_features:
-        #     random_state = check_random_state(self.random_state)
-        #     selection = random_state.permutation(n_voxels)
-        # else:
-        #     selection = None
         n_samples = subject_limits[-1]
 
         if not mock:
@@ -384,14 +371,15 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
             S = S[:subject_n_samples[i]]
         U = U * S[:, np.newaxis]
     elif compression_type == 'range_finder':
-        if reduction_ratio == 1.:
-            random_state = check_random_state(random_state)
-            U = this_data.copy()
-            random_state.shuffle(U)
-        else:
-            Q = randomized_range_finder(this_data, subject_n_samples[i], power_iter,
-                                        random_state=random_state)
-            U = Q.T.dot(this_data)
+        # if reduction_ratio == 1.:
+        #     random_state = check_random_state(random_state)
+        #     U = this_data.copy()
+        #     random_state.shuffle(U)
+        # else:
+        Q = randomized_range_finder(this_data, subject_n_samples[i],
+                                    power_iter,
+                                    random_state=random_state)
+        U = Q.T.dot(this_data)
     elif compression_type == 'subsample':
         if reduction_ratio == 1.:
             U = this_data
