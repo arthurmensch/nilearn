@@ -504,7 +504,7 @@ if __name__ == '__main__':
     for i in range(len(reference)):
         reference[i] = 2 - 1 + (i // 2) * 2
     run_experiment(estimators, n_split=1, n_jobs=20, dataset='adhd',
-                   n_subjects=1,
+                   n_subjects=40,
                    smoothing_fwhm=6.,
                    init="rsn70",
                    n_epochs=1,
@@ -529,7 +529,7 @@ if __name__ == '__main__':
                                    in_memory=True))
     reference = np.ones((len(estimators)), dtype='int') * len(estimators)
     run_experiment(estimators, n_split=1, n_jobs=20, dataset='adhd',
-                   n_subjects=1,
+                   n_subjects=40,
                    smoothing_fwhm=6.,
                    init="rsn70",
                    n_epochs=1,
