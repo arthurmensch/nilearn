@@ -626,7 +626,7 @@ if __name__ == '__main__':
     run_experiment(estimators, n_split=1, n_jobs=20, dataset='adhd',
                    n_subjects=40,
                    smoothing_fwhm=6.,
-                   init=os.path.expanduser('~/icacanica_resting_state_70.nii.gz'),
+                   init=os.path.expanduser('~/ica/canica_resting_state_70.nii.gz'),
                    n_epochs=1,
                    reference=reference)
 
