@@ -212,8 +212,7 @@ def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
     if reference is None:
         reference = np.ones((len(estimators) * len(slices)), dtype='int')
         for i in range(len(reference)):
-            reference[i] = len(slices) - 1 + \
-                           (i // len(slices)) * len(slices)
+            reference[i] = (i // len(estimators)) * len(estimators)
     print(reference)
 
     # This is hacky and should be integrated in the nilearn API in a smooth way
@@ -505,10 +504,11 @@ if __name__ == '__main__':
     for i in range(len(reference)):
         reference[i] = 2 - 1 + (i // 2) * 2
     run_experiment(estimators, n_split=1, n_jobs=20, dataset='adhd',
-                   n_subjects=40,
+                   n_subjects=1,
                    smoothing_fwhm=6.,
                    init="rsn70",
-                   n_epochs=1)
+                   n_epochs=1,
+                   reference=reference)
     estimators = []
     for compression_type in ['range_finder', 'subsample']:
         for reduction_ratio in np.linspace(0.1, 1, 10):
@@ -527,19 +527,13 @@ if __name__ == '__main__':
                                    forget_rate=1,
                                    reduction_ratio=1.,
                                    in_memory=True))
+    reference = np.ones((len(estimators)), dtype='int') * len(estimators)
     run_experiment(estimators, n_split=1, n_jobs=20, dataset='adhd',
-                   n_subjects=40,
+                   n_subjects=1,
                    smoothing_fwhm=6.,
                    init="rsn70",
-                   n_epochs=1)
-
-
-
-
-
-
-
-
+                   n_epochs=1,
+                   reference=reference)
 
     # for alpha in [10, 20, 30, 40, 50]:
     #     estimators.append(DictLearning(alpha=alpha, batch_size=20,
