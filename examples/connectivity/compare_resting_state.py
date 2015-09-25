@@ -158,7 +158,7 @@ def dump_comparison(i, masker, components, reference, dump_dir):
     plt.xlabel('Components')
     plt.ylabel('References')
     plt.savefig(join(dump_dir, 'corr_%i.pdf' % i))
-    return np.diag(corr), np.mean(np.diag(corr))
+    return np.diagonal(corr), np.mean(np.diag(corr))
 
 
 def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
@@ -312,7 +312,7 @@ def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
                                         for this_diag in diag_list]))
         for i, (diag, score) in enumerate(zip(diag_list, score_list)):
             result_dict[i]['score'] = score
-            result_dict[i]['diag'] = np.diag(diag_list[i])
+            result_dict[i]['diag'] = diag_list[i]
     pickle.dump(result_dict, open(join(output, 'results'), 'w+'))
     with open(join(output, 'results.txt'), 'w+') as f:
         for exp_dict in result_dict:
@@ -405,7 +405,7 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
 
     data = np.load(os.path.expanduser('~/temp/025subsample.npy'),
                    mmap_mode='r')
-    subject_limits = np.arange(0, 46200, 300)# mask_reducer.data_
+    subject_limits = np.arange(0, 46500, 300)# mask_reducer.data_
     # subject_limits = mask_reducer.subject_limits_
 
     estimator_n_jobs = n_jobs if not parallel_exp else 1
@@ -486,6 +486,7 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
     with open(join(output, 'results.txt'), 'w+') as f:
         for exp_dict in result_dict:
             f.write("%s\n" % exp_dict)
+    display_figures(output)
 
 
 def display_figures(output):
@@ -579,43 +580,67 @@ if __name__ == '__main__':
     # #
     # #
     # estimators = []
-    # # for compression_type in ['range_finder', 'subsample']:
-    # #     for reduction_ratio in np.linspace(0.1, 1, 10):
-    # #         for alpha in np.linspace(2, 20, 10):
-    # #             estimators.append(DictLearning(alpha=alpha, batch_size=20,
-    # #                                            compression_type=
-    # #                                            compression_type,
-    # #                                            random_state=0,
-    # #                                            forget_rate=1,
-    # #                                            reduction_ratio=reduction_ratio,
-    # #                                            in_memory=True))
-    # for alpha in np.linspace(3, 7, 10):
-    #     estimators.append(DictLearning(alpha=alpha, batch_size=20,
-    #                                    compression_type=
-    #                                    'none',
-    #                                    random_state=1234,
-    #                                    forget_rate=1,
-    #                                    reduction_ratio=1.,
-    #                                    in_memory=True))
-    # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
-    # run_experiment(estimators, n_split=1, n_jobs=20, dataset='adhd',
-    #                n_subjects=2,
-    #                smoothing_fwhm=6.,
-    #                init="rsn20",
-    #                n_epochs=1,
-    #                reference=reference)
+    for compression_type in ['range_finder', 'subsample']:
+        for reduction_ratio in np.linspace(0.1, 1, 10):
+            for alpha in np.linspace(8, 20, 7):
+                estimators.append(DictLearning(alpha=20, batch_size=20,
+                                               compression_type=
+                                               'none',
+                                               random_state=0,
+                                               forget_rate=1,
+                                               reduction_ratio=1.,
+                                               in_memory=True))
+    estimators.append(DictLearning(alpha=20, batch_size=20,
+                               compression_type=
+                               'none',
+                               random_state=1234,
+                               forget_rate=1,
+                               reduction_ratio=1.,
+                               in_memory=True))
+    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    run_experiment(estimators, n_split=1, n_jobs=20, dataset='adhd',
+                   n_subjects=40,
+                   smoothing_fwhm=6.,
+                   init=os.path.expanduser('~/ica/canica_resting_state_20.nii.gz'),
+                   n_epochs=1,
+                   reference=reference)
 
-    for alpha in [10, 20, 30, 40, 50]:
-        estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                       random_state=0))
-    run_dict_learning_experiment(estimators, n_split=1, init='rsn70',
-                                 n_epochs=1,
-                                 dataset='hcp',
-                                 reduction_ratio=0.25,
-                                 compression_type='subsample',
-                                 n_subjects=40,
-                                 smoothing_fwhm=6.,
-                                 n_jobs=6, parallel_exp=True,
-                                 reference=None)
+    for compression_type in ['range_finder', 'subsample']:
+        for reduction_ratio in np.linspace(0.1, 1, 10):
+            for alpha in np.linspace(2, 12, 6):
+                estimators.append(DictLearning(alpha=20, batch_size=20,
+                                               compression_type=
+                                               'none',
+                                               random_state=0,
+                                               forget_rate=1,
+                                               reduction_ratio=1.,
+                                               in_memory=True))
+    estimators.append(DictLearning(alpha=12, batch_size=20,
+                               compression_type=
+                               'none',
+                               random_state=1234,
+                               forget_rate=1,
+                               reduction_ratio=1.,
+                               in_memory=True))
+    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    run_experiment(estimators, n_split=1, n_jobs=20, dataset='adhd',
+                   n_subjects=40,
+                   smoothing_fwhm=6.,
+                   init=os.path.expanduser('~/icacanica_resting_state_70.nii.gz'),
+                   n_epochs=1,
+                   reference=reference)
+
+    # for alpha in [10, 20, 30, 40, 50]:
+    #     estimators.append(DictLearning(alpha=alpha, batch_size=20,
+    #                                    random_state=0))
+    # run_dict_learning_experiment(estimators, n_split=1, init='rsn70',
+    #                              n_epochs=1,
+    #                              dataset='hcp',
+    #                              reduction_ratio=0.25,
+    #                              compression_type='subsample',
+    #                              n_subjects=40,
+    #                              smoothing_fwhm=6.,
+    #                              n_jobs=6, parallel_exp=True,
+    #                              reference=None)
     time = time.time() - t0
     print('Total_time : %f s' % time)

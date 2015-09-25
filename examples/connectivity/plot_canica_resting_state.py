@@ -34,10 +34,10 @@ print('First functional nifti image (4D) is at: %s' %
 ### Apply CanICA ##############################################################
 from nilearn.decomposition.canica import CanICA
 
-n_components = 20
+n_components = 70
 canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
                 memory="nilearn_cache", memory_level=5,
-                threshold=3., verbose=10, random_state=0)
+                threshold=float(n_components), verbose=10, random_state=0)
 canica.fit(func_filenames)
 
 # Retrieve the independent components in brain space
@@ -54,8 +54,8 @@ from nilearn.image import iter_img
 plot_prob_atlas(components_img, title='All ICA components')
 
 # Plot the map for each ICA component separately
-for i, cur_img in enumerate(iter_img(components_img)):
-    plot_stat_map(cur_img, display_mode="z", title="IC %d" % i,
-                  cut_coords=1, colorbar=False)
+# for i, cur_img in enumerate(iter_img(components_img)):
+#     plot_stat_map(cur_img, display_mode="z", title="IC %d" % i,
+#                   cut_coords=1, colorbar=False)
 
 show()
