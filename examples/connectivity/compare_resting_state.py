@@ -403,7 +403,8 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
     #                            n_jobs=n_jobs)
     # mask_reducer.fit(data_filenames)
 
-    data = np.load(os.expanduser('~/temp/025subsample.npy'), mmap_mode='r')
+    data = np.load(os.path.expanduser('~/temp/025subsample.npy'),
+                   mmap_mode='r')
     subject_limits = np.arange(0, 46200, 300)# mask_reducer.data_
     # subject_limits = mask_reducer.subject_limits_
 
