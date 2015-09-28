@@ -266,7 +266,8 @@ def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
                                     # feature_compression=estimator.
                                     # feature_compression,
                                     forget_rate=estimator.forget_rate,
-                                    slice=this_slice))
+                                    slice=this_slice,
+                                    random_state=estimator.random_state))
 
     exp_n_jobs = n_jobs if parallel_exp else 1
 
@@ -317,6 +318,7 @@ def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
     with open(join(output, 'results.txt'), 'w+') as f:
         for exp_dict in result_dict:
             f.write("%s\n" % exp_dict)
+    # display_figures(output)
 
 
 def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
@@ -484,74 +486,56 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
         for exp_dict in result_dict:
             f.write("%s\n" % exp_dict)
 
+
 def display_figures(output):
     results = pickle.load(open(join(output, 'results'), 'rb'))
     df = pd.DataFrame(results, columns=results[0].keys())
-    subdf = pd.DataFrame(columns=['compression_type', 'reduction_ratio',
-                                  'io_time', 'math_time', 'total_time',
-                                  'score', 'alpha'])
+    df['reduction_ratio'] = np.round(df['reduction_ratio'], decimals=3)
+    df = df.set_index(['compression_type', 'reduction_ratio',
+                       'alpha', 'random_state'])
+    df = df.mean(level='random_state')
+    df_plot = df.loc[df.groupby(level=['compression_type',
+                                'reduction_ratio'])[
+        'score'].idxmax()][['score', 'total_time']]
+    max_time = df_plot['total_time'].max()
+    plt.figure()
+
     for compression_type in ['range_finder', 'subsample']:
-        for j, reduction_ratio in enumerate(np.unique(df['reduction_ratio'])):
-            df_temp = df[np.logical_and(df[
-                            'reduction_ratio'] ==
-                                        reduction_ratio,
-                         df['compression_type'] == compression_type)]
-            idx = np.argmax(df_temp['score'])
-            subdf = subdf.append(df.iloc[idx][['compression_type',
-                                               'reduction_ratio',
-                                               'io_time', 'math_time',
-                                               'total_time', 'score',
-                                               'alpha']])
-    subsample_df = subdf[subdf['compression_type'] == 'subsample']
-    rangefinder_df = subdf[subdf['compression_type'] == 'range_finder']
+        this_df = df_plot.loc[compression_type].sort('total_time')
+        plt.plot(this_df['total_time'] / max_time, this_df['score'], '-',
+                 marker='o', label=compression_type)
+    plt.legend()
+    plt.ylabel('Score')
+    plt.xlabel('Time Gain')
+    plt.savefig(join(output, 'score_vs_time.pdf'))
 
     plt.figure()
-    plt.plot(subsample_df['reduction_ratio'], subsample_df['score'],
-             marker='o', label='Subsample')
-    plt.plot(rangefinder_df['reduction_ratio'], rangefinder_df['score'],
-             marker='o', label='Range Finder')
-    plt.legend(loc='upper left')
-    plt.title('Correlation with baseline component maps (non compressed)')
-    plt.xlabel('Compression rate')
-    plt.ylabel('max_\Omega Tr(V_1 V_2^T \Omega)')
-    plt.savefig(join(output, 'correlation.pdf'))
-
-    plt.figure()
-
-    plt.plot(subsample_df['reduction_ratio'], subsample_df['total_time'],
-             color='b', marker = 'o', label='Subsample')
-    plt.plot(rangefinder_df['reduction_ratio'], rangefinder_df['total_time'],
-             color='r', marker='o', label='Range Finder')
-    plt.legend(loc='upper left')
-    plt.title('Correlation with baseline component maps (non compressed)')
+    for compression_type in ['range_finder', 'subsample']:
+        this_df = df_plot.loc[compression_type]
+        plt.plot(this_df['total_time'].index.levels[0].values,
+                 this_df['total_time'], '-',
+                 marker='o', label=compression_type)
+    plt.legend()
     plt.ylabel('Time')
     plt.xlabel('Reduction ratio')
     plt.savefig(join(output, 'time.pdf'))
 
     plt.figure()
-
-    max_score = np.max(subsample_df['score'])
-    max_time = np.max(subsample_df['total_time'])
-    plt.plot(subsample_df[['total_time']] / max_time,
-             subsample_df['score'] / max_score, color='b',
-             marker='o', label='Subsample')
-    max_score = np.max(rangefinder_df['score'])
-    max_time = np.max(rangefinder_df['total_time'])
-    plt.plot(rangefinder_df[['total_time']] / max_time,
-             rangefinder_df['score'] / max_score, color='r',
-             marker='o', label='Range Finder')
-    plt.plot(np.linspace(0.1, 1, 10), np.linspace(0.1, 1, 10),
-             '--', color='black')
-    plt.legend(loc='lower right')
-    plt.title('Correlation with baseline component maps (non compressed)')
-    plt.xlabel('Time')
-    plt.ylabel('max_\Omega Tr(V_1 V_2^T \Omega)')
-    plt.savefig(join(output, 'time_vs_correlation.pdf'))
+    for compression_type in ['range_finder', 'subsample']:
+        this_df = df_plot.loc[compression_type]
+        plt.plot(this_df['score'].index.levels[0].values,
+                 this_df['score'], '-',
+                 marker='o', label=compression_type)
+    plt.legend()
+    plt.ylabel('Score')
+    plt.xlabel('Reduction ratio')
+    plt.savefig(join(output, 'score.pdf'))
 
 
 if __name__ == '__main__':
     t0 = time.time()
     estimators = []
+    display_figures('/volatile/arthur/work/output/compare/2015-09-28_15-14-13')
     # display_figures('/volatile/arthur/work/output/compare/2015-09-28_09-38-04')
     # for compression_type in ['range_finder', 'subsample']:
     #     for reduction_ratio in np.linspace(0.1, 1, 10):
@@ -567,48 +551,58 @@ if __name__ == '__main__':
     #                                                parity=parity))
     # reference = (np.arange(len(estimators)) // 2 * 2) + 1
     # run_experiment(estimators, n_split=1, n_jobs=20, dataset='adhd',
-    #                n_subjects=40,
-    #                smoothing_fwhm=6.,
-    #                init="rsn20",
-    #                n_epochs=1,
-    #                reference=reference)
+    # #                n_subjects=40,
+    # #                smoothing_fwhm=6.,
+    # #                init="rsn20",
+    # #                n_epochs=1,
+    # #                reference=reference)
     # for compression_type in ['range_finder', 'subsample']:
-    #     for reduction_ratio in np.linspace(0.1, 1., 10):
-    #         for alpha in np.linspace(2, 20, 10):
-    #             estimators.append(DictLearning(alpha=alpha, batch_size=20,
-    #                                            compression_type=
-    #                                            compression_type,
-    #                                            random_state=0,
-    #                                            forget_rate=1,
-    #                                            reduction_ratio=reduction_ratio,
-    #                                            in_memory=True))
-    # estimators.append(DictLearning(alpha=16, batch_size=20,
-    #                            compression_type=
-    #                            'none',
-    #                            random_state=1234,
-    #                            forget_rate=1,
-    #                            reduction_ratio=1.,
-    #                            in_memory=True))
+    #     for reduction_ratio in [0.1, 0.25, 0.5, 1]:
+    #         for alpha in np.linspace(6, 20, 8):
+    #             for random_state in np.arange(2):
+    #                 estimators.append(DictLearning(alpha=alpha, batch_size=20,
+    #                                                compression_type=
+    #                                                compression_type,
+    #                                                random_state=random_state,
+    #                                                forget_rate=1,
+    #                                                reduction_ratio=reduction_ratio,
+    # #                                                in_memory=True))
+    # for compression_type in ['range_finder', 'subsample']:
+    #     for reduction_ratio in [0.1, 0.25, 0.5, 1]:
+    #             for random_state in np.arange(2):
+    #                 estimators.append(SparsePCA(alpha=0.1, batch_size=20,
+    #                                             compression_type=
+    #                                             compression_type,
+    #                                             random_state=random_state,
+    #                                             forget_rate=1,
+    #                                             reduction_ratio=reduction_ratio))
+    # estimators.append(DictLearning(alpha=20, batch_size=20,
+    #                                compression_type=
+    #                                'none',
+    #                                random_state=1234,
+    #                                forget_rate=1,
+    #                                reduction_ratio=1.,
+    #                                in_memory=True))
     # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
     # run_experiment(estimators, n_split=1, n_jobs=16, dataset='adhd',
     #                n_subjects=40,
     #                smoothing_fwhm=6.,
-    #                init=os.path.expanduser('~/ica/canica_resting_state_70.nii.gz'),
+    #                init=os.path.expanduser('~/ica/canica_resting_state_20.nii.gz'),
     #                n_epochs=1,
     #                reference=reference)
-
-    for alpha in [10, 20, 30, 40]:
-        estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                       random_state=0))
-    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
-    run_dict_learning_experiment(estimators, n_split=1, init='rsn70',
-                                 n_epochs=1,
-                                 dataset='hcp',
-                                 reduction_ratio=0.25,
-                                 compression_type='subsample',
-                                 n_subjects=40,
-                                 smoothing_fwhm=6.,
-                                 n_jobs=1, parallel_exp=True,
-                                 reference=reference)
+    # #
+    # for alpha in [10, 20, 30, 40]:
+    #     estimators.append(DictLearning(alpha=alpha, batch_size=20,
+    #                                    random_state=0))
+    # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    # run_dict_learning_experiment(estimators, n_split=1, init='rsn70',
+    #                              n_epochs=1,
+    #                              dataset='hcp',
+    #                              reduction_ratio=0.25,
+    #                              compression_type='subsample',
+    #                              n_subjects=1,
+    #                              smoothing_fwhm=6.,
+    #                              n_jobs=1, parallel_exp=True,
+    #                              reference=reference)
     time = time.time() - t0
     print('Total_time : %f s' % time)
