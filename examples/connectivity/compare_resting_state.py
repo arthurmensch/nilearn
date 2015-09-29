@@ -67,8 +67,9 @@ def dump_single_experiment_debug(estimator, output):
         f.write('Timings :')
         f.write("Math %.2f - IO %.2f" % (estimator.time_[0], estimator.time_[1]))
         f.write('\n')
-    # evolution = sorted(glob.glob(join(output, 'debug', 'components_*.nii.gz')),
-    #                    compare)
+    evolution = sorted(glob.glob(join(output, 'debug', 'components_*.nii.gz')),
+                       compare)
+
     # with PdfPages(join(output, 'evolution.pdf')) as pdf:
     #     for i in range(0, len(evolution), 5):
     #         fig, axes = plt.subplots(5, 1, figsize=a4_size, squeeze=False)
@@ -151,13 +152,13 @@ def dump_comparison(i, masker, components, reference, dump_dir):
     filename = join(dump_dir, "experiment_%i.nii.gz" % i)
     components.to_filename(filename)
     print('[Example] Preparing pdf %i' % i)
-    plot_to_pdf(components, path=join(dump_dir,
-                                    "experiment_%i.pdf" % i))
+    # plot_to_pdf(components, path=join(dump_dir,
+    #                                 "experiment_%i.pdf" % i))
     corr = spatial_correlation(masker, components, reference)
-    plt.matshow(corr, vmin=-1, vmax=1)
-    plt.xlabel('Components')
-    plt.ylabel('References')
-    plt.savefig(join(dump_dir, 'corr_%i.pdf' % i))
+    # plt.matshow(corr, vmin=-1, vmax=1)
+    # plt.xlabel('Components')
+    # plt.ylabel('References')
+    # plt.savefig(join(dump_dir, 'corr_%i.pdf' % i))
     return np.diagonal(corr), np.mean(np.diag(corr))
 
 
@@ -493,7 +494,8 @@ def display_figures(output):
     df['reduction_ratio'] = np.round(df['reduction_ratio'], decimals=3)
     df = df.set_index(['compression_type', 'reduction_ratio',
                        'alpha', 'random_state'])
-    df = df.mean(level='random_state')
+    df = df.mean(level=['compression_type', 'reduction_ratio',
+                        'alpha'])
     df_plot = df.loc[df.groupby(level=['compression_type',
                                 'reduction_ratio'])[
         'score'].idxmax()][['score', 'total_time']]
@@ -533,10 +535,8 @@ def display_figures(output):
 
 
 if __name__ == '__main__':
-    t0 = time.time()
-    estimators = []
-    display_figures('/volatile/arthur/work/output/compare/2015-09-28_15-14-13')
-    # display_figures('/volatile/arthur/work/output/compare/2015-09-28_09-38-04')
+    # display_figures('/volatile/arthur/work/output/compare/2015-09-28_16-57-08')
+    # display_figures('/volatile/arthur/work/output/compare/2015-09-28_15-05-20')
     # for compression_type in ['range_finder', 'subsample']:
     #     for reduction_ratio in np.linspace(0.1, 1, 10):
     #         for alpha in np.linspace(2, 20, 10):
@@ -556,30 +556,21 @@ if __name__ == '__main__':
     # #                init="rsn20",
     # #                n_epochs=1,
     # #                reference=reference)
+    t0 = time.time()
+    estimators = []
     # for compression_type in ['range_finder', 'subsample']:
-    #     for reduction_ratio in [0.1, 0.25, 0.5, 1]:
+    #     for reduction_ratio in np.linspace(0.1, 1, 10):
     #         for alpha in np.linspace(6, 20, 8):
-    #             for random_state in np.arange(2):
-    #                 estimators.append(DictLearning(alpha=alpha, batch_size=20,
-    #                                                compression_type=
-    #                                                compression_type,
-    #                                                random_state=random_state,
-    #                                                forget_rate=1,
-    #                                                reduction_ratio=reduction_ratio,
-    # #                                                in_memory=True))
-    # for compression_type in ['range_finder', 'subsample']:
-    #     for reduction_ratio in [0.1, 0.25, 0.5, 1]:
-    #             for random_state in np.arange(2):
-    #                 estimators.append(SparsePCA(alpha=0.1, batch_size=20,
-    #                                             compression_type=
-    #                                             compression_type,
-    #                                             random_state=random_state,
-    #                                             forget_rate=1,
-    #                                             reduction_ratio=reduction_ratio))
+    #             estimators.append(DictLearning(alpha=alpha, batch_size=20,
+    #                                            compression_type=
+    #                                            compression_type,
+    #                                            random_state=0,
+    #                                            forget_rate=1,
+    #                                            reduction_ratio=reduction_ratio,
+    #                                            in_memory=True))
     # estimators.append(DictLearning(alpha=20, batch_size=20,
-    #                                compression_type=
-    #                                'none',
-    #                                random_state=1234,
+    #                                compression_type='none',
+    #                                random_state=0,
     #                                forget_rate=1,
     #                                reduction_ratio=1.,
     #                                in_memory=True))
@@ -590,6 +581,28 @@ if __name__ == '__main__':
     #                init=os.path.expanduser('~/ica/canica_resting_state_20.nii.gz'),
     #                n_epochs=1,
     #                reference=reference)
+    # estimators = []
+    for compression_type in ['range_finder', 'subsample']:
+        for reduction_ratio in np.linspace(0.1, 1, 10):
+                    estimators.append(SparsePCA(alpha=0.1, batch_size=20,
+                                                compression_type=
+                                                compression_type,
+                                                random_state=0,
+                                                forget_rate=1,
+                                                reduction_ratio=reduction_ratio))
+    estimators.append(SparsePCA(alpha=0.1, batch_size=20,
+                                compression_type=
+                                compression_type,
+                                random_state=0,
+                                forget_rate=1,
+                                reduction_ratio=1.))
+    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    run_experiment(estimators, n_split=1, n_jobs=6, dataset='adhd',
+                   n_subjects=40,
+                   smoothing_fwhm=6.,
+                   init=os.path.expanduser('~/ica/canica_resting_state_20.nii.gz'),
+                   n_epochs=1,
+                   reference=reference)
     # #
     # for alpha in [10, 20, 30, 40]:
     #     estimators.append(DictLearning(alpha=alpha, batch_size=20,

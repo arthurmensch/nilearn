@@ -277,7 +277,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                 return_inner_stats=True,
                 inner_stats=inner_stats,
                 iter_offset=iter_offset,
-                shuffle=False,
+                shuffle=True,
                 n_jobs=1,
                 tol=0.
                 )
