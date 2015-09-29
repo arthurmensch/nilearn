@@ -566,7 +566,7 @@ if __name__ == '__main__':
         pass
     for compression_type in ['range_finder', 'subsample']:
         for reduction_ratio in np.linspace(0.1, 1, 10):
-            for alpha in np.linspace(6, 20, 8):
+            for alpha in np.linspace(2, 20, 10):
                 estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                                compression_type=
                                                compression_type,
