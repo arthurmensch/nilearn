@@ -560,6 +560,10 @@ if __name__ == '__main__':
     # #                reference=reference)
     t0 = time.time()
     estimators = []
+    try:
+        shutil.rmtree(os.path.expanduser('~/nilearn_cache/joblib/sklearn'))
+    except:
+        pass
     for compression_type in ['range_finder', 'subsample']:
         for reduction_ratio in np.linspace(0.1, 1, 10):
             for alpha in np.linspace(6, 20, 8):
@@ -583,34 +587,30 @@ if __name__ == '__main__':
                    init=os.path.expanduser('~/ica/canica_resting_state_20.nii.gz'),
                    n_epochs=1,
                    reference=reference)
-    estimators = []
-    try:
-        shutil.rmtree(os.path.expanduser('~/nilearn_cache/joblib/sklearn'))
-    except:
-        pass
-    for compression_type in ['range_finder', 'subsample']:
-        for reduction_ratio in np.linspace(0.1, 1, 10):
-                    estimators.append(SparsePCA(alpha=0.1, batch_size=20,
-                                                compression_type=
-                                                compression_type,
-                                                random_state=0,
-                                                forget_rate=1,
-                                                reduction_ratio=reduction_ratio))
-    # # for random_state in range(0, 10):
-    # #     estimators.append(DictLearning(alpha=20, batch_size=20,
-    # #                                    compression_type=
-    # #                                    'none',
-    # #                                    random_state=random_state,
-    # #                                    forget_rate=1,
-    # #                                    reduction_ratio=1))
-    # reference = np.arange(len(estimators), dtype='int') // 3 * 3 + 2
-    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
-    run_experiment(estimators, n_split=1, n_jobs=21, dataset='adhd',
-                   n_subjects=20,
-                   smoothing_fwhm=6.,
-                   init=os.path.expanduser('~/ica/canica_resting_state_20.nii.gz'),
-                   n_epochs=1,
-                   reference=reference)
+    # estimators = []
+    # for compression_type in ['range_finder', 'subsample']:
+    #     for reduction_ratio in np.linspace(0.1, 1, 10):
+    #                 estimators.append(SparsePCA(alpha=0.1, batch_size=20,
+    #                                             compression_type=
+    #                                             compression_type,
+    #                                             random_state=0,
+    #                                             forget_rate=1,
+    #                                             reduction_ratio=reduction_ratio))
+    # # # for random_state in range(0, 10):
+    # # #     estimators.append(DictLearning(alpha=20, batch_size=20,
+    # # #                                    compression_type=
+    # # #                                    'none',
+    # # #                                    random_state=random_state,
+    # # #                                    forget_rate=1,
+    # # #                                    reduction_ratio=1))
+    # # reference = np.arange(len(estimators), dtype='int') // 3 * 3 + 2
+    # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    # run_experiment(estimators, n_split=1, n_jobs=21, dataset='adhd',
+    #                n_subjects=20,
+    #                smoothing_fwhm=6.,
+    #                init=os.path.expanduser('~/ica/canica_resting_state_20.nii.gz'),
+    #                n_epochs=1,
+    #                reference=reference)
     # #
     # for alpha in [10, 20, 30, 40]:
     #     estimators.append(DictLearning(alpha=alpha, batch_size=20,
