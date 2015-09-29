@@ -240,7 +240,6 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.time_ = np.zeros(2)
 
         for record, (img, confound) in enumerate(imgs_confounds_list):
-            t0 = time.time()
             mask_reducer = MaskReducer(self.masker_,
                                  reduction_ratio=self.reduction_ratio,
                                  n_components=self.n_components,
@@ -251,7 +250,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                                  memory=self.memory).fit(img)
             mask_reducer.fit(img, confound)
             data = mask_reducer.data_
-            self.time_[1] += time.time() - t0
+            self.time_ = mask_reducer.time_
             # n_iter = data.shape[0] // self.batch_size ???
             n_iter = (data.shape[0] - 1) // self.batch_size + 1
             if self.verbose:

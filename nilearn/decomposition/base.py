@@ -18,6 +18,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.utils import check_random_state
 from sklearn.utils.extmath import randomized_svd, randomized_range_finder
 from sklearn.base import BaseEstimator
+import time
 
 from ..input_data import NiftiMapsMasker
 from ..input_data.masker_validation import check_embedded_nifti_masker
@@ -305,7 +306,7 @@ class MaskReducer(BaseEstimator):
         else:
             data = None
 
-        Parallel(n_jobs=self.n_jobs)(delayed(_load_single_subject)(
+        timings_list = Parallel(n_jobs=self.n_jobs)(delayed(_load_single_subject)(
             self.masker, data, subject_limits, subject_n_samples,
             compression_type, reduction_ratio,
             # selection,
@@ -324,6 +325,9 @@ class MaskReducer(BaseEstimator):
         self.data_ = data
         self.subject_limits_ = subject_limits
 
+        timings = np.concatenate([timings[np.newaxis, :]
+                                  for timings in timings_list])
+        self.time_ = np.sum(timings, axis=0)
         return self
 
 
@@ -338,7 +342,10 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
                          i, power_iter,
                          parity):
     """Utility function for multiprocessing from mask_and_reduce"""
+    timings = np.zeros(2)
+    t0 = time.time()
     this_data = masker.transform(img, confound)
+    timings[1] = time.time() - t0
     if parity == 0:
         if this_data.shape[0] % 2 == 1:
             this_data = this_data[::2]
@@ -352,7 +359,7 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
 
     # if selection is not None:
     #     this_data = this_data[:, selection]
-
+    t0 = time.time()
     if compression_type == 'svd':
         if subject_n_samples[i] <= this_data.shape[0] // 4:
             U, S, _ = cache(randomized_svd, memory,
@@ -391,6 +398,8 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
         U = this_data
     if not mock:
         data[subject_limits[i]:subject_limits[i+1], :] = U
+    timings[0] = time.time() - t0
+    return timings
 
 
 class DecompositionEstimator(BaseEstimator, CacheMixin):
