@@ -268,7 +268,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         if self.verbose:
             print('[DictLearning] Loading data')
-        t0 = time.time()
         mask_reducer = MaskReducer(self.masker_,
                              reduction_ratio=self.reduction_ratio,
                              n_components=self.n_components,
@@ -282,7 +281,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                              in_memory=self.in_memory,
                              parity=self.parity)
         mask_reducer.fit(imgs, confounds)
-        self.time_[1] += time.time() - t0
+        self.time_ = mask_reducer.time_
         self._raw_fit(mask_reducer.data_)
 
     def _raw_fit(self, data):
@@ -335,7 +334,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         if self.verbose:
             print('[DictLearning] Learning dictionary')
         for batch in batches:
-            t0 = time.time()
             n_iter = (batch.stop - batch.start) // self.batch_size
             res = self._cache(dict_learning_online,
                               func_memory_level=2)(
