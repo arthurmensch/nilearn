@@ -8,13 +8,13 @@ import pickle
 import datetime
 import warnings
 import itertools
-from joblib import delayed, Parallel
+from joblib import delayed, Parallel, Memory
 import numpy as np
 import pandas as pd
 
 import matplotlib
 import shutil
-from sklearn.utils import gen_even_slices, check_array
+from sklearn.utils import gen_even_slices, check_array, check_random_state
 from nilearn._utils import check_niimg
 
 matplotlib.use('PDF')
@@ -26,10 +26,12 @@ from nilearn.decomposition import SparsePCA, DictLearning, CanICA
 from nilearn.decomposition.base import DecompositionEstimator, MaskReducer
 from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
 from nilearn_sandbox._utils.map_alignment import spatial_correlation,\
-    align_many_to_one_nii
+    align_many_to_one_nii, _align_one_to_one_flat, _spatial_correlation_flat
+
+from nilearn_sandbox.plotting.papaya import papaya_viewer
 
 import matplotlib.pyplot as plt
-
+import matplotlib.cm as cm
 
 def compare(x, y):
     if len(x) < len(y):
@@ -321,7 +323,7 @@ def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
     with open(join(output, 'results.txt'), 'w+') as f:
         for exp_dict in result_dict:
             f.write("%s\n" % exp_dict)
-    # display_figures(output)
+    return output
 
 
 def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
@@ -412,8 +414,8 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
     # data = np.load(os.path.expanduser('~/temp/hcp40_025_subsample.npy'),
     #                                   mmap_mode='r')
     # subject_limits = np.arange(0, 154 * 300, 300)
-    # print(data.shape)
-    # print(subject_limits)
+    print(data.shape)
+    print(subject_limits)
 
     estimator_n_jobs = n_jobs if not parallel_exp else 1
 
@@ -495,17 +497,92 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
             f.write("%s\n" % exp_dict)
 
 
+def display_stability(output, ref_indices, target_indices):
+    ref_components_list = []
+    target_components_list = []
+    n_batch = len(target_indices)
+    full_n_exp = len(ref_indices)
+    n_run = 3
+    n_exp = full_n_exp // n_run
+
+    masker = MultiNiftiMasker(mask_img=join(output, 'mask_img.nii.gz')).fit()
+
+    try:
+        os.makedirs(join(output, 'stability'))
+    except:
+        pass
+    stability_output = join(output, 'stability')
+
+    for i in ref_indices:
+        components = masker.transform(join(output, 'comparison',
+                                           'experiment_%i.nii.gz' % i))
+        ref_components_list.append(components)
+    for k in range(n_batch):
+        target_components_list.append([])
+        for i in target_indices[k]:
+            components = masker.transform(join(output, 'comparison',
+                                               'experiment_%i.nii.gz' % i))
+            target_components_list[k].append(components)
+    corr = np.zeros((n_batch, n_exp, n_run))
+    mem = Memory(cachedir='nilearn_cache')
+    for k in range(n_batch):
+        for j in range(n_run):
+            random_state = check_random_state(j)
+            random_state.shuffle(target_components_list[k])
+            random_state.shuffle(ref_components_list)
+            for i in range(0, n_exp):
+                base = np.concatenate(ref_components_list[j*n_exp:j*n_exp+i+1])
+                target = np.concatenate(target_components_list[k][j*n_exp:j*n_exp+i+1])
+                aligned = mem.cache(_align_one_to_one_flat)(base, target)
+                corr[k, i, j] = np.trace(_spatial_correlation_flat(aligned,
+                                                                   base))
+                corr[k, i, j] /= base.shape[0]
+                print(i, j)
+
+    color = ['blue', 'green', 'red', 'yellow']
+    plt.figure()
+    for k in range(n_batch):
+        plt.plot(np.arange(corr.shape[1])+1, np.mean(corr[k], axis=1), color=color[k],
+                 label=k)
+        plt.fill_between(np.arange(corr.shape[1])+1, np.min(corr[k], axis=1), np.max(corr[k],
+                                                                     axis=1),
+                         facecolor=color[k], alpha=0.3)
+    plt.legend()
+    plt.xlabel('# experiments')
+    plt.ylabel('Map recovery')
+    plt.savefig(join(stability_output, 'inc_correlation.pdf'))
+    for k in range(n_batch):
+        base = np.concatenate(ref_components_list)
+        target = np.concatenate(target_components_list[k])
+        aligned = _align_one_to_one_flat(base, target)
+        corr = _spatial_correlation_flat(aligned, base)
+        index = np.argsort(corr.diagonal())[::-1]
+
+        base = base[index]
+        aligned = aligned[index]
+
+        corr = _spatial_correlation_flat(aligned, base)
+        plt.figure()
+        plt.matshow(corr)
+        plt.savefig(join(stability_output, 'mat_corr_%i.pdf' % k))
+        masker.inverse_transform(aligned).to_filename(join(stability_output, 'aligned_%i.nii.gz' % k))
+        masker.inverse_transform(base).to_filename(join(stability_output, 'base_%i.nii.gz' % k))
+        papaya_viewer(join(stability_output, 'aligned_%i.nii.gz' % k), output_file=join(stability_output, 'aligned_%i.html' % k))
+        papaya_viewer(join(stability_output, 'base_%i.nii.gz' % k), output_file=join(stability_output, 'base_%i.html' % k))
+
+
 def display_figures(output):
     results = pickle.load(open(join(output, 'results'), 'rb'))
     df = pd.DataFrame(results, columns=results[0].keys())
     df['reduction_ratio'] = np.round(df['reduction_ratio'], decimals=3)
+    df['index_col'] = df.index
     df = df.set_index(['compression_type', 'reduction_ratio',
                        'alpha', 'random_state'])
     df_plot = df.loc[df.groupby(level=['compression_type',
                                 'reduction_ratio'])[
-        'score'].idxmax()][['score', 'math_time']]
-    df_plot = df_plot.mean(level=['compression_type', 'reduction_ratio',
-                        'alpha'])
+        'score'].idxmax()][['score', 'math_time', 'index_col']]
+    df_plot.reset_index(level=2, inplace=True)
+    df_plot = df_plot.mean(level=['compression_type', 'reduction_ratio'])
     max_time = df_plot['math_time'][-1]
     plt.figure()
 
@@ -524,7 +601,7 @@ def display_figures(output):
     plt.figure()
     for compression_type in ['range_finder', 'subsample']:
         this_df = df_plot.loc[compression_type]
-        plt.plot(this_df['math_time'].index.levels[0].values,
+        plt.plot(this_df['math_time'].index.values,
                  this_df['math_time'], '-',
                  marker='o', label=compression_type)
     plt.legend()
@@ -535,9 +612,12 @@ def display_figures(output):
     plt.figure()
     for compression_type in ['range_finder', 'subsample']:
         this_df = df_plot.loc[compression_type]
-        plt.plot(this_df['score'].index.levels[0].values,
+        plt.plot(this_df.index.values,
                  this_df['score'], '-',
                  marker='o', label=compression_type)
+    for x in this_df.index.values:
+        plt.annotate('      %i' % this_df.loc[x]['index_col'],
+                     xy=(x, this_df.loc[x]['score']))
     plt.legend()
     plt.ylabel('Score')
     plt.xlabel('Reduction ratio')
@@ -545,8 +625,6 @@ def display_figures(output):
 
 
 if __name__ == '__main__':
-    # display_figures('/volatile/arthur/drago_output/2015-09-29_15-51-44')
-    # exit(0)
     # display_figures('/volatile/arthur/work/output/compare/2015-09-29_09-12-51')
     # for compression_type in ['range_finder', 'subsample']:
     #     for reduction_ratio in np.linspace(0.1, 1, 10):
@@ -569,10 +647,10 @@ if __name__ == '__main__':
     # #                reference=reference)
     t0 = time.time()
     estimators = []
-    try:
-        shutil.rmtree(os.path.expanduser('~/nilearn_cache/joblib/sklearn'))
-    except:
-        pass
+    # try:
+    #     shutil.rmtree(os.path.expanduser('~/nilearn_cache/joblib/sklearn'))
+    # except:
+    #     pass
     # for compression_type in ['range_finder', 'subsample']:
     #     for reduction_ratio in np.linspace(0.1, 1, 10):
     #         for alpha in np.linspace(2, 20, 10):
@@ -627,25 +705,53 @@ if __name__ == '__main__':
     #     #                             forget_rate=1,
     #     #                             reduction_ratio=1))
     # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
-    # run_experiment(estimators, n_split=1, n_jobs=10, dataset='adhd',
-    #                n_subjects=40,
-    #                smoothing_fwhm=6.,
-    #                init=os.path.expanduser('~/ica/canica_resting_state_20.nii.gz'),
-    #                n_epochs=1,
-    #                reference=reference)
-    # # #
-    for alpha in [20, 30, 40, 50, 60]:
-        estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                       random_state=0))
+    #
+    #
+    #
+    for random_state in range(0, 60):
+        estimators.append(DictLearning(alpha=20, batch_size=20,
+                                    compression_type=
+                                    'none',
+                                    random_state=random_state,
+                                    forget_rate=1,
+                                    reduction_ratio=1))
+    for random_state in range(0, 30):
+        estimators.append(DictLearning(alpha=12, batch_size=20,
+                                    compression_type=
+                                    'subsample',
+                                    random_state=random_state,
+                                    forget_rate=1,
+                                    reduction_ratio=0.2))
+    for random_state in range(0, 30):
+        estimators.append(DictLearning(alpha=20, batch_size=20,
+                                    compression_type=
+                                    'range_finder',
+                                    random_state=random_state,
+                                    forget_rate=1,
+                                    reduction_ratio=0.2))
     reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
-    run_dict_learning_experiment(estimators, n_split=1, init='rsn70',
-                                 n_epochs=1,
-                                 dataset='hcp',
-                                 reduction_ratio=1,
-                                 compression_type='subsample',
-                                 n_subjects=1,
-                                 smoothing_fwhm=6.,
-                                 n_jobs=5, parallel_exp=True,
-                                 reference=reference)
+    output = run_experiment(estimators, n_split=1, n_jobs=15, dataset='adhd',
+                   n_subjects=40,
+                   smoothing_fwhm=6.,
+                   init=os.path.expanduser('~/ica/canica_resting_state_20.nii.gz'),
+                   n_epochs=1,
+                   reference=reference)
+    print(output)
+    display_stability(output,
+                      np.arange(30), [np.arange(30, 60), np.arange(60, 90),
+                                      np.arange(90, 120)])
+    # for alpha in [10, 20, 30, 40, 50, 60]:
+    #     estimators.append(DictLearning(alpha=alpha, batch_size=20,
+    #                                    random_state=0))
+    # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    # run_dict_learning_experiment(estimators, n_split=1, init='rsn70',
+    #                              n_epochs=1,
+    #                              dataset='hcp',
+    #                              reduction_ratio=0.25,
+    #                              compression_type='subsample',
+    #                              n_subjects=4,
+    #                              smoothing_fwhm=6.,
+    #                              n_jobs=6, parallel_exp=True,
+    #                              reference=reference)
     time = time.time() - t0
     print('Total_time : %f s' % time)
