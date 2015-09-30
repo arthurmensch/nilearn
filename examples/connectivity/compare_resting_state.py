@@ -540,7 +540,8 @@ def display_figures(output):
 
 
 if __name__ == '__main__':
-    # display_figures('/volatile/arthur/drago_output/2015-09-29_11-12-39')
+    # display_figures('/volatile/arthur/drago_output/2015-09-29_15-51-44')
+    # exit(0)
     # display_figures('/volatile/arthur/work/output/compare/2015-09-29_09-12-51')
     # for compression_type in ['range_finder', 'subsample']:
     #     for reduction_ratio in np.linspace(0.1, 1, 10):
@@ -583,12 +584,12 @@ if __name__ == '__main__':
                                    forget_rate=1,
                                    reduction_ratio=1.,
                                    in_memory=True))
-    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    reference = np.ones(len(estimators), dtype='int') * (len(sestimators) - 1)
     run_experiment(estimators, n_split=1, n_jobs=40, dataset='adhd',
                    n_subjects=40,
                    smoothing_fwhm=6.,
                    init=os.path.expanduser('~/ica/'
-                                           'canica_resting_state_70.nii.gz'),
+                                           'canica_resting_state_20.nii.gz'),
                    n_epochs=1,
                    reference=reference)
     # estimators = []
