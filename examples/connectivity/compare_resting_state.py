@@ -321,7 +321,7 @@ def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
     with open(join(output, 'results.txt'), 'w+') as f:
         for exp_dict in result_dict:
             f.write("%s\n" % exp_dict)
-    display_figures(output)
+    # display_figures(output)
 
 
 def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
@@ -585,7 +585,7 @@ if __name__ == '__main__':
                                    reduction_ratio=1.,
                                    in_memory=True))
     reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
-    run_experiment(estimators, n_split=1, n_jobs=40, dataset='adhd',
+    run_experiment(estimators, n_split=1, n_jobs=24, dataset='adhd',
                    n_subjects=40,
                    smoothing_fwhm=6.,
                    init=os.path.expanduser('~/ica/'
