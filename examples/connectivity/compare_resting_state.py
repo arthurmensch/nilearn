@@ -394,21 +394,25 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
     masker = decomposition_estimator.masker_
 
     print("[Example] Warming up cache")
-    mask_reducer = MaskReducer(masker,
-                               memory_level=2,
-                               memory=cache_dir, mock=False,
-                               in_memory=False,
-                               compression_type=
-                               compression_type,
-                               reduction_ratio=
-                               reduction_ratio,
-                               temp_folder=temp_folder,
-                               mem_name='concat',
-                               n_jobs=n_jobs)
-    mask_reducer.fit(data_filenames)
-
-    data = mask_reducer.data_
-    subject_limits = mask_reducer.subject_limits_
+    # mask_reducer = MaskReducer(masker,
+    #                            memory_level=2,
+    #                            memory=cache_dir, mock=False,
+    #                            in_memory=False,
+    #                            compression_type=
+    #                            compression_type,
+    #                            reduction_ratio=
+    #                            reduction_ratio,
+    #                            temp_folder=temp_folder,
+    #                            mem_name='concat',
+    #                            n_jobs=n_jobs)
+    # mask_reducer.fit(data_filenames)
+    #
+    # data = mask_reducer.data_
+    # subject_limits = mask_reducer.subject_limits_
+    data = np.load(os.path.expanduser('~/temp/hcp40_025_subsample.npy'))
+    subject_limits = np.arange(0, 154 * 300, 300)
+    print(data.shape)
+    print(subject_limits)
 
     estimator_n_jobs = n_jobs if not parallel_exp else 1
 
@@ -568,30 +572,30 @@ if __name__ == '__main__':
         shutil.rmtree(os.path.expanduser('~/nilearn_cache/joblib/sklearn'))
     except:
         pass
-    for compression_type in ['range_finder', 'subsample']:
-        for reduction_ratio in np.linspace(0.1, 1, 10):
-            for alpha in np.linspace(2, 20, 10):
-                estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                               compression_type=
-                                               compression_type,
-                                               random_state=0,
-                                               forget_rate=1,
-                                               reduction_ratio=reduction_ratio,
-                                               in_memory=True))
-    estimators.append(DictLearning(alpha=10, batch_size=20,
-                                   compression_type='none',
-                                   random_state=0,
-                                   forget_rate=1,
-                                   reduction_ratio=1.,
-                                   in_memory=True))
-    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
-    run_experiment(estimators, n_split=1, n_jobs=24, dataset='adhd',
-                   n_subjects=40,
-                   smoothing_fwhm=6.,
-                   init=os.path.expanduser('~/ica/'
-                                           'canica_resting_state_20.nii.gz'),
-                   n_epochs=1,
-                   reference=reference)
+    # for compression_type in ['range_finder', 'subsample']:
+    #     for reduction_ratio in np.linspace(0.1, 1, 10):
+    #         for alpha in np.linspace(2, 20, 10):
+    #             estimators.append(DictLearning(alpha=alpha, batch_size=20,
+    #                                            compression_type=
+    #                                            compression_type,
+    #                                            random_state=0,
+    #                                            forget_rate=1,
+    #                                            reduction_ratio=reduction_ratio,
+    #                                            in_memory=True))
+    # estimators.append(DictLearning(alpha=10, batch_size=20,
+    #                                compression_type='none',
+    #                                random_state=0,
+    #                                forget_rate=1,
+    #                                reduction_ratio=1.,
+    #                                in_memory=True))
+    # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    # run_experiment(estimators, n_split=1, n_jobs=24, dataset='adhd',
+    #                n_subjects=40,
+    #                smoothing_fwhm=6.,
+    #                init=os.path.expanduser('~/ica/'
+    #                                        'canica_resting_state_20.nii.gz'),
+    #                n_epochs=1,
+    #                reference=reference)
     # estimators = []
     # for compression_type in ['range_finder', 'subsample']:
     #     for reduction_ratio in np.linspace(0.1, 1, 10):
@@ -629,18 +633,18 @@ if __name__ == '__main__':
     #                n_epochs=1,
     #                reference=reference)
     # # #
-    # for alpha in [10, 20, 30, 40]:
-    #     estimators.append(DictLearning(alpha=alpha, batch_size=20,
-    #                                    random_state=0))
-    # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
-    # run_dict_learning_experiment(estimators, n_split=1, init='rsn70',
-    #                              n_epochs=1,
-    #                              dataset='hcp',
-    #                              reduction_ratio=0.25,
-    #                              compression_type='subsample',
-    #                              n_subjects=1,
-    #                              smoothing_fwhm=6.,
-    #                              n_jobs=1, parallel_exp=True,
-    #                              reference=reference)
+    for alpha in [30, 33, 35]:
+        estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                                       random_state=0))
+    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    run_dict_learning_experiment(estimators, n_split=1, init='rsn70',
+                                 n_epochs=1,
+                                 dataset='hcp',
+                                 reduction_ratio=0.25,
+                                 compression_type='subsample',
+                                 n_subjects=1,
+                                 smoothing_fwhm=6.,
+                                 n_jobs=1, parallel_exp=True,
+                                 reference=reference)
     time = time.time() - t0
     print('Total_time : %f s' % time)
