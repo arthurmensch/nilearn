@@ -190,6 +190,10 @@ def run_experiment(estimators, n_split=1, init='rsn70', n_epochs=1,
         dataset = datasets.fetch_hcp_rest(n_subjects=n_subjects,
                                           data_dir=data_dir)
         mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
+    elif dataset == 'hcp_reduced':
+        dataset = datasets.fetch_hcp_reduced(n_subjects=n_subjects,
+                                          data_dir=data_dir)
+        mask = os.path.expanduser('~/data/HCP_mask/mask_img.nii.gz')
     smith = datasets.fetch_atlas_smith_2009()
     if isinstance(init, int):
         dict_init = None
@@ -708,36 +712,36 @@ if __name__ == '__main__':
     #
     #
     #
-    for random_state in range(0, 60):
-        estimators.append(DictLearning(alpha=20, batch_size=20,
-                                    compression_type=
-                                    'none',
-                                    random_state=random_state,
-                                    forget_rate=1,
-                                    reduction_ratio=1))
-    for random_state in range(0, 30):
-        estimators.append(DictLearning(alpha=12, batch_size=20,
-                                    compression_type=
-                                    'subsample',
-                                    random_state=random_state,
-                                    forget_rate=1,
-                                    reduction_ratio=0.2))
-    for random_state in range(0, 30):
-        estimators.append(DictLearning(alpha=20, batch_size=20,
-                                    compression_type=
-                                    'range_finder',
-                                    random_state=random_state,
-                                    forget_rate=1,
-                                    reduction_ratio=0.2))
-    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
-    output = run_experiment(estimators, n_split=1, n_jobs=15, dataset='adhd',
-                   n_subjects=40,
-                   smoothing_fwhm=6.,
-                   init=os.path.expanduser('~/ica/canica_resting_state_20.nii.gz'),
-                   n_epochs=1,
-                   reference=reference)
-    print(output)
-    display_stability(output,
+    # for random_state in range(0, 60):
+    #     estimators.append(DictLearning(alpha=20, batch_size=20,
+    #                                 compression_type=
+    #                                 'none',
+    #                                 random_state=random_state,
+    #                                 forget_rate=1,
+    #                                 reduction_ratio=1))
+    # for random_state in range(0, 30):
+    #     estimators.append(DictLearning(alpha=12, batch_size=20,
+    #                                 compression_type=
+    #                                 'subsample',
+    #                                 random_state=random_state,
+    #                                 forget_rate=1,
+    #                                 reduction_ratio=0.2))
+    # for random_state in range(0, 30):
+    #     estimators.append(DictLearning(alpha=20, batch_size=20,
+    #                                 compression_type=
+    #                                 'range_finder',
+    #                                 random_state=random_state,
+    #                                 forget_rate=1,
+    #                                 reduction_ratio=0.2))
+    # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    # output = run_experiment(estimators, n_split=1, n_jobs=15, dataset='adhd',
+    #                n_subjects=40,
+    #                smoothing_fwhm=6.,
+    #                init=os.path.expanduser('~/ica/canica_resting_state_20.nii.gz'),
+    #                n_epochs=1,
+    #                reference=reference)
+    # print(output)
+    display_stability('/volatile/arthur/drago_output/2015-09-30_16-12-07',
                       np.arange(30), [np.arange(30, 60), np.arange(60, 90),
                                       np.arange(90, 120)])
     # for alpha in [10, 20, 30, 40, 50, 60]:
