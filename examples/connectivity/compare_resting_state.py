@@ -645,7 +645,7 @@ if __name__ == '__main__':
                                  compression_type='subsample',
                                  n_subjects=1,
                                  smoothing_fwhm=6.,
-                                 n_jobs=1, parallel_exp=True,
+                                 n_jobs=5, parallel_exp=True,
                                  reference=reference)
     time = time.time() - t0
     print('Total_time : %f s' % time)
