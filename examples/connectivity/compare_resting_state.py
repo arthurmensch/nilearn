@@ -394,25 +394,26 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
     masker = decomposition_estimator.masker_
 
     print("[Example] Warming up cache")
-    # mask_reducer = MaskReducer(masker,
-    #                            memory_level=2,
-    #                            memory=cache_dir, mock=False,
-    #                            in_memory=False,
-    #                            compression_type=
-    #                            compression_type,
-    #                            reduction_ratio=
-    #                            reduction_ratio,
-    #                            temp_folder=temp_folder,
-    #                            mem_name='concat',
-    #                            n_jobs=n_jobs)
-    # mask_reducer.fit(data_filenames)
-    #
-    # data = mask_reducer.data_
-    # subject_limits = mask_reducer.subject_limits_
-    data = np.load(os.path.expanduser('~/temp/hcp40_025_subsample.npy'))
-    subject_limits = np.arange(0, 154 * 300, 300)
-    print(data.shape)
-    print(subject_limits)
+    mask_reducer = MaskReducer(masker,
+                               memory_level=2,
+                               memory=cache_dir, mock=False,
+                               in_memory=False,
+                               compression_type=
+                               compression_type,
+                               reduction_ratio=
+                               reduction_ratio,
+                               temp_folder=temp_folder,
+                               mem_name='concat',
+                               n_jobs=n_jobs)
+    mask_reducer.fit(data_filenames)
+
+    data = mask_reducer.data_
+    subject_limits = mask_reducer.subject_limits_
+    # data = np.load(os.path.expanduser('~/temp/hcp40_025_subsample.npy'),
+    #                                   mmap_mode='r')
+    # subject_limits = np.arange(0, 154 * 300, 300)
+    # print(data.shape)
+    # print(subject_limits)
 
     estimator_n_jobs = n_jobs if not parallel_exp else 1
 
@@ -633,14 +634,14 @@ if __name__ == '__main__':
     #                n_epochs=1,
     #                reference=reference)
     # # #
-    for alpha in [30, 33, 35]:
+    for alpha in [20, 30, 40, 50, 60]:
         estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                        random_state=0))
     reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
     run_dict_learning_experiment(estimators, n_split=1, init='rsn70',
                                  n_epochs=1,
                                  dataset='hcp',
-                                 reduction_ratio=0.25,
+                                 reduction_ratio=1,
                                  compression_type='subsample',
                                  n_subjects=1,
                                  smoothing_fwhm=6.,
