@@ -584,7 +584,7 @@ if __name__ == '__main__':
                                    forget_rate=1,
                                    reduction_ratio=1.,
                                    in_memory=True))
-    reference = np.ones(len(estimators), dtype='int') * (len(sestimators) - 1)
+    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
     run_experiment(estimators, n_split=1, n_jobs=40, dataset='adhd',
                    n_subjects=40,
                    smoothing_fwhm=6.,
