@@ -155,23 +155,6 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.compression_type = compression_type
         self.debug_folder = debug_folder
 
-    def _dump_debug(self):
-        if hasattr(self, 'debug_info_'):
-            n_iter = len(self.debug_info_['residuals'])
-            components_img = self.masker_.inverse_transform(self.components_)
-            components_img.to_filename(join(self.debug_folder,
-                                            'components_%i.nii.gz' % n_iter))
-            # Debug info
-            np.save(join(self.debug_folder, 'residual'),
-                    self.debug_info_['residuals'])
-            np.save(join(self.debug_folder, 'density'),
-                    self.debug_info_['density'])
-            np.save(join(self.debug_folder, 'values'),
-                    self.debug_info_['values'])
-            np.save(join(self.debug_folder, 'time'), self.time_)
-            if hasattr(self, 'score_'):
-                np.save(join(self.debug_folder, 'score'), self.score_)
-
     def _init_dict(self, imgs, confounds=None):
         if self.dict_init is not None:
             self._dict_init = self.masker_.transform(self.dict_init)
@@ -213,8 +196,6 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         # Base logic for decomposition estimators
         DecompositionEstimator.fit(self, imgs)
 
-        keep_debug_info = self.debug_folder is not None
-
         random_state = check_random_state(self.random_state)
 
         n_epochs = int(self.n_epochs)
@@ -224,6 +205,9 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
 
         if confounds is None:
             confounds = [None] * len(imgs)
+
+        if self.debug_folder is not None:
+            os.mkdir(join(self.debug_folder, 'intermediary'))
 
         if self.verbose:
             print('[DictLearning] Initializating dictionary')
@@ -247,7 +231,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                                  power_iter=self.power_iter,
                                  random_state=self.random_state,
                                  memory_level=self.memory_level,
-                                 memory=self.memory).fit(img)
+                                 memory=self.memory)
             mask_reducer.fit(img, confound)
             data = mask_reducer.data_
             self.time_ = mask_reducer.time_
@@ -272,7 +256,7 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                 return_code=False,
                 verbose=max(0, self.verbose - 1),
                 random_state=self.random_state,
-                return_debug_info=keep_debug_info,
+                return_debug_info=self.debug_folder is not None,
                 return_inner_stats=True,
                 inner_stats=inner_stats,
                 iter_offset=iter_offset,
@@ -282,14 +266,25 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
                 )
             self.time_[0] += time.time() - t0
 
-            if keep_debug_info:
+            if self.debug_folder is not None:
                 (self.components_, inner_stats), debug_info = res
                 if not hasattr(self, 'debug_info_'):
                     self.debug_info_ = debug_info
                 else:
                     for key in self.debug_info_:
                         self.debug_info_[key] += debug_info[key]
-                self._dump_debug()
+                n_iter = len(self.debug_info_['residuals'])
+                components_img = self.masker_.inverse_transform(self.components_)
+                components_img.to_filename(join(self.debug_folder, 'intermediary',
+                                                'components_%i.nii.gz' % n_iter))
+                # Debug info
+                np.save(join(self.debug_folder, 'residuals'),
+                        self.debug_info_['residuals'])
+                np.save(join(self.debug_folder, 'density'),
+                        self.debug_info_['density'])
+                np.save(join(self.debug_folder, 'values'),
+                        self.debug_info_['values'])
+                np.save(join(self.debug_folder, 'time'), self.time_)
             else:
                 self.components_, inner_stats = res
 
@@ -308,7 +303,6 @@ class SparsePCA(DecompositionEstimator, TransformerMixin, CacheMixin):
         if self.verbose:
             print('[DictLearning] Learning score')
         self._fit_score(mask_reducer.data_)
-
-        self._dump_debug()
+        np.save(join(self.debug_folder, 'score'), self.score_)
 
         return self

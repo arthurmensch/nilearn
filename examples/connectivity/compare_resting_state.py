@@ -84,6 +84,7 @@ def dump_single_experiment_debug(estimator, output):
     #             else:
     #                 ax.axis('off')
     #         pdf.savefig(fig)
+
     #         plt.close()
     #
     # with PdfPages(join(output, 'evolution_single.pdf')) as pdf:
@@ -529,6 +530,21 @@ def display_stability(output, ref_indices, target_indices):
             target_components_list[k].append(components)
     corr = np.zeros((n_batch, n_exp, n_run))
     mem = Memory(cachedir='nilearn_cache')
+    labels = ['Full vs Full', 'Full vs Subsample', 'Full vs Rangefinder']
+    plt.figure()
+    for k in range(n_batch):
+        base = np.concatenate(ref_components_list)
+        target = np.concatenate(target_components_list[k])
+        aligned = mem.cache(_align_one_to_one_flat)(base, target)
+        diag = (_spatial_correlation_flat(aligned, base)).diagonal()
+        plt.hist(diag, bins=60, label=labels[k])
+        # plt.plot(np.linspace(0, 1, 600), np.cumsum(np.sort(diag)) /
+        #          (np.arange(600) + 1), label=labels[k])
+    plt.xlabel('Ratio of worst aligned components')
+    plt.ylabel('Mean correlation')
+    plt.legend()
+    plt.savefig('figure.pdf')
+    return
     for k in range(n_batch):
         for j in range(n_run):
             random_state = check_random_state(j)
@@ -695,38 +711,46 @@ if __name__ == '__main__':
     #                                    random_state=random_state,
     #                                    forget_rate=1,
     #                                    reduction_ratio=1))
-    # # for random_state in range(10, 20):
-    # #     estimators.append(DictLearning(alpha=20, batch_size=20,
-    # #                                    compression_type=
-    # #                                    'none',
-    # #                                    random_state=random_state,
-    # #                                    forget_rate=1,
-    # #                                    reduction_ratio=1))
-    #     # estimators.append(SparsePCA(alpha=0.1, batch_size=20,
-    #     #                             compression_type=
-    #     #                             'none',
-    #     #                             random_state=random_state,
-    #     #                             forget_rate=1,
-    #     #                             reduction_ratio=1))
-    # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    estimators.append(DictLearning(alpha=20, batch_size=20,
+                                   compression_type=
+                                   'none',
+                                   random_state=random_state,
+                                   forget_rate=1,
+                                   reduction_ratio=1))
+    estimators.append(SparsePCA(alpha=0.1, batch_size=20,
+                                compression_type=
+                                'none',
+                                random_state=random_state,
+                                forget_rate=1,
+                                reduction_ratio=1))
+    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
     #
     #
     #
-    # for random_state in range(0, 60):
+    # n_exp = 10
+    # n_run = 1
+    # for random_state in range(0, n_exp * n_run):
     #     estimators.append(DictLearning(alpha=20, batch_size=20,
     #                                 compression_type=
     #                                 'none',
     #                                 random_state=random_state,
     #                                 forget_rate=1,
     #                                 reduction_ratio=1))
-    # for random_state in range(0, 30):
+    # for random_state in range(n_exp * n_run, 2 * n_exp * n_run):
+    #     estimators.append(DictLearning(alpha=20, batch_size=20,
+    #                                 compression_type=
+    #                                 'none',
+    #                                 random_state=random_state,
+    #                                 forget_rate=1,
+    #                                 reduction_ratio=1))
+    # for random_state in range(n_exp * n_run, 2 * n_exp * n_run):
     #     estimators.append(DictLearning(alpha=12, batch_size=20,
     #                                 compression_type=
     #                                 'subsample',
     #                                 random_state=random_state,
     #                                 forget_rate=1,
     #                                 reduction_ratio=0.2))
-    # for random_state in range(0, 30):
+    # for random_state in range(n_exp * n_run, 2 * n_exp * n_run):
     #     estimators.append(DictLearning(alpha=20, batch_size=20,
     #                                 compression_type=
     #                                 'range_finder',
@@ -741,21 +765,19 @@ if __name__ == '__main__':
     #                n_epochs=1,
     #                reference=reference)
     # print(output)
-    display_stability('/volatile/arthur/drago_output/2015-09-30_16-12-07',
-                      np.arange(30), [np.arange(30, 60), np.arange(60, 90),
-                                      np.arange(90, 120)])
-    # for alpha in [10, 20, 30, 40, 50, 60]:
-    #     estimators.append(DictLearning(alpha=alpha, batch_size=20,
-    #                                    random_state=0))
-    # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
-    # run_dict_learning_experiment(estimators, n_split=1, init='rsn70',
-    #                              n_epochs=1,
-    #                              dataset='hcp',
-    #                              reduction_ratio=0.25,
-    #                              compression_type='subsample',
-    #                              n_subjects=4,
-    #                              smoothing_fwhm=6.,
-    #                              n_jobs=6, parallel_exp=True,
-    #                              reference=reference)
+    # display_stability('/volatile/arthur/drago_output/2015-09-30_16-12-07',
+    #                   np.arange(30), [np.arange(30, 60), np.arange(60, 90),
+    #                                   np.arange(90, 120)])
+    for alpha in [5, 10, 15, 20]:
+        estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                                       random_state=0))
+    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    run_experiment(estimators, n_split=1, init='rsn70',
+                   n_epochs=1,
+                   dataset='hcp_reduced',
+                   n_subjects=4,
+                   smoothing_fwhm=6.,
+                   n_jobs=4, parallel_exp=True,
+                   reference=reference)
     time = time.time() - t0
     print('Total_time : %f s' % time)

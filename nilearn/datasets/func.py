@@ -1352,7 +1352,7 @@ def fetch_hcp_rest(data_dir, n_subjects=10):
     return Bunch(**res)
 
 
-def fetch_hcp_reduced(data_dir, n_subjects=40):
+def fetch_hcp_reduced(data_dir, n_subjects=36):
     filenames = []
     for i in range(n_subjects):
         filenames.append(os.path.join(data_dir, 'HCP_reduced',

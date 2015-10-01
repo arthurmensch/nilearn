@@ -190,18 +190,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.forget_rate = forget_rate
         self.power_iter = power_iter
 
-    def _dump_debug(self):
-        if hasattr(self, 'debug_info_'):
-            n_iter = len(self.debug_info_['residuals'])
-            # Debug infos
-            np.save(join(self.debug_folder, 'residual'),
-                    self.debug_info_['residuals'])
-            np.save(join(self.debug_folder, 'density'),
-                    self.debug_info_['density'])
-            np.save(join(self.debug_folder, 'values'),
-                    self.debug_info_['values'])
-            np.save(join(self.debug_folder, 'time'), self.time_)
-
     def _init_dict(self, imgs):
         if self.dict_init is None:
             canica = CanICA(n_components=self.n_components,
@@ -294,9 +282,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         data: ndarray,
             Shape (n_samples, n_features)
         """
-
-        debug = self.debug_folder is not None
-
         if not hasattr(self, 'time_'):
             self.time_ = np.zeros(2)
         if not hasattr(self, 'components_init_'):
@@ -347,7 +332,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 method='cd',
                 return_code=False,
                 dict_init=dict_init,
-                return_debug_info=debug,
+                return_debug_info=self.debug_folder is not None,
                 verbose=max(0, self.verbose - 1),
                 random_state=self.random_state,
                 return_inner_stats=True,
@@ -357,21 +342,25 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 n_jobs=1,
                 tol=0)
             self.time_[0] += time.time() - t0
-            if debug:
+            if self.debug_folder is not None:
                 (dictionary, inner_stats), debug_info = res
                 if not hasattr(self, 'debug_info_'):
                     self.debug_info_ = debug_info
                 else:
                     for key in self.debug_info_:
                         self.debug_info_[key] += debug_info[key]
-                self._dump_debug()
+                np.save(join(self.debug_folder, 'dictionary'), dictionary)
+                np.save(join(self.debug_folder, 'residuals'),
+                        self.debug_info_['residuals'])
+                np.save(join(self.debug_folder, 'density'),
+                        self.debug_info_['density'])
+                np.save(join(self.debug_folder, 'values'),
+                        self.debug_info_['values'])
+                np.save(join(self.debug_folder, 'time'), self.time_)
             else:
                 dictionary, inner_stats = res
             iter_offset += n_iter
             dict_init = dictionary
-
-        if self.debug_folder is not None:
-            np.save(join(self.debug_folder, 'dictionary'), dictionary)
 
         batches = gen_batches(n_features, in_core_batch_size)
         self.components_ = np.empty((self.n_components, n_features),
@@ -381,7 +370,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             self.components_[:, batch] = self._cache(sparse_encode,
                                                      func_memory_level=2,
                                                      ignore=['n_jobs'])(
-                np.asarray(data[:, batch].T, order='C'), dictionary, algorithm='lasso_cd',
+                np.asarray(data[:, batch].T, order='C'),
+                dictionary, algorithm='lasso_cd',
                 alpha=self.alpha, n_jobs=self.n_jobs, check_input=False).T
             self.time_[0] += time.time() - t0
 
