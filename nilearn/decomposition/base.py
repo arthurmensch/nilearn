@@ -345,6 +345,9 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
     timings = np.zeros(2)
     t0 = time.time()
     this_data = masker.transform(img, confound)
+
+    if this_data.shape[1] == 4:
+        print('WTF')
     timings[1] = time.time() - t0
     if parity == 0:
         if this_data.shape[0] % 2 == 1:

@@ -646,6 +646,7 @@ def display_figures(output):
 
 if __name__ == '__main__':
     # display_figures('/volatile/arthur/work/output/compare/2015-09-29_09-12-51')
+    exit(0)
     # for compression_type in ['range_finder', 'subsample']:
     #     for reduction_ratio in np.linspace(0.1, 1, 10):
     #         for alpha in np.linspace(2, 20, 10):
@@ -711,73 +712,73 @@ if __name__ == '__main__':
     #                                    random_state=random_state,
     #                                    forget_rate=1,
     #                                    reduction_ratio=1))
-    estimators.append(DictLearning(alpha=20, batch_size=20,
-                                   compression_type=
-                                   'none',
-                                   random_state=random_state,
-                                   forget_rate=1,
-                                   reduction_ratio=1))
-    estimators.append(SparsePCA(alpha=0.1, batch_size=20,
-                                compression_type=
-                                'none',
-                                random_state=random_state,
-                                forget_rate=1,
-                                reduction_ratio=1))
-    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
-    #
-    #
-    #
-    # n_exp = 10
-    # n_run = 1
-    # for random_state in range(0, n_exp * n_run):
-    #     estimators.append(DictLearning(alpha=20, batch_size=20,
-    #                                 compression_type=
-    #                                 'none',
-    #                                 random_state=random_state,
-    #                                 forget_rate=1,
-    #                                 reduction_ratio=1))
-    # for random_state in range(n_exp * n_run, 2 * n_exp * n_run):
-    #     estimators.append(DictLearning(alpha=20, batch_size=20,
-    #                                 compression_type=
-    #                                 'none',
-    #                                 random_state=random_state,
-    #                                 forget_rate=1,
-    #                                 reduction_ratio=1))
-    # for random_state in range(n_exp * n_run, 2 * n_exp * n_run):
-    #     estimators.append(DictLearning(alpha=12, batch_size=20,
-    #                                 compression_type=
-    #                                 'subsample',
-    #                                 random_state=random_state,
-    #                                 forget_rate=1,
-    #                                 reduction_ratio=0.2))
-    # for random_state in range(n_exp * n_run, 2 * n_exp * n_run):
-    #     estimators.append(DictLearning(alpha=20, batch_size=20,
-    #                                 compression_type=
-    #                                 'range_finder',
-    #                                 random_state=random_state,
-    #                                 forget_rate=1,
-    #                                 reduction_ratio=0.2))
+    # estimators.append(DictLearning(alpha=20, batch_size=20,
+    #                                compression_type=
+    #                                'none',
+    #                                random_state=random_state,
+    #                                forget_rate=1,
+    #                                reduction_ratio=1))
+    # estimators.append(SparsePCA(alpha=0.1, batch_size=20,
+    #                             compression_type=
+    #                             'none',
+    #                             random_state=random_state,
+    #                             forget_rate=1,
+    #                             reduction_ratio=1))
     # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
-    # output = run_experiment(estimators, n_split=1, n_jobs=15, dataset='adhd',
-    #                n_subjects=40,
-    #                smoothing_fwhm=6.,
-    #                init=os.path.expanduser('~/ica/canica_resting_state_20.nii.gz'),
-    #                n_epochs=1,
-    #                reference=reference)
-    # print(output)
+    # #
+    # #
+    # #
+    # # n_exp = 10
+    # # n_run = 1
+    # # for random_state in range(0, n_exp * n_run):
+    # #     estimators.append(DictLearning(alpha=20, batch_size=20,
+    # #                                 compression_type=
+    # #                                 'none',
+    # #                                 random_state=random_state,
+    # #                                 forget_rate=1,
+    # #                                 reduction_ratio=1))
+    # # for random_state in range(n_exp * n_run, 2 * n_exp * n_run):
+    # #     estimators.append(DictLearning(alpha=20, batch_size=20,
+    # #                                 compression_type=
+    # #                                 'none',
+    # #                                 random_state=random_state,
+    # #                                 forget_rate=1,
+    # #                                 reduction_ratio=1))
+    # # for random_state in range(n_exp * n_run, 2 * n_exp * n_run):
+    # #     estimators.append(DictLearning(alpha=12, batch_size=20,
+    # #                                 compression_type=
+    # #                                 'subsample',
+    # #                                 random_state=random_state,
+    # #                                 forget_rate=1,
+    # #                                 reduction_ratio=0.2))
+    # # for random_state in range(n_exp * n_run, 2 * n_exp * n_run):
+    # #     estimators.append(DictLearning(alpha=20, batch_size=20,
+    # #                                 compression_type=
+    # #                                 'range_finder',
+    # #                                 random_state=random_state,
+    # #                                 forget_rate=1,
+    # #                                 reduction_ratio=0.2))
+    # # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    # # output = run_experiment(estimators, n_split=1, n_jobs=15, dataset='adhd',
+    # #                n_subjects=40,
+    # #                smoothing_fwhm=6.,
+    # #                init=os.path.expanduser('~/ica/canica_resting_state_20.nii.gz'),
+    # #                n_epochs=1,
+    # #                reference=reference)
+    # # print(output)
     # display_stability('/volatile/arthur/drago_output/2015-09-30_16-12-07',
     #                   np.arange(30), [np.arange(30, 60), np.arange(60, 90),
     #                                   np.arange(90, 120)])
-    for alpha in [5, 10, 15, 20]:
-        estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                       random_state=0))
-    reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
-    run_experiment(estimators, n_split=1, init='rsn70',
-                   n_epochs=1,
-                   dataset='hcp_reduced',
-                   n_subjects=4,
-                   smoothing_fwhm=6.,
-                   n_jobs=4, parallel_exp=True,
-                   reference=reference)
-    time = time.time() - t0
-    print('Total_time : %f s' % time)
+    # for alpha in [5, 10, 15, 20]:
+    #     estimators.append(DictLearning(alpha=alpha, batch_size=20,
+    #                                    random_state=0))
+    # reference = np.ones(len(estimators), dtype='int') * (len(estimators) - 1)
+    # run_experiment(estimators, n_split=1, init='rsn70',
+    #                n_epochs=1,
+    #                dataset='hcp_reduced',
+    #                n_subjects=4,
+    #                smoothing_fwhm=6.,
+    #                n_jobs=4, parallel_exp=True,
+    #                reference=reference)
+    # time = time.time() - t0
+    # print('Total_time : %f s' % time)
