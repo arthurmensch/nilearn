@@ -279,15 +279,15 @@ def analyse(output_dir, n_jobs=1):
     time_v_corr.to_csv(join(results_dir, 'time_v_corr.csv'))
 
 
-def align_incr_single(masker, base_list, n_exp, index, sub_df):
-    target_list = masker.transform(sub_df['components'])
+def align_incr_single(masker, base_list, this_slice, n_exp, index, sub_df):
+    target_list = masker.transform(sub_df['components'][this_slice])
     base = np.concatenate(base_list[:(n_exp + 1)])
     target = np.concatenate(target_list[:(n_exp + 1)])
     aligned = _align_one_to_one_flat(base, target)
     return index, n_exp, np.trace(_spatial_correlation_flat(aligned, base)) / len(base)
 
 
-def analyse_incr(output_dir, n_jobs=1):
+def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
     results_dir = join(output_dir, 'stability')
     results = pd.read_csv(join(output_dir, 'results.csv'), index_col=0)
     results.set_index(['estimator_type', 'compression_type', 'reduction_ratio',
@@ -301,32 +301,41 @@ def analyse_incr(output_dir, n_jobs=1):
 
     mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
     masker = MultiNiftiMasker(mask_img=mask).fit()
-
-    base_list = masker.transform(results.loc[results['reference'], 'components'])
+    n_exp = results['reference'].sum()
 
     joined_results = results.join(time_v_corr, how='inner', rsuffix='_mean')
     joined_results.reset_index(inplace=True)
     joined_results.set_index(['estimator_type', 'compression_type', 'reduction_ratio',
                               'random_state'], inplace=True)
 
-    incr_df = pd.DataFrame(columns=np.arange(len(base_list)), index=joined_results.index)
-    res = Parallel(n_jobs=n_jobs, verbose=3)(delayed(align_incr_single)(masker, base_list, n_exp, index, sub_df)
-                                             for index, sub_df in joined_results.groupby(level=['estimator_type',
-                                                                                                'compression_type',
-                                                                                                'reduction_ratio'])
-                                             for n_exp in range(len(base_list)))
-    for index, n_exp, score in res:
-        incr_df.loc[index, n_exp] = score
-    incr_df = incr_df.groupby(level=['estimator_type', 'compression_type', 'reduction_ratio']).last()
-    time_v_corr.reset_index(inplace=True)
-    time_v_corr.set_index(['estimator_type', 'compression_type', 'reduction_ratio'], inplace=True)
-    stability = pd.concat({'score': time_v_corr, 'incr': incr_df}, axis=1)
-    stability.to_csv(join(results_dir, 'stability.csv'))
+    slices = gen_even_slices(n_exp, n_run_var)
+    incr_stability = []
+    for this_slice in slices:
+        base_list = masker.transform(results.loc[results['reference'], 'components'][this_slice])
+
+        this_incr_stability = pd.DataFrame(columns=np.arange(len(base_list)), index=joined_results.index)
+        res = Parallel(n_jobs=n_jobs, verbose=3)(delayed(align_incr_single)(masker, base_list, this_slice,
+                                                                            n_exp, index, sub_df)
+                                                 for index, sub_df in joined_results.groupby(level=['estimator_type',
+                                                                                                    'compression_type',
+                                                                                                    'reduction_ratio'])
+                                                 for n_exp in range(len(base_list)))
+        for index, n_exp, score in res:
+            this_incr_stability.loc[index, n_exp] = score
+        this_incr_stability = this_incr_stability.groupby(level=['estimator_type',
+                                                                 'compression_type',
+                                                                 'reduction_ratio']).last()
+        incr_stability.append(this_incr_stability)
+
+    incr_stability = pd.concat(incr_stability, axis=0, keys=np.arange(n_run_var), join='inner')
+
+    agg_incr_stability = incr_stability.groupby(level=['estimator_type',
+                                                       'compression_type',
+                                                       'reduction_ratio']).agg([np.mean, np.std])
+    agg_incr_stability.to_csv(join(results_dir, 'agg_incr_stability.csv'))
 
 
 estimators = []
-alpha_list = {'range_finder': [16, 16, 16, 16, 14],
-              'subsample': [10, 10, 10, 12, 14]}
 
 try:
     shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
@@ -337,10 +346,21 @@ try:
     shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
 except:
     pass
+#
+# alpha_list = {'range_finder': [16, 16, 16, 16, 14],
+#               'subsample': [10, 10, 10, 12, 14]}
+
+# for compression_type in ['range_finder', 'subsample']:
+#     for reduction_ratio, alpha in zip(np.linspace(0.2, 1, 5), alpha_list[compression_type]):
+#         estimators.append(DictLearning(alpha=alpha, batch_size=20,
+#                                        compression_type=compression_type,
+#                                        random_state=0,
+#                                        forget_rate=1,
+#                                        reduction_ratio=reduction_ratio))
 
 for compression_type in ['range_finder', 'subsample']:
-    for reduction_ratio in np.linspace(0.2, 1, 5):
-        for alpha in alpha_list[compression_type]:
+    for reduction_ratio in np.linspace(0.1, 1, 10):
+        for alpha in np.arange(6, 22, 2):
             estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                            compression_type=compression_type,
                                            random_state=0,
@@ -356,11 +376,11 @@ experiment = Experiment('adhd',
                         n_subjects=40,
                         smoothing_fwhm=6,
                         dict_init='rsn20',
-                        output_dir=expanduser('~/output'),
+                        output_dir=expanduser('~/output_volatile3'),
                         cache_dir=expanduser('~/nilearn_cache'),
                         data_dir=expanduser('~/data'),
                         n_slices=1,
-                        n_jobs=30,
+                        n_jobs=32,
                         exp_type='time_vs_corr',
                         n_epochs=1,
                         # Out of core dictionary learning specifics
@@ -373,6 +393,12 @@ experiment = Experiment('adhd',
                         n_exp=None,
                         n_runs=10)
 
+# def plot_time_v_corr(output_dir):
+#     results_dir = join(output_dir, 'stability')
+#     time_v_corr = pd.from_csv(join(results_dir, 'time_v_corr.csv', index_col=range(3)))
+
+
+
 output_dir = run(estimators, experiment)
-# analyse('/volatile/arthur/work/output/2015-10-05_12-48-04', n_jobs=10)
-# analyse_incr('/volatile/arthur/work/output/2015-10-05_12-48-04', n_jobs=10)
+# # analyse('/volatile/arthur/output_volatile3/2015-10-05_15-36-31', n_jobs=10)
+# analyse_incr('/volatile/arthur/output_volatile3/2015-10-05_15-36-31', n_jobs=10, n_run_var=3)
