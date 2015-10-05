@@ -19,6 +19,7 @@ from sklearn.base import clone
 import json
 from nilearn.input_data import NiftiMasker, MultiNiftiMasker
 
+
 Experiment = collections.namedtuple('Experiment',
                                     ['dataset_name',
                                      'n_subjects',
@@ -335,6 +336,46 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
     agg_incr_stability.to_csv(join(results_dir, 'agg_incr_stability.csv'))
 
 
+def plot_time_v_corr(output_dir):
+    import matplotlib.pyplot as plt
+
+    results_dir = join(output_dir, 'stability')
+    figures_dir = join(output_dir, 'figures')
+    if not exists(figures_dir):
+        os.mkdir(figures_dir)
+    time_v_corr = pd.read_csv(join(results_dir, 'time_v_corr.csv'), index_col=range(3))
+    ref_time = time_v_corr.loc[time_v_corr['reference'], 'math_time'][0]
+
+    plt.figure()
+    for index, sub_df in time_v_corr[time_v_corr['reference'] == False].groupby(level=['estimator_type',
+                                                                                       'compression_type']):
+        plt.plot(sub_df['math_time'] / ref_time, sub_df['score'],
+                 label=sub_df.index.get_level_values(1)[0], marker='o')
+    plt.legend(loc='lower right')
+    plt.ylabel('Baseline reproduction')
+    plt.xlabel('Time (relative to baseline)')
+    plt.savefig(join(figures_dir, 'corr.pdf'))
+
+    plt.figure()
+    for index, sub_df in time_v_corr[time_v_corr['reference'] == False].groupby(level=['estimator_type',
+                                                                                       'compression_type']):
+        plt.plot(sub_df.index.get_level_values(2), sub_df['score'],
+                 label=sub_df.index.get_level_values(1)[0], marker='o')
+    plt.legend(loc='lower right')
+    plt.ylabel('Baseline reproduction')
+    plt.xlabel('Reduction ratio')
+    plt.savefig(join(figures_dir, 'time_v__corr.pdf'))
+
+    plt.figure()
+    for index, sub_df in time_v_corr[time_v_corr['reference'] == False].groupby(level=['estimator_type',
+                                                                                       'compression_type']):
+        plt.plot(sub_df.index.get_level_values(2), sub_df['math_time'],
+                 label=sub_df.index.get_level_values(1)[0], marker='o')
+    plt.legend(loc='lower right')
+    plt.ylabel('Time')
+    plt.xlabel('Reduction ratio')
+    plt.savefig(join(figures_dir, 'time.pdf'))
+
 estimators = []
 
 try:
@@ -376,7 +417,7 @@ experiment = Experiment('adhd',
                         n_subjects=40,
                         smoothing_fwhm=6,
                         dict_init='rsn20',
-                        output_dir=expanduser('~/output_volatile3'),
+                        output_dir=expanduser('~/output'),
                         cache_dir=expanduser('~/nilearn_cache'),
                         data_dir=expanduser('~/data'),
                         n_slices=1,
@@ -393,12 +434,9 @@ experiment = Experiment('adhd',
                         n_exp=None,
                         n_runs=10)
 
-# def plot_time_v_corr(output_dir):
-#     results_dir = join(output_dir, 'stability')
-#     time_v_corr = pd.from_csv(join(results_dir, 'time_v_corr.csv', index_col=range(3)))
-
 
 
 output_dir = run(estimators, experiment)
-# # analyse('/volatile/arthur/output_volatile3/2015-10-05_15-36-31', n_jobs=10)
+# analyse('/volatile/arthur/output_volatile3/2015-10-05_15-36-31', n_jobs=10)
 # analyse_incr('/volatile/arthur/output_volatile3/2015-10-05_15-36-31', n_jobs=10, n_run_var=3)
+# plot_time_v_corr('/volatile/arthur/output_volatile3/2015-10-05_15-36-31')
