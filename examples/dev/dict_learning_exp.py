@@ -3,6 +3,7 @@ import os
 from os.path import expanduser, join, exists
 import itertools
 import datetime
+import shutil
 import warnings
 from joblib import Parallel, delayed
 from nilearn_sandbox._utils.map_alignment import _align_one_to_one_flat, \
@@ -47,7 +48,7 @@ def load_dataset(exp_params):
 
     if exp_params.dataset_name == 'adhd':
         dataset = datasets.fetch_adhd(n_subjects=
-                                            min(40, n_subjects)).func
+                                      min(40, n_subjects)).func
         mask = join(exp_params.data_dir, 'ADHD_mask', 'mask_img.nii.gz')
     elif exp_params.dataset_name == 'hcp':
         dataset = datasets.fetch_hcp_rest(n_subjects=n_subjects,
@@ -55,12 +56,11 @@ def load_dataset(exp_params):
         mask = join(exp_params.data_dir, 'HCP_mask', 'mask_img.nii.gz')
     elif exp_params.dataset_name == 'hcp_reduced':
         dataset = datasets.fetch_hcp_reduced(n_subjects=
-                                                   n_subjects,
-                                                   data_dir=data_dir).func
+                                             n_subjects,
+                                             data_dir=data_dir).func
         mask = join(exp_params.data_dir, 'HCP_mask', 'mask_img.nii.gz')
     else:
         raise ValueError("Dataset not supported")
-
 
     print('[Experiment] Computing global mask')
     smoothing_fwhm = exp_params.smoothing_fwhm
@@ -118,8 +118,8 @@ def check_init(exp_params):
         dict_init = smith.rsn20
         n_components = 20
     elif exists(exp_params.dict_init):
-            dict_init = exp_params.dict_init
-            n_components = check_niimg(exp_params.dict_init).get_shape()[3]
+        dict_init = exp_params.dict_init
+        n_components = check_niimg(exp_params.dict_init).get_shape()[3]
     else:
         raise ValueError('Init not supported')
     return dict_init, n_components
@@ -128,11 +128,12 @@ def check_init(exp_params):
 def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
     smoothing_fwhm = exp_params.smoothing_fwhm
     n_epochs = exp_params.n_epochs
-    exp_type = exp_params.exp_type
     n_runs = exp_params.n_runs
     cache_dir = exp_params.cache_dir
-    for estimator in estimators:
-        for random_state in range(n_runs):
+    for i, estimator in enumerate(estimators):
+        reference = (i == len(estimators) - 1)
+        offset = 100 if reference else 0
+        for random_state in offset + np.arange(n_runs):
             estimator = clone(estimator)
             estimator.set_params(mask=masker,
                                  smoothing_fwhm=smoothing_fwhm,
@@ -141,13 +142,12 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
                                  dict_init=dict_init,
                                  n_components=n_components,
                                  memory_level=2, memory=cache_dir,
-
                                  verbose=3,
                                  random_state=random_state)
-            yield estimator
+            yield estimator, (i == len(estimators) - 1)
 
 
-def single_run(index, estimator, dataset, output_dir):
+def single_run(index, estimator, dataset, output_dir, reference):
     exp_output = join(output_dir, "experiment_%i" % index)
     os.mkdir(exp_output)
     if type(estimator).__name__:
@@ -171,7 +171,8 @@ def single_run(index, estimator, dataset, output_dir):
                        # Columns
                        'components': components_filename,
                        'math_time': estimator.time_[0],
-                       'io_time': estimator.time_[1]
+                       'io_time': estimator.time_[1],
+                       'reference': reference
                        }
     print(single_run_dict)
     return single_run_dict
@@ -194,8 +195,9 @@ def run(estimators, exp_params):
 
     check_niimg(dict_init).to_filename(join(output_dir,
                                             'dict_init.nii.gz'))
-    full_dict_list = Parallel(n_jobs=exp_params.n_jobs)(delayed(single_run)(index, estimator, dataset, output_dir)
-                                                        for index, estimator in
+    full_dict_list = Parallel(n_jobs=exp_params.n_jobs)(delayed(single_run)(index, estimator, dataset, output_dir,
+                                                                            reference)
+                                                        for index, (estimator, reference) in
                                                         enumerate(yield_estimators(estimators,
                                                                                    exp_params,
                                                                                    masker,
@@ -207,7 +209,9 @@ def run(estimators, exp_params):
                                                     'alpha',
                                                     'random_state',
                                                     'math_time', 'io_time',
+                                                    'reference',
                                                     'components'])
+
     results.sort_index(by=['estimator_type',
                            'compression_type',
                            'reduction_ratio',
@@ -215,15 +219,20 @@ def run(estimators, exp_params):
                            'random_state'], inplace=True)
     results.to_csv(join(output_dir, 'results.csv'))
     copy_img(masker.mask_img_).to_filename(join(output_dir,
-                                           'mask_img.nii.gz'))
+                                                'mask_img.nii.gz'))
     return output_dir
 
 
-def analyse_inc(output_dir):
-    return
+def align_single(masker, stack_base, results_dir, exp_int_index, index, sub_df):
+    stack_target = np.concatenate(masker.transform(sub_df['components']))
+    aligned = _align_one_to_one_flat(stack_base, stack_target)
+    filename = join(results_dir, 'aligned_%i.nii.gz' % exp_int_index)
+    masker.inverse_transform(aligned).to_filename(filename)
+    corr = _spatial_correlation_flat(aligned, stack_base)
+    return index, np.mean(corr.diagonal()), filename
 
 
-def analyse(output_dir):
+def analyse(output_dir, n_jobs=1):
     results_dir = join(output_dir, 'stability')
     if not exists(results_dir):
         os.mkdir(results_dir)
@@ -238,59 +247,113 @@ def analyse(output_dir):
                        'alpha', 'random_state'], inplace=True)
     print('[Experiment] Performing Hungarian alg. and computing correlation score')
 
-    base_index = results.reset_index('random_state').index[-1]
-    stack_base = np.concatenate(masker.transform(results.loc[base_index, 'components']))
+    stack_base = np.concatenate(masker.transform(results.loc[results['reference'], 'components']))
     masker.inverse_transform(stack_base).to_filename(join(results_dir, 'base.nii.gz'))
-
-    for i, (index, sub_df) in enumerate(results.groupby(level=['estimator_type',
-                                                               'compression_type',
-                                                               'reduction_ratio',
-                                                               'alpha'])):
-        stack_target = np.concatenate(masker.transform(sub_df['components']))
-        aligned = _align_one_to_one_flat(stack_base, stack_target)
-        filename = join(results_dir, 'aligned_%i.nii.gz' % i)
-        masker.inverse_transform(aligned).to_filename(filename)
-        corr = _spatial_correlation_flat(aligned, stack_base)
-        results.loc[index, 'score'] = np.mean(corr.diagonal())
-        results.loc[index, 'aligned_filename'] = filename
+    res_list = Parallel(n_jobs=n_jobs, verbose=3)(
+        delayed(align_single)(masker, stack_base, results_dir, exp_int_index, index, sub_df)
+        for exp_int_index, (index, sub_df) in enumerate(results.groupby(
+            level=['estimator_type', 'compression_type', 'reduction_ratio', 'alpha'])))
+    for index, score, aligned_filename in res_list:
+        results.loc[index, 'score'] = score
+        results.loc[index, 'aligned_filename'] = aligned_filename
 
     time_v_corr = results.drop('components', axis='columns')
     time_v_corr.reset_index(level='random_state', drop=True, inplace=True)
 
     # Selection best scoring alpha for each parameter set
     indices = time_v_corr.groupby(level=['estimator_type',
-                                 'compression_type',
-                                 'reduction_ratio']).apply(lambda x : x['score'].idxmax())
+                                         'compression_type',
+                                         'reduction_ratio']).apply(lambda x: x['score'].idxmax())
     time_v_corr = time_v_corr.loc[indices]
-
+    time_v_corr.reset_index(level='alpha', drop=False, inplace=True)
     # Mean over random_state
     time_v_corr = time_v_corr.groupby(level=['estimator_type',
-                                 'compression_type',
-                                 'reduction_ratio']).mean()
+                                             'compression_type',
+                                             'reduction_ratio']).agg({'math_time': np.mean,
+                                                                      'io_time': np.mean,
+                                                                      'alpha': 'last',
+                                                                      'reference': 'last',
+                                                                      'aligned_filename': 'last',
+                                                                      'score': 'last'})
 
-    time_v_corr['filename'] = filename
     time_v_corr.to_csv(join(results_dir, 'time_v_corr.csv'))
 
 
+def align_incr_single(masker, base_list, n_exp, index, sub_df):
+    target_list = masker.transform(sub_df['components'])
+    base = np.concatenate(base_list[:(n_exp + 1)])
+    target = np.concatenate(target_list[:(n_exp + 1)])
+    aligned = _align_one_to_one_flat(base, target)
+    return index, n_exp, np.trace(_spatial_correlation_flat(aligned, base)) / len(base)
+
+
+def analyse_incr(output_dir, n_jobs=1):
+    results_dir = join(output_dir, 'stability')
+    results = pd.read_csv(join(output_dir, 'results.csv'), index_col=0)
+    results.set_index(['estimator_type', 'compression_type', 'reduction_ratio',
+                       'alpha', 'random_state'], inplace=True)
+    results.reset_index(inplace=True)
+    results.set_index(['estimator_type', 'compression_type', 'reduction_ratio', 'alpha'], inplace=True)
+
+    time_v_corr = pd.read_csv(join(results_dir, 'time_v_corr.csv'), index_col=0)
+    time_v_corr.reset_index(inplace=True)
+    time_v_corr.set_index(['estimator_type', 'compression_type', 'reduction_ratio', 'alpha'], inplace=True)
+
+    mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
+    masker = MultiNiftiMasker(mask_img=mask).fit()
+
+    base_list = masker.transform(results.loc[results['reference'], 'components'])
+
+    joined_results = results.join(time_v_corr, how='inner', rsuffix='_mean')
+    joined_results.reset_index(inplace=True)
+    joined_results.set_index(['estimator_type', 'compression_type', 'reduction_ratio',
+                              'random_state'], inplace=True)
+
+    incr_df = pd.DataFrame(columns=np.arange(len(base_list)), index=joined_results.index)
+    res = Parallel(n_jobs=n_jobs, verbose=3)(delayed(align_incr_single)(masker, base_list, n_exp, index, sub_df)
+                                             for index, sub_df in joined_results.groupby(level=['estimator_type',
+                                                                                                'compression_type',
+                                                                                                'reduction_ratio'])
+                                             for n_exp in range(len(base_list)))
+    for index, n_exp, score in res:
+        incr_df.loc[index, n_exp] = score
+    incr_df = incr_df.groupby(level=['estimator_type', 'compression_type', 'reduction_ratio']).last()
+    time_v_corr.reset_index(inplace=True)
+    time_v_corr.set_index(['estimator_type', 'compression_type', 'reduction_ratio'], inplace=True)
+    stability = pd.concat({'score': time_v_corr, 'incr': incr_df}, axis=1)
+    stability.to_csv(join(results_dir, 'stability.csv'))
+
 
 estimators = []
-for compression_type in ['subsample', 'range_finder']:
+alpha_list = {'range_finder': [16, 16, 16, 16, 14],
+              'subsample': [10, 10, 10, 12, 14]}
+
+shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
+shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
+
+for compression_type in ['range_finder', 'subsample']:
     for reduction_ratio in np.linspace(0.2, 1, 5):
-        for alpha in np.linspace(10, 20, 6):
+        for alpha in alpha_list[compression_type]:
             estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                        compression_type=compression_type,
-                                        random_state=0,
-                                        forget_rate=1,
-                                        reduction_ratio=reduction_ratio))
+                                           compression_type=compression_type,
+                                           random_state=0,
+                                           forget_rate=1,
+                                           reduction_ratio=reduction_ratio))
+# Baseline
+estimators.append(DictLearning(alpha=20, batch_size=20,
+                               compression_type='none',
+                               random_state=0,
+                               forget_rate=1,
+                               reduction_ratio=1))
 experiment = Experiment('adhd',
                         n_subjects=40,
-                        smoothing_fwhm=4,
+                        smoothing_fwhm=6,
                         dict_init='rsn20',
-                        output_dir=expanduser('~/output'),
+                        output_dir=expanduser('~/output_volatile3'),
                         cache_dir=expanduser('~/nilearn_cache'),
                         data_dir=expanduser('~/data'),
                         n_slices=1,
-                        n_jobs=16,
+                        n_jobs=30,
                         exp_type='time_vs_corr',
                         n_epochs=1,
                         # Out of core dictionary learning specifics
@@ -301,7 +364,8 @@ experiment = Experiment('adhd',
                         subject_limits=None,
                         # Stability specific
                         n_exp=None,
-                        n_runs=3)
+                        n_runs=10)
 
-# output_dir = run(estimators, experiment)
-analyse('/volatile/arthur/work/output/2015-10-02_14-52-07')
+output_dir = run(estimators, experiment)
+# analyse('/volatile/arthur/work/output/2015-10-05_12-48-04', n_jobs=10)
+# analyse_incr('/volatile/arthur/work/output/2015-10-05_12-48-04', n_jobs=10)
