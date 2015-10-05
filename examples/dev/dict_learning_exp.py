@@ -270,8 +270,8 @@ def analyse(output_dir, n_jobs=1):
     # Mean over random_state
     time_v_corr = time_v_corr.groupby(level=['estimator_type',
                                              'compression_type',
-                                             'reduction_ratio']).agg({'math_time': np.mean,
-                                                                      'io_time': np.mean,
+                                             'reduction_ratio']).agg({'math_time': [np.mean, np.std],
+                                                                      'io_time': [np.mean, np.std],
                                                                       'alpha': 'last',
                                                                       'reference': 'last',
                                                                       'aligned_filename': 'last',
@@ -294,11 +294,11 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
     results.set_index(['estimator_type', 'compression_type', 'reduction_ratio',
                        'alpha', 'random_state'], inplace=True)
     results.reset_index(inplace=True)
-    results.set_index(['estimator_type', 'compression_type', 'reduction_ratio', 'alpha'], inplace=True)
+    results.set_index(['estimator_type', 'compression_type', 'reduction_ratio'], inplace=True)
 
-    time_v_corr = pd.read_csv(join(results_dir, 'time_v_corr.csv'), index_col=0)
-    time_v_corr.reset_index(inplace=True)
-    time_v_corr.set_index(['estimator_type', 'compression_type', 'reduction_ratio', 'alpha'], inplace=True)
+    time_v_corr = pd.read_csv(join(results_dir, 'time_v_corr.csv'), index_col=range(3), header=[0, 1])
+    # time_v_corr.reset_index(inplace=True)
+    # time_v_corr.set_index(['estimator_type', 'compression_type', 'reduction_ratio', 'alpha'], inplace=True)
 
     mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
     masker = MultiNiftiMasker(mask_img=mask).fit()
@@ -329,11 +329,13 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
         incr_stability.append(this_incr_stability)
 
     incr_stability = pd.concat(incr_stability, axis=0, keys=np.arange(n_run_var), join='inner')
-
     agg_incr_stability = incr_stability.groupby(level=['estimator_type',
                                                        'compression_type',
                                                        'reduction_ratio']).agg([np.mean, np.std])
     agg_incr_stability.to_csv(join(results_dir, 'agg_incr_stability.csv'))
+    full = pd.concat([time_v_corr, agg_incr_stability], axis=1)
+
+    full.to_csv(join(results_dir, 'full.csv'))
 
 
 def plot_time_v_corr(output_dir):
@@ -343,7 +345,7 @@ def plot_time_v_corr(output_dir):
     figures_dir = join(output_dir, 'figures')
     if not exists(figures_dir):
         os.mkdir(figures_dir)
-    time_v_corr = pd.read_csv(join(results_dir, 'time_v_corr.csv'), index_col=range(3))
+    time_v_corr = pd.read_csv(join(results_dir, 'time_v_corr.csv'), index_col=range(3), header=[0, 1])
     ref_time = time_v_corr.loc[time_v_corr['reference'], 'math_time'][0]
 
     plt.figure()
@@ -375,6 +377,87 @@ def plot_time_v_corr(output_dir):
     plt.ylabel('Time')
     plt.xlabel('Reduction ratio')
     plt.savefig(join(figures_dir, 'time.pdf'))
+
+
+def plot_incr(output_dir):
+    import matplotlib.pyplot as plt
+
+    results_dir = join(output_dir, 'stability')
+    figures_dir = join(output_dir, 'figures')
+    if not exists(figures_dir):
+        os.mkdir(figures_dir)
+    time_v_corr = pd.read_csv(join(results_dir, 'full.csv'), index_col=range(3), header=[0, 1])
+
+    n_exp = int(time_v_corr.columns.get_level_values(0)[-1])
+    idx = pd.IndexSlice
+    time_v_corr = pd.concat([time_v_corr.loc[idx[:, :, 0.2], :], time_v_corr.loc[idx[:, 'subsample', 1], :]],
+                            axis=0)
+    plt.figure()
+    # Ultra ugly
+    for index, sub_df in time_v_corr.groupby(level=['estimator_type', 'compression_type', 'reduction_ratio']):
+        mean_score = sub_df[[(str(i), 'mean') for i in np.arange(n_exp + 1)]].T
+        mean_score.reset_index(inplace=True, drop=True)
+        std_score = sub_df[[(str(i), 'std') for i in np.arange(n_exp+1)]].T
+        std_score.reset_index(inplace=True, drop=True)
+        plot = plt.plot(np.arange(n_exp+1), mean_score, label='%s %s' % (mean_score.columns.get_level_values(1)[0],
+                                                                         mean_score.columns.get_level_values(2)[0]))
+        plt.fill_between(np.arange(n_exp+1), (mean_score + std_score).iloc[:, 0],
+                         (mean_score - std_score).iloc[:, 0], alpha=0.3,
+                        color=plot[0].get_color())
+    plt.legend()
+    plt.xlabel('Number of experiments')
+    plt.ylabel('Baseline reproduction')
+    plt.savefig(join(figures_dir, 'incr_stability.pdf'))
+
+def plot_full(output_dir):
+    import matplotlib.pyplot as plt
+
+    results_dir = join(output_dir, 'stability')
+    figures_dir = join(output_dir, 'figures')
+    if not exists(figures_dir):
+        os.mkdir(figures_dir)
+    time_v_corr = pd.read_csv(join(results_dir, 'full.csv'), index_col=range(3), header=[0, 1])
+    n_exp = int(time_v_corr.columns.get_level_values(0)[-1])
+    time_key = str(n_exp)
+
+    ref_time = time_v_corr.loc[time_v_corr[('reference', 'last')], ('math_time', 'mean')][0]
+
+    fig = []
+    for i in range(3):
+        fig.append(plt.figure())
+    for index, sub_df in time_v_corr[time_v_corr[('reference', 'last')] == False].groupby(level=['estimator_type',
+                                                                                                 'compression_type']):
+        plt.figure(fig[0].number)
+        plt.errorbar(sub_df[('math_time', 'mean')] / ref_time, sub_df[(time_key, 'mean')],
+                        yerr=sub_df[(time_key, 'std')],
+                        label=sub_df.index.get_level_values(1)[0], xerr=sub_df[('math_time', 'std')] / ref_time, marker='o')
+        plt.figure(fig[1].number)
+
+        plt.errorbar(sub_df.index.get_level_values(2), sub_df[(time_key, 'mean')],
+                        yerr=sub_df[(time_key, 'std')],
+                        label=sub_df.index.get_level_values(1)[0], marker='o')
+        plt.figure(fig[2].number)
+
+        plt.errorbar(sub_df.index.get_level_values(2), sub_df[('math_time', 'mean')],
+                        yerr=sub_df[('math_time', 'std')],
+                        label=sub_df.index.get_level_values(1)[0], marker='o')
+    plt.figure(fig[0].number)
+    plt.legend(loc='lower right')
+    plt.ylabel('Baseline reproduction')
+    plt.xlabel('Time (relative to baseline)')
+    plt.savefig(join(figures_dir, 'time_v_corr.pdf'))
+
+    plt.figure(fig[1].number)
+    plt.legend(loc='lower right')
+    plt.ylabel('Time')
+    plt.xlabel('Reduction ratio')
+    plt.savefig(join(figures_dir, 'time.pdf'))
+
+    plt.figure(fig[2].number)
+    plt.legend(loc='lower right')
+    plt.ylabel('Baseline reproduction')
+    plt.xlabel('Reduction ratio')
+    plt.savefig(join(figures_dir, 'corr.pdf'))
 
 estimators = []
 
@@ -436,7 +519,8 @@ experiment = Experiment('adhd',
 
 
 
-output_dir = run(estimators, experiment)
+# output_dir = run(estimators, experiment)
 # analyse('/volatile/arthur/output_volatile3/2015-10-05_15-36-31', n_jobs=10)
 # analyse_incr('/volatile/arthur/output_volatile3/2015-10-05_15-36-31', n_jobs=10, n_run_var=3)
 # plot_time_v_corr('/volatile/arthur/output_volatile3/2015-10-05_15-36-31')
+plot_incr('/volatile/arthur/output_volatile3/2015-10-05_15-36-31')
