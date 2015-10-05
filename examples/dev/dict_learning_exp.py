@@ -328,8 +328,15 @@ estimators = []
 alpha_list = {'range_finder': [16, 16, 16, 16, 14],
               'subsample': [10, 10, 10, 12, 14]}
 
-shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
-shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
+try:
+    shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
+except:
+    pass
+
+try:
+    shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
+except:
+    pass
 
 for compression_type in ['range_finder', 'subsample']:
     for reduction_ratio in np.linspace(0.2, 1, 5):
