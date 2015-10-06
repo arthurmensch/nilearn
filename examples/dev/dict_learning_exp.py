@@ -468,35 +468,35 @@ def plot_full(output_dir):
 
 estimators = []
 
-# try:
-#     shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
-# except:
-#     pass
-#
-# try:
-#     shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
-# except:
-#     pass
-#
-# alpha_list = {'range_finder': [16, 16, 16, 16, 14],
-#               'subsample': [10, 10, 10, 12, 14]}
+try:
+    shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
+except:
+    pass
 
-# for compression_type in ['range_finder', 'subsample']:
-#     for reduction_ratio, alpha in zip(np.linspace(0.2, 1, 5), alpha_list[compression_type]):
-#         estimators.append(DictLearning(alpha=alpha, batch_size=20,
-#                                        compression_type=compression_type,
-#                                        random_state=0,
-#                                        forget_rate=1,
-#                                        reduction_ratio=reduction_ratio))
+try:
+    shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
+except:
+    pass
+#
+alpha_list = {'range_finder': [18, 18, 16, 16, 18, 14, 18, 18, 18, 14],
+              'subsample': [6, 8, 10, 12, 14, 12, 12, 16, 16, 16]}
 
 for compression_type in ['range_finder', 'subsample']:
-    for reduction_ratio in np.linspace(0.1, 1, 10):
-        for alpha in np.arange(6, 22, 2):
-            estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                           compression_type=compression_type,
-                                           random_state=0,
-                                           forget_rate=1,
-                                           reduction_ratio=reduction_ratio))
+    for reduction_ratio, alpha in zip(np.linspace(0.1, 1, 10), alpha_list[compression_type]):
+        estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                                       compression_type=compression_type,
+                                       random_state=0,
+                                       forget_rate=1,
+                                       reduction_ratio=reduction_ratio))
+
+# for compression_type in ['range_finder', 'subsample']:
+#     for reduction_ratio in np.linspace(0.1, 1, 10):
+#         for alpha in np.arange(6, 22, 2):
+#             estimators.append(DictLearning(alpha=alpha, batch_size=20,
+#                                            compression_type=compression_type,
+#                                            random_state=0,
+#                                            forget_rate=1,
+#                                            reduction_ratio=reduction_ratio))
 # Baseline
 estimators.append(DictLearning(alpha=20, batch_size=20,
                                compression_type='none',
@@ -511,7 +511,7 @@ experiment = Experiment('adhd',
                         cache_dir=expanduser('~/nilearn_cache'),
                         data_dir=expanduser('~/data'),
                         n_slices=1,
-                        n_jobs=32,
+                        n_jobs=20,
                         exp_type='time_vs_corr',
                         n_epochs=1,
                         # Out of core dictionary learning specifics
@@ -522,13 +522,13 @@ experiment = Experiment('adhd',
                         subject_limits=None,
                         # Stability specific
                         n_exp=None,
-                        n_runs=10)
+                        n_runs=30)
 
 
 #
-# # output_dir = run(estimators, experiment)
-analyse(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32)
+# output_dir = run(estimators, experiment)
+# analyse(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32)
 # analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=1, n_run_var=3)
-analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
-# plot_full(expanduser('~/drago_exp'))
-# plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
+# analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
+plot_full(expanduser('~/output/2015-10-05_17-18-18'))
+plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
