@@ -312,6 +312,7 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
     slices = gen_even_slices(n_exp, n_run_var)
     incr_stability = []
     for this_slice in slices:
+        # base_list = np.arange(3)
         base_list = masker.transform(results.loc[results['reference'], 'components'][this_slice])
 
         this_incr_stability = pd.DataFrame(columns=np.arange(len(base_list)), index=joined_results.index)
@@ -329,6 +330,7 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
         incr_stability.append(this_incr_stability)
 
     incr_stability = pd.concat(incr_stability, axis=0, keys=np.arange(n_run_var), join='inner')
+
     agg_incr_stability = incr_stability.groupby(level=['estimator_type',
                                                        'compression_type',
                                                        'reduction_ratio']).agg([np.mean, np.std])
