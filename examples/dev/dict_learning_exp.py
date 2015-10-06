@@ -475,10 +475,8 @@ def plot_full(output_dir):
     plt.xlabel('Reduction ratio')
     plt.savefig(join(figures_dir, 'time.pdf'))
 
-estimators = []
-
-alpha_list = {'range_finder': [18, 18, 16, 16, 18, 14, 18, 18, 18, 14],
-              'subsample': [6, 8, 10, 12, 14, 12, 12, 16, 16, 16]}
+# alpha_list = {'range_finder': [18, 18, 16, 16, 18, 14, 18, 18, 18, 14],
+#               'subsample': [6, 8, 10, 12, 14, 12, 12, 16, 16, 16]}
 
 # for compression_type in ['range_finder', 'subsample']:
 #     for reduction_ratio, alpha in zip(np.linspace(0.1, 1, 10), alpha_list[compression_type]):
@@ -497,11 +495,11 @@ alpha_list = {'range_finder': [18, 18, 16, 16, 18, 14, 18, 18, 18, 14],
 #                                            forget_rate=1,
 #                                            reduction_ratio=reduction_ratio))
 # Baseline
-estimators.append(DictLearning(alpha=20, batch_size=20,
-                               compression_type='none',
-                               random_state=0,
-                               forget_rate=1,
-                               reduction_ratio=1))
+# estimators.append(DictLearning(alpha=20, batch_size=20,
+#                                compression_type='none',
+#                                random_state=0,
+#                                forget_rate=1,
+#                                reduction_ratio=1))
 # experiment = Experiment('adhd',
 #                         n_subjects=40,
 #                         smoothing_fwhm=6,
@@ -532,6 +530,7 @@ experiment = Experiment('hcp_reduced',
                         data_dir=expanduser('~/data'),
                         n_slices=1,
                         n_jobs=2,
+                        exp_type='time_vs_corr',
                         n_epochs=1,
                         # Out of core dictionary learning specifics
                         temp_dir=expanduser('~/temp'),
@@ -543,6 +542,7 @@ experiment = Experiment('hcp_reduced',
                         n_exp=None,
                         n_runs=1)
 
+estimators = []
 for alpha in [10, 20, 30, 40, 50]:
     estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                    compression_type='none',
