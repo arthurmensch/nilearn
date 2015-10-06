@@ -534,11 +534,12 @@ try:
 except:
     pass
 
-output_dir = run(estimators, experiment)
+# output_dir = run(estimators, experiment)
+output_dir = expanduser('~/output/2015-10-05_15-31-02')
 analyse(output_dir, n_jobs=32)
 analyse_incr(output_dir, n_jobs=32, n_run_var=5)
-plot_full(output_dir)
-plot_incr(output_dir)
+# plot_full(output_dir)
+# plot_incr(output_dir)
 # analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=1)
 # analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
 # plot_full(expanduser('~/output/test/2015-10-05_17-18-18'))
