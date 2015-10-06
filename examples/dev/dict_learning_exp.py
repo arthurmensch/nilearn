@@ -281,7 +281,6 @@ def analyse(output_dir, n_jobs=1):
 
 
 def align_incr_single(masker, base_list, this_slice, n_exp, index, sub_df):
-    return index, n_exp, 0
     target_list = masker.transform(sub_df['components'][this_slice])
     base = np.concatenate(base_list[:(n_exp + 1)])
     target = np.concatenate(target_list[:(n_exp + 1)])
@@ -313,8 +312,7 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
     slices = gen_even_slices(n_exp, n_run_var)
     incr_stability = []
     for this_slice in slices:
-        base_list = np.arange(10)[this_slice]
-        # base_list = masker.transform(results.loc[results['reference'], 'components'][this_slice])
+        base_list = masker.transform(results.loc[results['reference'], 'components'][this_slice])
 
         this_incr_stability = pd.DataFrame(columns=np.arange(len(base_list)), index=joined_results.index)
         res = Parallel(n_jobs=n_jobs, verbose=3)(delayed(align_incr_single)(masker, base_list, this_slice,
@@ -424,6 +422,7 @@ def plot_full(output_dir):
     if not exists(figures_dir):
         os.mkdir(figures_dir)
     time_v_corr = pd.read_csv(join(results_dir, 'full.csv'), index_col=range(3), header=[0, 1])
+    time.v_corr.rename(columns=lambda x: int(x), inplace=True)
     n_exp = int(time_v_corr.columns.get_level_values(0)[-1])
     time_key = str(n_exp)
 
@@ -526,9 +525,9 @@ experiment = Experiment('adhd',
 
 
 #
-output_dir = run(estimators, experiment)
-analyse(expanduser(output_dir, n_jobs=32)
-analyse_incr(output_dir, n_jobs=32, n_run_var=3)
+# output_dir = run(estimators, experiment)
+# analyse(expanduser(output_dir, n_jobs=32)
+# analyse_incr(output_dir, n_jobs=32, n_run_var=3)
 # analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
 plot_full(expanduser('~/output/2015-10-05_17-18-18'))
 plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
