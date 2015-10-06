@@ -461,15 +461,15 @@ def plot_full(output_dir):
 
 estimators = []
 
-try:
-    shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
-except:
-    pass
-
-try:
-    shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
-except:
-    pass
+# try:
+#     shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
+# except:
+#     pass
+#
+# try:
+#     shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
+# except:
+#     pass
 #
 # alpha_list = {'range_finder': [16, 16, 16, 16, 14],
 #               'subsample': [10, 10, 10, 12, 14]}
