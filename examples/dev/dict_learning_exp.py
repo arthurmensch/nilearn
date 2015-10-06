@@ -523,6 +523,26 @@ experiment = Experiment('adhd',
                         n_exp=None,
                         n_runs=30)
 
+# experiment = Experiment('hcp_reduced',
+#                         n_subjects=75,
+#                         smoothing_fwhm=6,
+#                         dict_init='rsn70',
+#                         output_dir=expanduser('~/output'),
+#                         cache_dir=expanduser('~/nilearn_cache'),
+#                         data_dir=expanduser('~/data'),
+#                         n_slices=1,
+#                         n_jobs=32,
+#                         n_epochs=1,
+#                         # Out of core dictionary learning specifics
+#                         temp_dir=expanduser('~/temp'),
+#                         reduction_ratio=None,
+#                         compression_type=None,
+#                         data=None,
+#                         subject_limits=None,
+#                         # Stability specific
+#                         n_exp=None,
+#                         n_runs=30)
+
 
 
 # try:
@@ -536,7 +556,7 @@ experiment = Experiment('adhd',
 #     pass
 
 # output_dir = run(estimators, experiment)
-output_dir = expanduser('2015-10-06_13-04-14')
+output_dir = expanduser('~/output/2015-10-06_13-04-14')
 analyse(output_dir, n_jobs=32)
 analyse_incr(output_dir, n_jobs=32, n_run_var=5)
 # plot_full(output_dir)
