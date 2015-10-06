@@ -6,6 +6,7 @@ import warnings
 from joblib import Parallel, delayed
 from nilearn_sandbox._utils.map_alignment import _align_one_to_one_flat, \
     _spatial_correlation_flat
+import shutil
 from sklearn.utils import gen_even_slices
 from nilearn._utils import check_niimg, copy_img
 from nilearn.decomposition import SparsePCA, DictLearning
@@ -394,7 +395,7 @@ def plot_incr(output_dir):
 
     n_exp = int(time_v_corr.columns.get_level_values(0)[-1])
     idx = pd.IndexSlice
-    time_v_corr = pd.concat([time_v_corr.loc[idx[:, :, 0.2], :], time_v_corr.loc[idx[:, 'subsample', 1], :]],
+    time_v_corr = pd.concat([time_v_corr.loc[idx[:, :, 0.1], :], time_v_corr.loc[idx[:, 'subsample', 1], :]],
                             axis=0)
     plt.figure()
     # Ultra ugly
@@ -432,17 +433,20 @@ def plot_full(output_dir):
     n_exp = time_v_corr.columns.get_level_values(0)[-1]
 
     ref_time = time_v_corr.loc[time_v_corr[('reference', 'last')], ('math_time', 'mean')][0]
-
+    ref_reproduction = time_v_corr.loc[('DictLearning', 'subsample', 1.), ('score', 'last')]
     fig = []
     for i in range(3):
         fig.append(plt.figure())
     for index, sub_df in time_v_corr[time_v_corr[('reference', 'last')] == False].groupby(level=['estimator_type',
                                                                                                  'compression_type']):
-        plt.figure(fig[0].number)
-        plt.errorbar(sub_df[('math_time', 'mean')] / ref_time, sub_df[(n_exp, 'mean')],
-                     yerr=sub_df[(n_exp, 'std')],
+        plt.figure(fig[0].number, axis='square')
+        plt.errorbar(sub_df[('math_time', 'mean')] / ref_time, sub_df[('score', 'last')] / ref_reproduction,
+                     # yerr=sub_df[(n_exp, 'std')],
                      label=sub_df.index.get_level_values(1)[0], xerr=sub_df[('math_time', 'std')] / ref_time,
                      marker='o')
+        plt.plot(np.linspace(0, 1.1, 10), np.linspace(0, 1.1, 10), '--', color='black')
+        plt.xlim([0.2, 1.1])
+        plt.ylim([0.5, 1.1])
         plt.figure(fig[1].number)
 
         plot_with_error(sub_df.index.get_level_values(2), sub_df[(n_exp, 'mean')],
@@ -473,16 +477,6 @@ def plot_full(output_dir):
 
 estimators = []
 
-# try:
-#     shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
-# except:
-#     pass
-#
-# try:
-#     shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
-# except:
-#     pass
-#
 alpha_list = {'range_finder': [18, 18, 16, 16, 18, 14, 18, 18, 18, 14],
               'subsample': [6, 8, 10, 12, 14, 12, 12, 16, 16, 16]}
 
@@ -530,10 +524,22 @@ experiment = Experiment('adhd',
                         n_runs=30)
 
 
-#
-# output_dir = run(estimators, experiment)
-# analyse(expanduser(output_dir, n_jobs=32)
-analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=1)
+try:
+    shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
+except:
+    pass
+
+try:
+    shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
+except:
+    pass
+
+output_dir = run(estimators, experiment)
+analyse(output_dir, n_jobs=32)
+analyse_incr(output_dir, n_jobs=32, n_run_var=5)
+plot_full(output_dir)
+plot_incr(output_dir)
+# analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=1)
 # analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
-plot_full(expanduser('~/output/2015-10-05_17-18-18'))
-plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
+# plot_full(expanduser('~/output/test/2015-10-05_17-18-18'))
+# plot_incr(expanduser('~/output/test/2015-10-05_17-18-18'))
