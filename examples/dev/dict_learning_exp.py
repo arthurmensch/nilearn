@@ -404,7 +404,7 @@ def plot_incr(output_dir):
         std_score = sub_df[[(str(i), 'std') for i in np.arange(n_exp + 1)]]
         label = '%s %s' % (mean_score.index.get_level_values(1)[0], mean_score.index.get_level_values(2)[0])
         plot_with_error(np.arange(mean_score.shape[1]), mean_score.values[0], yerr=std_score.values[0], label=label)
-    plt.legend()
+    plt.legend(loc='lower right')
     plt.xlabel('Number of experiments')
     plt.ylabel('Baseline reproduction')
     plt.savefig(join(figures_dir, 'incr_stability.pdf'))
@@ -524,18 +524,19 @@ experiment = Experiment('adhd',
                         n_runs=30)
 
 
-try:
-    shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
-except:
-    pass
 
-try:
-    shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
-except:
-    pass
+# try:
+#     shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
+# except:
+#     pass
+#
+# try:
+#     shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
+# except:
+#     pass
 
 # output_dir = run(estimators, experiment)
-output_dir = expanduser('~/output/2015-10-05_15-31-02')
+output_dir = expanduser('2015-10-06_13-04-14')
 analyse(output_dir, n_jobs=32)
 analyse_incr(output_dir, n_jobs=32, n_run_var=5)
 # plot_full(output_dir)
@@ -543,4 +544,4 @@ analyse_incr(output_dir, n_jobs=32, n_run_var=5)
 # analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=1)
 # analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
 # plot_full(expanduser('~/output/test/2015-10-05_17-18-18'))
-# plot_incr(expanduser('~/output/test/2015-10-05_17-18-18'))
+plot_incr(expanduser('~/output/test/2015-10-05_17-18-18'))
