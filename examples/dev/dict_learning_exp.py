@@ -561,10 +561,10 @@ for alpha in [10, 20, 30, 40, 50]:
 # except:
 #     pass
 
-output_dir = run(estimators, experiment)
-# output_dir = expanduser('~/output/2015-10-06_13-04-14')
-# analyse(output_dir, n_jobs=32)
-# analyse_incr(output_dir, n_jobs=32, n_run_var=5)
+# output_dir = run(estimators, experiment)
+output_dir = expanduser('~/output/2015-10-06_13-04-14')
+analyse(output_dir, n_jobs=32)
+analyse_incr(output_dir, n_jobs=32, n_run_var=5)
 # plot_full(output_dir)
 # plot_incr(output_dir)
 # analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=1)
