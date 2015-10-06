@@ -480,13 +480,13 @@ estimators = []
 alpha_list = {'range_finder': [18, 18, 16, 16, 18, 14, 18, 18, 18, 14],
               'subsample': [6, 8, 10, 12, 14, 12, 12, 16, 16, 16]}
 
-for compression_type in ['range_finder', 'subsample']:
-    for reduction_ratio, alpha in zip(np.linspace(0.1, 1, 10), alpha_list[compression_type]):
-        estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                       compression_type=compression_type,
-                                       random_state=0,
-                                       forget_rate=1,
-                                       reduction_ratio=reduction_ratio))
+# for compression_type in ['range_finder', 'subsample']:
+#     for reduction_ratio, alpha in zip(np.linspace(0.1, 1, 10), alpha_list[compression_type]):
+#         estimators.append(DictLearning(alpha=alpha, batch_size=20,
+#                                        compression_type=compression_type,
+#                                        random_state=0,
+#                                        forget_rate=1,
+#                                        reduction_ratio=reduction_ratio))
 
 # for compression_type in ['range_finder', 'subsample']:
 #     for reduction_ratio in np.linspace(0.1, 1, 10):
@@ -502,36 +502,16 @@ estimators.append(DictLearning(alpha=20, batch_size=20,
                                random_state=0,
                                forget_rate=1,
                                reduction_ratio=1))
-experiment = Experiment('adhd',
-                        n_subjects=40,
-                        smoothing_fwhm=6,
-                        dict_init='rsn20',
-                        output_dir=expanduser('~/output'),
-                        cache_dir=expanduser('~/nilearn_cache'),
-                        data_dir=expanduser('~/data'),
-                        n_slices=1,
-                        n_jobs=20,
-                        exp_type='time_vs_corr',
-                        n_epochs=1,
-                        # Out of core dictionary learning specifics
-                        temp_dir=expanduser('~/temp'),
-                        reduction_ratio=None,
-                        compression_type=None,
-                        data=None,
-                        subject_limits=None,
-                        # Stability specific
-                        n_exp=None,
-                        n_runs=30)
-
-# experiment = Experiment('hcp_reduced',
-#                         n_subjects=75,
+# experiment = Experiment('adhd',
+#                         n_subjects=40,
 #                         smoothing_fwhm=6,
-#                         dict_init='rsn70',
+#                         dict_init='rsn20',
 #                         output_dir=expanduser('~/output'),
 #                         cache_dir=expanduser('~/nilearn_cache'),
 #                         data_dir=expanduser('~/data'),
 #                         n_slices=1,
-#                         n_jobs=32,
+#                         n_jobs=20,
+#                         exp_type='time_vs_corr',
 #                         n_epochs=1,
 #                         # Out of core dictionary learning specifics
 #                         temp_dir=expanduser('~/temp'),
@@ -543,6 +523,32 @@ experiment = Experiment('adhd',
 #                         n_exp=None,
 #                         n_runs=30)
 
+experiment = Experiment('hcp_reduced',
+                        n_subjects=75,
+                        smoothing_fwhm=6,
+                        dict_init='rsn70',
+                        output_dir=expanduser('~/output'),
+                        cache_dir=expanduser('~/nilearn_cache'),
+                        data_dir=expanduser('~/data'),
+                        n_slices=1,
+                        n_jobs=2,
+                        n_epochs=1,
+                        # Out of core dictionary learning specifics
+                        temp_dir=expanduser('~/temp'),
+                        reduction_ratio=None,
+                        compression_type=None,
+                        data=None,
+                        subject_limits=None,
+                        # Stability specific
+                        n_exp=None,
+                        n_runs=1)
+
+for alpha in [10, 20, 30, 40, 50]:
+    estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                                   compression_type='none',
+                                   random_state=0,
+                                   forget_rate=1,
+                                   reduction_ratio=1.))
 
 
 # try:
@@ -555,13 +561,13 @@ experiment = Experiment('adhd',
 # except:
 #     pass
 
-# output_dir = run(estimators, experiment)
-output_dir = expanduser('~/output/2015-10-06_13-04-14')
-analyse(output_dir, n_jobs=32)
-analyse_incr(output_dir, n_jobs=32, n_run_var=5)
+output_dir = run(estimators, experiment)
+# output_dir = expanduser('~/output/2015-10-06_13-04-14')
+# analyse(output_dir, n_jobs=32)
+# analyse_incr(output_dir, n_jobs=32, n_run_var=5)
 # plot_full(output_dir)
 # plot_incr(output_dir)
 # analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=1)
 # analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
 # plot_full(expanduser('~/output/test/2015-10-05_17-18-18'))
-plot_incr(expanduser('~/output/test/2015-10-05_17-18-18'))
+# plot_incr(expanduser('~/output/test/2015-10-05_17-18-18'))
