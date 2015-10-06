@@ -281,6 +281,7 @@ def analyse(output_dir, n_jobs=1):
 
 
 def align_incr_single(masker, base_list, this_slice, n_exp, index, sub_df):
+    return index, n_exp, 0
     target_list = masker.transform(sub_df['components'][this_slice])
     base = np.concatenate(base_list[:(n_exp + 1)])
     target = np.concatenate(target_list[:(n_exp + 1)])
@@ -312,8 +313,8 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
     slices = gen_even_slices(n_exp, n_run_var)
     incr_stability = []
     for this_slice in slices:
-        # base_list = np.arange(3)
-        base_list = masker.transform(results.loc[results['reference'], 'components'][this_slice])
+        base_list = np.arange(10)[this_slice]
+        # base_list = masker.transform(results.loc[results['reference'], 'components'][this_slice])
 
         this_incr_stability = pd.DataFrame(columns=np.arange(len(base_list)), index=joined_results.index)
         res = Parallel(n_jobs=n_jobs, verbose=3)(delayed(align_incr_single)(masker, base_list, this_slice,
@@ -329,9 +330,12 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
                                                                  'reduction_ratio']).last()
         incr_stability.append(this_incr_stability)
 
-    incr_stability = pd.concat(incr_stability, axis=0, keys=np.arange(n_run_var), join='inner')
+    cat_stability = pd.concat(incr_stability, keys=np.arange(3), names=['run',
+                                                                        'estimator_type',
+                                                                        'compression_type',
+                                                                        'reduction_ratio'], join='inner')
 
-    agg_incr_stability = incr_stability.groupby(level=['estimator_type',
+    agg_incr_stability = cat_stability.groupby(level=['estimator_type',
                                                        'compression_type',
                                                        'reduction_ratio']).agg([np.mean, np.std])
     agg_incr_stability.to_csv(join(results_dir, 'agg_incr_stability.csv'))
@@ -524,6 +528,6 @@ experiment = Experiment('adhd',
 #
 # # output_dir = run(estimators, experiment)
 # analyse(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32)
-analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
+analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
 # plot_full(expanduser('~/drago_exp'))
 # plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
