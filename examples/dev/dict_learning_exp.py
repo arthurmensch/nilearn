@@ -16,6 +16,7 @@ from sklearn.base import clone
 import json
 from nilearn.input_data import MultiNiftiMasker
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 Experiment = collections.namedtuple('Experiment',
@@ -398,15 +399,10 @@ def plot_incr(output_dir):
     plt.figure()
     # Ultra ugly
     for index, sub_df in time_v_corr.groupby(level=['estimator_type', 'compression_type', 'reduction_ratio']):
-        mean_score = sub_df[[(str(i), 'mean') for i in np.arange(n_exp + 1)]].T
-        mean_score.reset_index(inplace=True, drop=True)
-        std_score = sub_df[[(str(i), 'std') for i in np.arange(n_exp + 1)]].T
-        std_score.reset_index(inplace=True, drop=True)
-        plot = plt.plot(np.arange(n_exp + 1), mean_score, label='%s %s' % (mean_score.columns.get_level_values(1)[0],
-                                                                           mean_score.columns.get_level_values(2)[0]))
-        plt.fill_between(np.arange(n_exp + 1), (mean_score + std_score).iloc[:, 0],
-                         (mean_score - std_score).iloc[:, 0], alpha=0.3,
-                         color=plot[0].get_color())
+        mean_score = sub_df[[(str(i), 'mean') for i in np.arange(n_exp + 1)]]
+        std_score = sub_df[[(str(i), 'std') for i in np.arange(n_exp + 1)]]
+        label = '%s %s' % (mean_score.index.get_level_values(1)[0], mean_score.index.get_level_values(2)[0])
+        plot_with_error(np.arange(mean_score.shape[1]), mean_score.values[0], yerr=std_score.values[0], label=label)
     plt.legend()
     plt.xlabel('Number of experiments')
     plt.ylabel('Baseline reproduction')
@@ -420,9 +416,13 @@ def convert_litteral_int_to_int(x):
         return x
 
 
-def plot_full(output_dir):
-    import matplotlib.pyplot as plt
+def plot_with_error(x, y, yerr=0, **kwargs):
+    plot = plt.plot(x, y, **kwargs)
+    plt.fill_between(x, (y + yerr),
+                     (y - yerr), alpha=0.3,
+                     color=plot[0].get_color())
 
+def plot_full(output_dir):
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
     if not exists(figures_dir):
@@ -445,14 +445,14 @@ def plot_full(output_dir):
                      marker='o')
         plt.figure(fig[1].number)
 
-        plt.errorbar(sub_df.index.get_level_values(2), sub_df[(n_exp, 'mean')],
-                     yerr=sub_df[(n_exp, 'std')],
-                     label=sub_df.index.get_level_values(1)[0], marker='o')
+        plot_with_error(sub_df.index.get_level_values(2), sub_df[(n_exp, 'mean')],
+                        yerr=sub_df[(n_exp, 'std')],
+                        label=sub_df.index.get_level_values(1)[0], marker='o')
         plt.figure(fig[2].number)
 
-        plt.errorbar(sub_df.index.get_level_values(2), sub_df[('math_time', 'mean')],
-                     yerr=sub_df[('math_time', 'std')],
-                     label=sub_df.index.get_level_values(1)[0], marker='o')
+        plot_with_error(sub_df.index.get_level_values(2), sub_df[('math_time', 'mean')],
+                        yerr=sub_df[('math_time', 'std')],
+                        label=sub_df.index.get_level_values(1)[0], marker='o')
     plt.figure(fig[0].number)
     plt.legend(loc='lower right')
     plt.ylabel('Baseline reproduction')
@@ -461,16 +461,15 @@ def plot_full(output_dir):
 
     plt.figure(fig[1].number)
     plt.legend(loc='lower right')
-    plt.ylabel('Time')
-    plt.xlabel('Reduction ratio')
-    plt.savefig(join(figures_dir, 'time.pdf'))
-
-    plt.figure(fig[2].number)
-    plt.legend(loc='lower right')
     plt.ylabel('Baseline reproduction')
     plt.xlabel('Reduction ratio')
     plt.savefig(join(figures_dir, 'corr.pdf'))
 
+    plt.figure(fig[2].number)
+    plt.legend(loc='lower right')
+    plt.ylabel('Time')
+    plt.xlabel('Reduction ratio')
+    plt.savefig(join(figures_dir, 'time.pdf'))
 
 estimators = []
 
@@ -534,7 +533,7 @@ experiment = Experiment('adhd',
 #
 # output_dir = run(estimators, experiment)
 # analyse(expanduser(output_dir, n_jobs=32)
-analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=3)
+analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=1)
 # analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
-# plot_full(expanduser('~/output/2015-10-05_17-18-18'))
-# plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
+plot_full(expanduser('~/output/2015-10-05_17-18-18'))
+plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
