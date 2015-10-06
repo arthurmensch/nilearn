@@ -520,7 +520,7 @@ experiment = Experiment('adhd',
 
 
 # output_dir = run(estimators, experiment)
-# analyse('/volatile/arthur/output_volatile3/2015-10-05_15-36-31', n_jobs=10)
-# analyse_incr('/volatile/arthur/output_volatile3/2015-10-05_15-36-31', n_jobs=10, n_run_var=3)
-# plot_time_v_corr('/volatile/arthur/output_volatile3/2015-10-05_15-36-31')
-plot_incr('/volatile/arthur/output_volatile3/2015-10-05_15-36-31')
+analyse(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32)
+analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
+plot_full(expanduser('~/output/2015-10-05_17-18-18'))
+plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
