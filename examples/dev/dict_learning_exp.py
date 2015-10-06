@@ -1,15 +1,12 @@
 import collections
 import os
 from os.path import expanduser, join, exists
-import itertools
 import datetime
-import shutil
 import warnings
 from joblib import Parallel, delayed
 from nilearn_sandbox._utils.map_alignment import _align_one_to_one_flat, \
     _spatial_correlation_flat
 from sklearn.utils import gen_even_slices
-from theano.gradient import np
 from nilearn._utils import check_niimg, copy_img
 from nilearn.decomposition import SparsePCA, DictLearning
 from nilearn.decomposition.base import MaskReducer, DecompositionEstimator
@@ -17,8 +14,9 @@ from nilearn import datasets
 import pandas as pd
 from sklearn.base import clone
 import json
-from nilearn.input_data import NiftiMasker, MultiNiftiMasker
+from nilearn.input_data import MultiNiftiMasker
 
+import numpy as np
 
 Experiment = collections.namedtuple('Experiment',
                                     ['dataset_name',
@@ -334,10 +332,10 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
                                                                         'reduction_ratio'], join='inner')
 
     agg_incr_stability = cat_stability.groupby(level=['estimator_type',
-                                                       'compression_type',
-                                                       'reduction_ratio']).agg([np.mean, np.std])
+                                                      'compression_type',
+                                                      'reduction_ratio']).agg([np.mean, np.std])
     agg_incr_stability.to_csv(join(results_dir, 'agg_incr_stability.csv'))
-    time_v_corr.reset_index(level='alpha')
+    time_v_corr.reset_index(level='alpha', inplace=True)
     full = pd.concat([time_v_corr, agg_incr_stability], axis=1)
 
     full.to_csv(join(results_dir, 'full.csv'))
@@ -402,17 +400,25 @@ def plot_incr(output_dir):
     for index, sub_df in time_v_corr.groupby(level=['estimator_type', 'compression_type', 'reduction_ratio']):
         mean_score = sub_df[[(str(i), 'mean') for i in np.arange(n_exp + 1)]].T
         mean_score.reset_index(inplace=True, drop=True)
-        std_score = sub_df[[(str(i), 'std') for i in np.arange(n_exp+1)]].T
+        std_score = sub_df[[(str(i), 'std') for i in np.arange(n_exp + 1)]].T
         std_score.reset_index(inplace=True, drop=True)
-        plot = plt.plot(np.arange(n_exp+1), mean_score, label='%s %s' % (mean_score.columns.get_level_values(1)[0],
-                                                                         mean_score.columns.get_level_values(2)[0]))
-        plt.fill_between(np.arange(n_exp+1), (mean_score + std_score).iloc[:, 0],
+        plot = plt.plot(np.arange(n_exp + 1), mean_score, label='%s %s' % (mean_score.columns.get_level_values(1)[0],
+                                                                           mean_score.columns.get_level_values(2)[0]))
+        plt.fill_between(np.arange(n_exp + 1), (mean_score + std_score).iloc[:, 0],
                          (mean_score - std_score).iloc[:, 0], alpha=0.3,
-                        color=plot[0].get_color())
+                         color=plot[0].get_color())
     plt.legend()
     plt.xlabel('Number of experiments')
     plt.ylabel('Baseline reproduction')
     plt.savefig(join(figures_dir, 'incr_stability.pdf'))
+
+
+def convert_litteral_int_to_int(x):
+    try:
+        return int(x)
+    except ValueError:
+        return x
+
 
 def plot_full(output_dir):
     import matplotlib.pyplot as plt
@@ -422,9 +428,8 @@ def plot_full(output_dir):
     if not exists(figures_dir):
         os.mkdir(figures_dir)
     time_v_corr = pd.read_csv(join(results_dir, 'full.csv'), index_col=range(3), header=[0, 1])
-    time.v_corr.rename(columns=lambda x: int(x), inplace=True)
-    n_exp = int(time_v_corr.columns.get_level_values(0)[-1])
-    time_key = str(n_exp)
+    time_v_corr.rename(columns=convert_litteral_int_to_int, inplace=True)
+    n_exp = time_v_corr.columns.get_level_values(0)[-1]
 
     ref_time = time_v_corr.loc[time_v_corr[('reference', 'last')], ('math_time', 'mean')][0]
 
@@ -434,19 +439,20 @@ def plot_full(output_dir):
     for index, sub_df in time_v_corr[time_v_corr[('reference', 'last')] == False].groupby(level=['estimator_type',
                                                                                                  'compression_type']):
         plt.figure(fig[0].number)
-        plt.errorbar(sub_df[('math_time', 'mean')] / ref_time, sub_df[(time_key, 'mean')],
-                        yerr=sub_df[(time_key, 'std')],
-                        label=sub_df.index.get_level_values(1)[0], xerr=sub_df[('math_time', 'std')] / ref_time, marker='o')
+        plt.errorbar(sub_df[('math_time', 'mean')] / ref_time, sub_df[(n_exp, 'mean')],
+                     yerr=sub_df[(n_exp, 'std')],
+                     label=sub_df.index.get_level_values(1)[0], xerr=sub_df[('math_time', 'std')] / ref_time,
+                     marker='o')
         plt.figure(fig[1].number)
 
-        plt.errorbar(sub_df.index.get_level_values(2), sub_df[(time_key, 'mean')],
-                        yerr=sub_df[(time_key, 'std')],
-                        label=sub_df.index.get_level_values(1)[0], marker='o')
+        plt.errorbar(sub_df.index.get_level_values(2), sub_df[(n_exp, 'mean')],
+                     yerr=sub_df[(n_exp, 'std')],
+                     label=sub_df.index.get_level_values(1)[0], marker='o')
         plt.figure(fig[2].number)
 
         plt.errorbar(sub_df.index.get_level_values(2), sub_df[('math_time', 'mean')],
-                        yerr=sub_df[('math_time', 'std')],
-                        label=sub_df.index.get_level_values(1)[0], marker='o')
+                     yerr=sub_df[('math_time', 'std')],
+                     label=sub_df.index.get_level_values(1)[0], marker='o')
     plt.figure(fig[0].number)
     plt.legend(loc='lower right')
     plt.ylabel('Baseline reproduction')
@@ -464,6 +470,7 @@ def plot_full(output_dir):
     plt.ylabel('Baseline reproduction')
     plt.xlabel('Reduction ratio')
     plt.savefig(join(figures_dir, 'corr.pdf'))
+
 
 estimators = []
 
@@ -527,7 +534,7 @@ experiment = Experiment('adhd',
 #
 # output_dir = run(estimators, experiment)
 # analyse(expanduser(output_dir, n_jobs=32)
-analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=3)
+# analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=3)
 # analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
-# plot_full(expanduser('~/output/2015-10-05_17-18-18'))
+plot_full(expanduser('~/output/2015-10-05_17-18-18'))
 # plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
