@@ -384,7 +384,7 @@ def plot_time_v_corr(output_dir):
     plt.savefig(join(figures_dir, 'time.pdf'))
 
 
-def plot_incr(output_dir):
+def plot_incr(output_dir, reduction_ratio=0.1):
     import matplotlib.pyplot as plt
 
     results_dir = join(output_dir, 'stability')
@@ -395,7 +395,7 @@ def plot_incr(output_dir):
 
     n_exp = int(time_v_corr.columns.get_level_values(0)[-1])
     idx = pd.IndexSlice
-    time_v_corr = pd.concat([time_v_corr.loc[idx[:, :, 0.1], :], time_v_corr.loc[idx[:, 'subsample', 1], :]],
+    time_v_corr = pd.concat([time_v_corr.loc[idx[:, :, reduction_ratio], :], time_v_corr.loc[idx[:, 'subsample', 1], :]],
                             axis=0)
     plt.figure()
     # Ultra ugly
@@ -561,13 +561,13 @@ for alpha in [10, 20, 30, 40, 50]:
 # except:
 #     pass
 
-# output_dir = run(estimators, experiment)
-output_dir = expanduser('~/output/2015-10-06_13-04-14')
-analyse(output_dir, n_jobs=32)
-analyse_incr(output_dir, n_jobs=32, n_run_var=5)
+output_dir = run(estimators, experiment)
+# output_dir = expanduser('~/output/2015-10-06_13-04-14')
+# analyse(output_dir, n_jobs=32)
+# analyse_incr(output_dir, n_jobs=32, n_run_var=5)
 # plot_full(output_dir)
 # plot_incr(output_dir)
 # analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=1)
 # analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
-# plot_full(expanduser('~/output/test/2015-10-05_17-18-18'))
-# plot_incr(expanduser('~/output/test/2015-10-05_17-18-18'))
+plot_full(expanduser('~/output/test/2015-10-06_13-04-14'))
+plot_incr(expanduser('~/output/test/2015-10-06_13-04-14'), reduction_ratio=0.2)
