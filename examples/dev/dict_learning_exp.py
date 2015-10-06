@@ -333,6 +333,7 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
                                                        'compression_type',
                                                        'reduction_ratio']).agg([np.mean, np.std])
     agg_incr_stability.to_csv(join(results_dir, 'agg_incr_stability.csv'))
+    time_v_corr.reset_index(level='alpha')
     full = pd.concat([time_v_corr, agg_incr_stability], axis=1)
 
     full.to_csv(join(results_dir, 'full.csv'))
@@ -521,6 +522,6 @@ experiment = Experiment('adhd',
 #
 # # output_dir = run(estimators, experiment)
 # analyse(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32)
-analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=3)
+analyse_incr(expanduser('/volatile/arthur/drago_output/2015-10-05_17-18-18'), n_jobs=1, n_run_var=3)
 # plot_full(expanduser('~/drago_exp'))
 # plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
