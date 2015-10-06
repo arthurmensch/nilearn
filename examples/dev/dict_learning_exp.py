@@ -528,6 +528,6 @@ experiment = Experiment('adhd',
 #
 # # output_dir = run(estimators, experiment)
 # analyse(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32)
-analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
+analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
 # plot_full(expanduser('~/drago_exp'))
 # plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
