@@ -468,15 +468,15 @@ def plot_full(output_dir):
 
 estimators = []
 
-try:
-    shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
-except:
-    pass
-
-try:
-    shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
-except:
-    pass
+# try:
+#     shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
+# except:
+#     pass
+#
+# try:
+#     shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
+# except:
+#     pass
 #
 alpha_list = {'range_finder': [18, 18, 16, 16, 18, 14, 18, 18, 18, 14],
               'subsample': [6, 8, 10, 12, 14, 12, 12, 16, 16, 16]}
@@ -526,9 +526,9 @@ experiment = Experiment('adhd',
 
 
 #
-# output_dir = run(estimators, experiment)
-# analyse(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32)
-# analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=1, n_run_var=3)
+output_dir = run(estimators, experiment)
+analyse(expanduser(output_dir, n_jobs=32)
+analyse_incr(output_dir, n_jobs=32, n_run_var=3)
 # analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
 plot_full(expanduser('~/output/2015-10-05_17-18-18'))
 plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
