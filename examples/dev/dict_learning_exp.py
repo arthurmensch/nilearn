@@ -291,23 +291,23 @@ def align_incr_single(masker, base_list, this_slice, n_exp, index, sub_df):
 def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
     results_dir = join(output_dir, 'stability')
     results = pd.read_csv(join(output_dir, 'results.csv'), index_col=0)
-    results.set_index(['estimator_type', 'compression_type', 'reduction_ratio',
-                       'alpha', 'random_state'], inplace=True)
     results.reset_index(inplace=True)
-    results.set_index(['estimator_type', 'compression_type', 'reduction_ratio'], inplace=True)
+    results.set_index(['estimator_type', 'compression_type', 'reduction_ratio', 'alpha'], inplace=True)
 
     time_v_corr = pd.read_csv(join(results_dir, 'time_v_corr.csv'), index_col=range(3), header=[0, 1])
-    # time_v_corr.reset_index(inplace=True)
-    # time_v_corr.set_index(['estimator_type', 'compression_type', 'reduction_ratio', 'alpha'], inplace=True)
+    time_v_corr.reset_index(inplace=True)
 
-    mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
-    masker = MultiNiftiMasker(mask_img=mask).fit()
-    n_exp = results['reference'].sum()
+    time_v_corr.set_index(['estimator_type', 'compression_type', 'reduction_ratio', ('alpha', 'last')], inplace=True)
+    time_v_corr.index = time_v_corr.index.set_names('alpha', level=3)
 
     joined_results = results.join(time_v_corr, how='inner', rsuffix='_mean')
     joined_results.reset_index(inplace=True)
     joined_results.set_index(['estimator_type', 'compression_type', 'reduction_ratio',
                               'random_state'], inplace=True)
+
+    mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
+    masker = MultiNiftiMasker(mask_img=mask).fit()
+    n_exp = results['reference'].sum()
 
     slices = gen_even_slices(n_exp, n_run_var)
     incr_stability = []
@@ -518,9 +518,9 @@ experiment = Experiment('adhd',
                         n_runs=10)
 
 
-
-# output_dir = run(estimators, experiment)
-analyse(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32)
-analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
-plot_full(expanduser('~/output/2015-10-05_17-18-18'))
-plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
+#
+# # output_dir = run(estimators, experiment)
+# analyse(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=32)
+analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=3)
+# plot_full(expanduser('~/drago_exp'))
+# plot_incr(expanduser('~/output/2015-10-05_17-18-18'))
