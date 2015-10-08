@@ -1,4 +1,5 @@
 import collections
+import glob
 import os
 from os.path import expanduser, join, exists
 import datetime
@@ -7,6 +8,7 @@ from joblib import Parallel, delayed
 from nilearn_sandbox._utils.map_alignment import _align_one_to_one_flat, \
     _spatial_correlation_flat
 import shutil
+from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
 from sklearn.utils import gen_even_slices
 from nilearn._utils import check_niimg, copy_img
 from nilearn.decomposition import SparsePCA, DictLearning
@@ -423,6 +425,18 @@ def plot_with_error(x, y, yerr=0, **kwargs):
                      (y - yerr), alpha=0.3,
                      color=plot[0].get_color())
 
+
+def convert_nii_to_pdf(output_dir, n_jobs=1):
+    list_nii = glob.glob(join(output_dir, "*/components.nii.gz"))
+    print(list_nii)
+    list_pdf = []
+    for this_nii in list_nii:
+        this_pdf = this_nii[:-7] + ".pdf"
+        list_pdf.append(this_pdf)
+    print(list_pdf)
+    Parallel(n_jobs=n_jobs)(delayed(plot_to_pdf)(this_nii, this_pdf)
+                            for this_nii, this_pdf in zip(list_nii, list_pdf))
+
 def plot_full(output_dir):
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
@@ -543,7 +557,7 @@ experiment = Experiment('hcp_reduced',
                         n_runs=1)
 
 estimators = []
-for alpha in [10, 20, 30, 40, 50]:
+for alpha in np.linspace(22, 28, 4):
     estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                    compression_type='none',
                                    random_state=0,
@@ -569,5 +583,6 @@ output_dir = run(estimators, experiment)
 # plot_incr(output_dir)
 # analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=1)
 # analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
-plot_full(expanduser('~/output/test/2015-10-06_13-04-14'))
-plot_incr(expanduser('~/output/test/2015-10-06_13-04-14'), reduction_ratio=0.2)
+# plot_full(expanduser('~/output/test/2015-10-06_13-04-14'))
+# plot_incr(expanduser('~/output/test/2015-10-06_13-04-14'), reduction_ratio=0.5)
+# convert_nii_to_pdf('/volatile/arthur/work/output/2015-10-06_15-30-14', n_jobs=4)
