@@ -499,21 +499,6 @@ def plot_full(output_dir):
 #                                        random_state=0,
 #                                        forget_rate=1,
 #                                        reduction_ratio=reduction_ratio))
-
-# for compression_type in ['range_finder', 'subsample']:
-#     for reduction_ratio in np.linspace(0.1, 1, 10):
-#         for alpha in np.arange(6, 22, 2):
-#             estimators.append(DictLearning(alpha=alpha, batch_size=20,
-#                                            compression_type=compression_type,
-#                                            random_state=0,
-#                                            forget_rate=1,
-#                                            reduction_ratio=reduction_ratio))
-# Baseline
-# estimators.append(DictLearning(alpha=20, batch_size=20,
-#                                compression_type='none',
-#                                random_state=0,
-#                                forget_rate=1,
-#                                reduction_ratio=1))
 # experiment = Experiment('adhd',
 #                         n_subjects=40,
 #                         smoothing_fwhm=6,
@@ -534,7 +519,31 @@ def plot_full(output_dir):
 #                         # Stability specific
 #                         n_exp=None,
 #                         n_runs=30)
-
+# output_dir = run(estimators, experiment)
+# output_dir = expanduser('~/output/2015-10-06_13-04-14')
+# analyse(output_dir, n_jobs=32)
+# analyse_incr(output_dir, n_jobs=32, n_run_var=5)
+# plot_full(output_dir)
+# plot_incr(output_dir)
+# analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=1)
+# analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
+# plot_full(expanduser('~/output/test/2015-10-06_13-04-14'))
+# plot_incr(expanduser('~/output/test/2015-10-06_13-04-14'), reduction_ratio=0.5)
+estimators = []
+for compression_type in ['range_finder', 'subsample']:
+    for reduction_ratio in np.linspace(0.2, 0.5, 1):
+        for alpha in [20, 23, 26]:
+            estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                                           compression_type=compression_type,
+                                           random_state=0,
+                                           forget_rate=1,
+                                           reduction_ratio=reduction_ratio))
+# Baseline
+estimators.append(DictLearning(alpha=26, batch_size=20,
+                               compression_type='none',
+                               random_state=0,
+                               forget_rate=1,
+                               reduction_ratio=1))
 experiment = Experiment('hcp_reduced',
                         n_subjects=75,
                         smoothing_fwhm=6,
@@ -543,7 +552,7 @@ experiment = Experiment('hcp_reduced',
                         cache_dir=expanduser('~/nilearn_cache'),
                         data_dir=expanduser('~/data'),
                         n_slices=1,
-                        n_jobs=2,
+                        n_jobs=6,
                         exp_type='time_vs_corr',
                         n_epochs=1,
                         # Out of core dictionary learning specifics
@@ -554,7 +563,7 @@ experiment = Experiment('hcp_reduced',
                         subject_limits=None,
                         # Stability specific
                         n_exp=None,
-                        n_runs=1)
+                        n_runs=3)
 
 estimators = []
 for alpha in np.linspace(22, 28, 4):
@@ -565,24 +574,16 @@ for alpha in np.linspace(22, 28, 4):
                                    reduction_ratio=1.))
 
 
-# try:
-#     shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
-# except:
-#     pass
-#
-# try:
-#     shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
-# except:
-#     pass
+try:
+    shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
+except:
+    pass
+
+try:
+    shutil.rmtree(expanduser('~/nilearn_cache/joblib/scipy'))
+except:
+    pass
 
 output_dir = run(estimators, experiment)
-# output_dir = expanduser('~/output/2015-10-06_13-04-14')
-# analyse(output_dir, n_jobs=32)
-# analyse_incr(output_dir, n_jobs=32, n_run_var=5)
-# plot_full(output_dir)
-# plot_incr(output_dir)
-# analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=1)
-# analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
-# plot_full(expanduser('~/output/test/2015-10-06_13-04-14'))
-# plot_incr(expanduser('~/output/test/2015-10-06_13-04-14'), reduction_ratio=0.5)
-# convert_nii_to_pdf('/volatile/arthur/work/output/2015-10-06_15-30-14', n_jobs=4)
+analyse(output_dir, n_jobs=20)
+analyse_incr(output_dir, n_jobs=20, n_run_var=1)
