@@ -1,3 +1,5 @@
+# from mpl_utils import plt, figsize
+
 import collections
 import glob
 import os
@@ -7,7 +9,6 @@ import warnings
 from joblib import Parallel, delayed
 from nilearn_sandbox._utils.map_alignment import _align_one_to_one_flat, \
     _spatial_correlation_flat
-import shutil
 from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
 from sklearn.utils import gen_even_slices
 from nilearn._utils import check_niimg, copy_img
@@ -19,8 +20,8 @@ from sklearn.base import clone
 import json
 from nilearn.input_data import MultiNiftiMasker
 
-import matplotlib.pyplot as plt
 import numpy as np
+
 
 Experiment = collections.namedtuple('Experiment',
                                     ['dataset_name',
@@ -387,8 +388,6 @@ def plot_time_v_corr(output_dir):
 
 
 def plot_incr(output_dir, reduction_ratio=0.1):
-    import matplotlib.pyplot as plt
-
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
     if not exists(figures_dir):
@@ -399,7 +398,7 @@ def plot_incr(output_dir, reduction_ratio=0.1):
     idx = pd.IndexSlice
     time_v_corr = pd.concat([time_v_corr.loc[idx[:, :, reduction_ratio], :], time_v_corr.loc[idx[:, 'subsample', 1], :]],
                             axis=0)
-    plt.figure()
+    plt.figure(figsize=figsize(1))
     # Ultra ugly
     for index, sub_df in time_v_corr.groupby(level=['estimator_type', 'compression_type', 'reduction_ratio']):
         mean_score = sub_df[[(str(i), 'mean') for i in np.arange(n_exp + 1)]]
@@ -410,6 +409,7 @@ def plot_incr(output_dir, reduction_ratio=0.1):
     plt.xlabel('Number of experiments')
     plt.ylabel('Baseline reproduction')
     plt.savefig(join(figures_dir, 'incr_stability.pdf'))
+    plt.savefig(join(figures_dir, 'incr_stability.pgf'))
 
 
 def convert_litteral_int_to_int(x):
@@ -450,17 +450,21 @@ def plot_full(output_dir):
     ref_reproduction = time_v_corr.loc[('DictLearning', 'subsample', 1.), ('score', 'last')]
     fig = []
     for i in range(3):
-        fig.append(plt.figure())
+        fig.append(plt.figure(figsize=figsize(1)))
     for index, sub_df in time_v_corr[time_v_corr[('reference', 'last')] == False].groupby(level=['estimator_type',
                                                                                                  'compression_type']):
         plt.figure(fig[0].number, axis='square')
-        plt.errorbar(sub_df[('math_time', 'mean')] / ref_time, sub_df[('score', 'last')] / ref_reproduction,
+        plt.plot(np.linspace(0, 1, 10), np.linspace(0, ref_reproduction, 10), '--', color='black',
+                 label='Time / accuracy tradeoff')
+        plt.plot(np.linspace(0, 1, 10), ref_reproduction * np.ones((10, 1)), label='Same data accuracy',
+                 color='red')
+        plt.errorbar(sub_df[('math_time', 'mean')] / ref_time, sub_df[('score', 'last')],
                      # yerr=sub_df[(n_exp, 'std')],
                      label=sub_df.index.get_level_values(1)[0], xerr=sub_df[('math_time', 'std')] / ref_time,
                      marker='o')
-        plt.plot(np.linspace(0, 1.1, 10), np.linspace(0, 1.1, 10), '--', color='black')
-        plt.xlim([0.2, 1.1])
-        plt.ylim([0.5, 1.1])
+        plt.xlim([0.2, 1])
+        plt.ylim([0.3, 0.6])
+
         plt.figure(fig[1].number)
 
         plot_with_error(sub_df.index.get_level_values(2), sub_df[(n_exp, 'mean')],
@@ -472,22 +476,28 @@ def plot_full(output_dir):
                         yerr=sub_df[('math_time', 'std')],
                         label=sub_df.index.get_level_values(1)[0], marker='o')
     plt.figure(fig[0].number)
-    plt.legend(loc='lower right')
+    from collections import OrderedDict
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = OrderedDict(zip(labels, handles))
+    plt.legend(by_label.values(), by_label.keys(), loc='lower left')
     plt.ylabel('Baseline reproduction')
     plt.xlabel('Time (relative to baseline)')
     plt.savefig(join(figures_dir, 'time_v_corr.pdf'))
+    plt.savefig(join(figures_dir, 'time_v_corr.pgf'))
 
     plt.figure(fig[1].number)
     plt.legend(loc='lower right')
     plt.ylabel('Baseline reproduction')
     plt.xlabel('Reduction ratio')
     plt.savefig(join(figures_dir, 'corr.pdf'))
+    plt.savefig(join(figures_dir, 'corr.pgf'))
 
     plt.figure(fig[2].number)
     plt.legend(loc='lower right')
     plt.ylabel('Time')
     plt.xlabel('Reduction ratio')
     plt.savefig(join(figures_dir, 'time.pdf'))
+    plt.savefig(join(figures_dir, 'time.pgf'))
 
 # alpha_list = {'range_finder': [18, 18, 16, 16, 18, 14, 18, 18, 18, 14],
 #               'subsample': [6, 8, 10, 12, 14, 12, 12, 16, 16, 16]}
@@ -575,14 +585,14 @@ for alpha in np.linspace(22, 28, 4):
 # except:
 #     pass
 
-output_dir = run(estimators, experiment)
-# output_dir = expanduser('~/output/2015-10-06_13-04-14')
+# output_dir = run(estimators, experiment)
+# output_dir = expanduser('~/output/test/2015-10-06_13-04-14')
 # analyse(output_dir, n_jobs=32)
 # analyse_incr(output_dir, n_jobs=32, n_run_var=5)
 # plot_full(output_dir)
-# plot_incr(output_dir)
+# plot_incr(output_dir, reduction_ratio=0.1)
 # analyse_incr(expanduser('~/output/2015-10-05_17-18-18'), n_jobs=10, n_run_var=1)
 # analyse_incr(expanduser('~/drago_output/2015-10-05_17-18-18'), n_jobs=32, n_run_var=3)
 # plot_full(expanduser('~/output/test/2015-10-06_13-04-14'))
 # plot_incr(expanduser('~/output/test/2015-10-06_13-04-14'), reduction_ratio=0.5)
-# convert_nii_to_pdf('/volatile/arthur/work/output/2015-10-06_15-30-14', n_jobs=4)
+convert_nii_to_pdf(expanduser('~/output/2015-10-08_14-35-20'), n_jobs=4)
