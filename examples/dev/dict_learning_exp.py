@@ -565,14 +565,6 @@ experiment = Experiment('hcp_reduced',
                         n_exp=None,
                         n_runs=3)
 
-estimators = []
-for alpha in np.linspace(22, 28, 4):
-    estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                   compression_type='none',
-                                   random_state=0,
-                                   forget_rate=1,
-                                   reduction_ratio=1.))
-
 
 try:
     shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
