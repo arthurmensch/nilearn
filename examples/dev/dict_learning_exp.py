@@ -531,7 +531,7 @@ def plot_full(output_dir):
 # plot_incr(expanduser('~/output/test/2015-10-06_13-04-14'), reduction_ratio=0.5)
 estimators = []
 for compression_type in ['range_finder', 'subsample']:
-    for reduction_ratio in np.linspace(0.2, 0.5, 1):
+    for reduction_ratio in np.linspace(0.2, 1, 5):
         for alpha in [20, 23, 26]:
             estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                            compression_type=compression_type,
