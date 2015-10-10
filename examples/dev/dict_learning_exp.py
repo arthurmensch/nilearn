@@ -419,7 +419,7 @@ def plot_with_error(x, y, yerr=0, **kwargs):
 
 
 def convert_nii_to_pdf(output_dir, n_jobs=1):
-    list_nii = glob.glob(join(output_dir, "*/components.nii.gz"))
+    list_nii = glob.glob(join(output_dir, "*.nii.gz"))
     print(list_nii)
     list_pdf = []
     for this_nii in list_nii:
