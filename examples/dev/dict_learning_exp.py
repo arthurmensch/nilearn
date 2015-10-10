@@ -1,4 +1,4 @@
-from mpl_utils import plt, figsize
+# from mpl_utils import plt, figsize
 
 import collections
 import glob
@@ -36,7 +36,7 @@ Experiment = collections.namedtuple('Experiment',
                                      'exp_type',
                                      'n_epochs',
                                      # Out of core dictionary learning specifics
-                                     'temp_dir',
+                                     'temp_folder',
                                      'reduction_ratio',
                                      'compression_type',
                                      'data',
@@ -54,7 +54,7 @@ def load_dataset(exp_params):
     if exp_params.dataset_name == 'adhd':
         dataset = datasets.fetch_adhd(n_subjects=
                                       min(40, n_subjects)).func
-        mask = join(exp_params.data_dir, 'ADHD_mask', 'mask_img.nii.gz')
+        mask = None # join(exp_params.data_dir, 'ADHD_mask', 'mask_img.nii.gz')
     elif exp_params.dataset_name == 'hcp':
         dataset = datasets.fetch_hcp_rest(n_subjects=n_subjects,
                                           data_dir=data_dir).func
@@ -98,12 +98,12 @@ def load_dataset(exp_params):
     elif exp_type == 'out_of_core_dl':
         compression_type = exp_params.compression_type
         reduction_ratio = exp_params.reduction_ratio
-        temp_dir = exp_params.temp_dir
+        temp_folder = exp_params.temp_folder
         mask_reducer.set_params(mock=False,
                                 in_memory=False,
                                 compression_type=compression_type,
                                 reduction_ratio=reduction_ratio,
-                                temp_folder=temp_dir,
+                                temp_folder=temp_folder,
                                 mem_name='concat')
     mask_reducer.fit(dataset)
     if exp_type == 'time_vs_corr':
@@ -136,7 +136,7 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
     n_runs = exp_params.n_runs
     cache_dir = exp_params.cache_dir
     in_memory = exp_params.in_memory
-    temp_dir = temp_dir
+    temp_folder = exp_params.temp_folder
     for i, estimator in enumerate(estimators):
         reference = (i == len(estimators) - 1)
         offset = 100 if reference else 0
@@ -152,7 +152,7 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
                                  verbose=3,
                                  random_state=random_state)
             if isinstance(estimator, DictLearning):
-                estimator.set_params(in_memory=in_memory, temp_dir=temp_dir)
+                estimator.set_params(in_memory=in_memory, temp_folder=temp_folder)
             yield estimator, (i == len(estimators) - 1)
 
 
@@ -539,7 +539,7 @@ def clean_memory():
 #                         exp_type='time_vs_corr',
 #                         n_epochs=1,
 #                         # Out of core dictionary learning specifics
-#                         temp_dir=expanduser('~/temp'),
+#                         temp_folder=expanduser('~/temp'),
 #                         reduction_ratio=None,
 #                         compression_type=None,
 #                         data=None,
@@ -571,29 +571,29 @@ estimators.append(DictLearning(alpha=26, batch_size=20,
 experiment = Experiment('hcp_reduced',
                         n_subjects=75,
                         smoothing_fwhm=6,
-                        dict_init='rsn70',
+                        dict_init='rsn20',
                         output_dir=expanduser('~/output'),
                         cache_dir=expanduser('~/nilearn_cache'),
                         data_dir=expanduser('~/data'),
                         n_slices=1,
-                        n_jobs=6,
+                        n_jobs=30,
                         exp_type='time_vs_corr',
                         n_epochs=1,
                         # Out of core dictionary learning specifics
-                        temp_dir=expanduser('~/temp'),
+                        temp_folder=expanduser('~/temp'),
+                        in_memory=False,
                         reduction_ratio=None,
                         compression_type=None,
                         data=None,
                         subject_limits=None,
                         # Stability specific
                         n_exp=None,
-                        in_memory=False,
-                        n_runs=10)
+                        n_runs=9)
 
-# output_dir = run(estimators, experiment)
-# analyse(output_dir, n_jobs=20)
-# analyse_incr(output_dir, n_jobs=20, n_run_var=1)
+output_dir = run(estimators, experiment)
+analyse(output_dir, n_jobs=20)
+analyse_incr(output_dir, n_jobs=20, n_run_var=1)
 # plot_full('/home/arthur/output/2015-10-09_11-28-49')
 # plot_incr('/home/arthur/output/2015-10-09_11-28-49')
 # clean_memory()
-convert_nii_to_pdf(expanduser('~/2015-10-09_11-28-49/stability'), n_jobs=32)
+# convert_nii_to_pdf(expanduser('~/2015-10-09_11-28-49/stability'), n_jobs=32)

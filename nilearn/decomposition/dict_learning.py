@@ -36,7 +36,7 @@ def _compute_loadings(components, data, in_memory=False):
     if in_memory:
         in_core_batch_size = n_samples
     else:
-        in_core_batch_size = min(n_samples, 1200)
+        in_core_batch_size = min(n_samples, n_samples / 10)
     batches = gen_batches(n_samples, in_core_batch_size)
     loadings = np.empty((n_components, n_samples), dtype='float64')
     for batch in batches:
@@ -317,11 +317,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.time_[0] += time.time() - t0
 
         dict_init = self._loadings_init
-        if self.shuffle:
-            random_state = check_random_state(self.random_state)
-            stream_range = random_state.permutation(n_features)
-        else:
-            stream_range = np.arange(n_features)
+        random_state = check_random_state(self.random_state)
+        stream_range = random_state.permutation(n_features)
 
         if self.verbose:
             print('[DictLearning] Learning dictionary')
