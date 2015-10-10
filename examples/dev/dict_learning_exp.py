@@ -509,8 +509,8 @@ def clean_memory():
 # plot_incr(output_dir)
 estimators = []
 for compression_type in ['range_finder', 'subsample']:
-    for reduction_ratio in np.linspace(0.2, 1, 5):
-        for alpha in [20, 23, 26]:
+    for reduction_ratio in np.linspace(0.1, 1, 10):
+        for alpha in np.linspace(18, 26, 10):
             estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                            compression_type=compression_type,
                                            random_state=0,
@@ -541,7 +541,7 @@ experiment = Experiment('hcp_reduced',
                         subject_limits=None,
                         # Stability specific
                         n_exp=None,
-                        n_runs=3)
+                        n_runs=10)
 
 # output_dir = run(estimators, experiment)
 # analyse(output_dir, n_jobs=20)
