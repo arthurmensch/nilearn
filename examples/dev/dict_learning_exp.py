@@ -591,8 +591,8 @@ experiment = Experiment('hcp_reduced',
                         n_runs=9)
 
 output_dir = run(estimators, experiment)
-analyse(output_dir, n_jobs=20)
-analyse_incr(output_dir, n_jobs=20, n_run_var=1)
+analyse(output_dir, n_jobs=30)
+analyse_incr(output_dir, n_jobs=30, n_run_var=1)
 # plot_full('/home/arthur/output/2015-10-09_11-28-49')
 # plot_incr('/home/arthur/output/2015-10-09_11-28-49')
 # clean_memory()
