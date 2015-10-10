@@ -34,9 +34,9 @@ def _compute_loadings(components, data, in_memory=False):
     n_components, n_features = components.shape
     ridge = Ridge(fit_intercept=None, alpha=0.)
     if in_memory:
-        in_core_batch_size = n_features
+        in_core_batch_size = n_samples
     else:
-        in_core_batch_size = min(n_features, 1000)
+        in_core_batch_size = min(n_samples, 1200)
     batches = gen_batches(n_samples, in_core_batch_size)
     loadings = np.empty((n_components, n_samples), dtype='float64')
     for batch in batches:
