@@ -548,4 +548,4 @@ experiment = Experiment('hcp_reduced',
 # analyse_incr(output_dir, n_jobs=20, n_run_var=1)
 # plot_full('/home/arthur/output/2015-10-09_11-28-49')
 # plot_incr('/home/arthur/output/2015-10-09_11-28-49')
-convert_nii_to_pdf(expanduser('~/2015-10-09_11-28-49/stability'))
+convert_nii_to_pdf(expanduser('~/2015-10-09_11-28-49/stability'), n_jobs=32)
