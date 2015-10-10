@@ -346,49 +346,7 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
 
     full.to_csv(join(results_dir, 'full.csv'))
 
-
-def plot_time_v_corr(output_dir):
-    import matplotlib.pyplot as plt
-
-    results_dir = join(output_dir, 'stability')
-    figures_dir = join(output_dir, 'figures')
-    if not exists(figures_dir):
-        os.mkdir(figures_dir)
-    time_v_corr = pd.read_csv(join(results_dir, 'time_v_corr.csv'), index_col=range(3), header=[0, 1])
-    ref_time = time_v_corr.loc[time_v_corr['reference'], 'math_time'][0]
-
-    plt.figure()
-    for index, sub_df in time_v_corr[time_v_corr['reference'] == False].groupby(level=['estimator_type',
-                                                                                       'compression_type']):
-        plt.plot(sub_df['math_time'] / ref_time, sub_df['score'],
-                 label=sub_df.index.get_level_values(1)[0], marker='o')
-    plt.legend(loc='lower right')
-    plt.ylabel('Baseline reproduction')
-    plt.xlabel('Time (relative to baseline)')
-    plt.savefig(join(figures_dir, 'corr.pdf'))
-
-    plt.figure()
-    for index, sub_df in time_v_corr[time_v_corr['reference'] == False].groupby(level=['estimator_type',
-                                                                                       'compression_type']):
-        plt.plot(sub_df.index.get_level_values(2), sub_df['score'],
-                 label=sub_df.index.get_level_values(1)[0], marker='o')
-    plt.legend(loc='lower right')
-    plt.ylabel('Baseline reproduction')
-    plt.xlabel('Reduction ratio')
-    plt.savefig(join(figures_dir, 'time_v__corr.pdf'))
-
-    plt.figure()
-    for index, sub_df in time_v_corr[time_v_corr['reference'] == False].groupby(level=['estimator_type',
-                                                                                       'compression_type']):
-        plt.plot(sub_df.index.get_level_values(2), sub_df['math_time'],
-                 label=sub_df.index.get_level_values(1)[0], marker='o')
-    plt.legend(loc='lower right')
-    plt.ylabel('Time')
-    plt.xlabel('Reduction ratio')
-    plt.savefig(join(figures_dir, 'time.pdf'))
-
-
-def plot_incr(output_dir, reduction_ratio=0.1):
+def plot_incr(output_dir, reduction_ratio=0.2):
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
     if not exists(figures_dir):
@@ -463,8 +421,8 @@ def plot_full(output_dir):
                      # yerr=sub_df[(n_exp, 'std')],
                      label=sub_df.index.get_level_values(1)[0], xerr=sub_df[('math_time', 'std')] / ref_time,
                      marker='o')
-        plt.xlim([0.2, 1])
-        plt.ylim([0.3, 0.6])
+        plt.xlim([0.1, 1])
+        plt.ylim([0., 0.4])
 
         plt.figure(fig[1].number)
 
@@ -585,7 +543,9 @@ experiment = Experiment('hcp_reduced',
                         n_exp=None,
                         n_runs=3)
 
-output_dir = run(estimators, experiment)
-analyse(output_dir, n_jobs=20)
-analyse_incr(output_dir, n_jobs=20, n_run_var=1)
-# convert_nii_to_pdf(output, n_jobs=4)
+# output_dir = run(estimators, experiment)
+# analyse(output_dir, n_jobs=20)
+# analyse_incr(output_dir, n_jobs=20, n_run_var=1)
+# plot_full('/home/arthur/output/2015-10-09_11-28-49')
+# plot_incr('/home/arthur/output/2015-10-09_11-28-49')
+convert_nii_to_pdf(expanduser('~/2015-10-09_11-28-49/stability'))
