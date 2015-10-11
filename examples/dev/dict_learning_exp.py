@@ -1,4 +1,4 @@
-# from mpl_utils import plt, figsize
+from mpl_utils import plt, figsize
 
 import collections
 import glob
@@ -46,6 +46,7 @@ Experiment = collections.namedtuple('Experiment',
                                      'n_exp',
                                      'n_runs'])
 
+#def create_datasets(exp_params):
 
 def load_dataset(exp_params):
     n_subjects = exp_params.n_subjects
@@ -554,34 +555,34 @@ def clean_memory():
 # plot_full(output_dir)
 # plot_incr(output_dir)
 estimators = []
-for compression_type in ['range_finder', 'subsample']:
-    for reduction_ratio in np.linspace(0.1, 1, 10):
-        for alpha in np.linspace(18, 26, 5):
-            estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                           compression_type=compression_type,
-                                           random_state=0,
-                                           forget_rate=1,
-                                           reduction_ratio=reduction_ratio))
+# for compression_type in ['range_finder', 'subsample']:
+#     for reduction_ratio in np.linspace(0.1, 1, 10):
+#         for alpha in np.linspace(18, 26, 5):
+#             estimators.append(DictLearning(alpha=alpha, batch_size=20,
+#                                            compression_type=compression_type,
+#                                            random_state=0,
+#                                            forget_rate=1,
+#                                            reduction_ratio=reduction_ratio))
 # Baseline
-estimators.append(DictLearning(alpha=26, batch_size=20,
-                               compression_type='none',
+estimators.append(DictLearning(alpha=1, batch_size=20,
+                               compression_type='range_finder',
                                random_state=0,
                                forget_rate=1,
-                               reduction_ratio=1))
-experiment = Experiment('hcp_reduced',
-                        n_subjects=75,
+                               reduction_ratio=0.5))
+experiment = Experiment('adhd',
+                        n_subjects=2,
                         smoothing_fwhm=6,
-                        dict_init='rsn70',
+                        dict_init='rsn20',
                         output_dir=expanduser('~/output'),
                         cache_dir=expanduser('~/nilearn_cache'),
                         data_dir=expanduser('~/data'),
                         n_slices=1,
-                        n_jobs=30,
+                        n_jobs=1,
                         exp_type='time_vs_corr',
                         n_epochs=1,
                         # Out of core dictionary learning specifics
                         temp_folder=expanduser('~/temp'),
-                        in_memory=False,
+                        in_memory=True,
                         reduction_ratio=None,
                         compression_type=None,
                         data=None,
