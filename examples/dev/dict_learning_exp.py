@@ -227,6 +227,26 @@ def run(estimators, exp_params):
     return output_dir
 
 
+def single_drop_memmap(exp_params,  dataset, masker, estimator, temp_folder):
+    mask_reducer = MaskReducer(masker,
+                               memory_level=2,
+                               memory=exp_params.cache_dir,
+                               n_jobs=1,
+                               compression_type=estimator.compression_type,
+                               reduction_ratio=estimator.reduction_ratio)
+
+
+
+def drop_memmmap(exp_params):
+    temp_folder = exp_params.temp_folder
+    os.mkdir(temp_folder)
+    with open(join(temp_folder, 'experiment.json'), 'w+') as f:
+        json.dump(exp_params.__dict__, f)
+    dataset, masker = load_dataset(exp_params)
+
+
+
+
 def align_single(masker, stack_base, results_dir, exp_int_index, index, sub_df):
     stack_target = np.concatenate(masker.transform(sub_df['components']))
     aligned = _align_one_to_one_flat(stack_base, stack_target)
