@@ -618,7 +618,7 @@ def clean_memory():
 estimators = []
 for compression_type in ['range_finder', 'subsample']:
     for reduction_ratio in np.linspace(0.1, 1, 10):
-        for alpha in np.linspace(16, 26, 2):
+        for alpha in np.linspace(18, 26, 5):
             estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                            compression_type=compression_type,
                                            random_state=0,
@@ -642,10 +642,10 @@ experiment = Experiment('hcp_reduced',
                         # Out of core dictionary learning specifics
                         temp_folder=expanduser('~/temp'),
                         # Stability specific
-                        n_runs=1)
+                        n_runs=10)
 
-# temp_folder = drop_memmmap(experiment)
+temp_folder = drop_memmmap(experiment)
 output_dir = run(estimators, experiment,
-                 temp_folder=expanduser('~/temp/2015-10-12_16-29-09'))
+                 temp_folder=temp_folder)
 # analyse(output_dir, n_jobs=30)
 # analyse_incr(output_dir, n_jobs=30, n_run_var=1)
