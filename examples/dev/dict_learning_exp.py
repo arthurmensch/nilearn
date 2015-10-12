@@ -143,6 +143,7 @@ def single_run(index, estimator, dataset, output_dir, reference,
                                     shape=(
                                         data['n_samples'], data['n_voxels']))
             estimator._raw_fit(memmap_data)
+            del memmap_data
         else:
             estimator.fit(dataset)
     print('[Example] Dumping results')
@@ -166,6 +167,8 @@ def single_run(index, estimator, dataset, output_dir, reference,
                        'io_time': io_time,
                        'reference': reference
                        }
+    with open(join(exp_output, 'results.json'), 'w+') as f:
+        json.dump(single_run_dict, f)
     return single_run_dict
 
 
@@ -198,7 +201,7 @@ def run(estimators, exp_params, temp_folder=None):
         estimators_data.set_index(['compression_type', 'reduction_ratio'],
                                   inplace=True)
         estimators_data = [estimators_data.loc[estimator.compression_type,
-                                               estimator.reduction_ratio]
+                                    round(estimator.reduction_ratio, 3)]
                            for estimator, _ in exp_estimators]
     else:
         estimators_data = [None] * len(exp_estimators)
@@ -252,6 +255,8 @@ def single_drop_memmap(exp_params, temp_folder, index, dataset,
                        'n_samples': mask_reducer.data_.shape[0],
                        'n_voxels': mask_reducer.data_.shape[1]
                        }
+    with open(join(temp_folder, filename + '.json'), 'w+') as f:
+        json.dump(single_run_dict, f)
     return single_run_dict
 
 
@@ -617,15 +622,15 @@ estimators.append(DictLearning(alpha=26, batch_size=20,
                                random_state=0,
                                forget_rate=1,
                                reduction_ratio=1))
-experiment = Experiment('adhd',
-                        n_subjects=40,
+experiment = Experiment('hcp_reduced',
+                        n_subjects=75,
                         smoothing_fwhm=6,
-                        dict_init='rsn20',
+                        dict_init='rsn70',
                         output_dir=expanduser('~/output'),
                         cache_dir=expanduser('~/nilearn_cache'),
                         data_dir=expanduser('~/data'),
                         n_slices=1,
-                        n_jobs=5,
+                        n_jobs=10,
                         n_epochs=1,
                         # Out of core dictionary learning specifics
                         temp_folder=expanduser('~/temp'),
@@ -634,6 +639,6 @@ experiment = Experiment('adhd',
 
 temp_folder = drop_memmmap(experiment)
 # output_dir = run(estimators, experiment,
-#                  temp_folder=expanduser('~/temp/2015-10-12_13-01-42'))
+#                  temp_folder=expanduser('~/temp/2015-10-12_13-08-09'))
 # analyse(output_dir, n_jobs=30)
 # analyse_incr(output_dir, n_jobs=30, n_run_var=1)

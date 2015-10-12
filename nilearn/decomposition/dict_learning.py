@@ -273,10 +273,12 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.time_ = mask_reducer.time_
         self._raw_fit(mask_reducer.data_)
 
+        # Remove temporary file
         if hasattr(mask_reducer, 'file_'):
             filename = mask_reducer.filename_
             file = mask_reducer.file_
-            mask_reducer = None
+            # Delete data_ memory map
+            del mask_reducer
             _close_and_remove(file, filename)
 
     def _raw_fit(self, data):

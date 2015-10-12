@@ -129,12 +129,14 @@ class mask_and_reduce(object):
         if hasattr(mask_reducer, 'file_'):
             self.filename_ = mask_reducer.filename_
             self.file_ = mask_reducer.file_
-        return mask_reducer.data_
+        self.data_, mask_reducer.data_
+        return self.data_
 
     def __exit__(self, type, value, traceback):
         if hasattr(self, 'file_'):
             # We use low level IO as we cannot use a file context manager
             # within this context manager
+            del self.data_
             _close_and_remove(self.file_, self.filename_)
 
 
