@@ -38,7 +38,7 @@ Experiment = collections.namedtuple('Experiment',
                                      'n_runs'])
 
 
-def load_dataset(exp_params):
+def load_dataset(exp_params, warmup=True):
     n_subjects = exp_params.n_subjects
     data_dir = exp_params.data_dir
 
@@ -75,15 +75,16 @@ def load_dataset(exp_params):
     masker = decomposition_estimator.masker_
     masker.mask_img_.get_data()
 
-    print("[Experiment] Warming up cache")
-    mask_reducer = MaskReducer(masker,
-                               memory_level=2,
-                               memory=cache_dir,
-                               n_jobs=n_jobs,
-                               mock=True,
-                               in_memory=True
-                               )
-    mask_reducer.fit(dataset)
+    if warmup:
+        print("[Experiment] Warming up cache")
+        mask_reducer = MaskReducer(masker,
+                                   memory_level=2,
+                                   memory=cache_dir,
+                                   n_jobs=n_jobs,
+                                   mock=True,
+                                   in_memory=True
+                                   )
+        mask_reducer.fit(dataset)
     return dataset, masker
 
 
@@ -140,7 +141,7 @@ def single_run(index, estimator, dataset, output_dir, reference,
             memmap_data = np.memmap(data['filename'], dtype='float64',
                                     order='F', mode='r',
                                     shape=(
-                                    data['n_samples'], data['n_voxels']))
+                                        data['n_samples'], data['n_voxels']))
             estimator._raw_fit(memmap_data)
         else:
             estimator.fit(dataset)
@@ -168,7 +169,7 @@ def single_run(index, estimator, dataset, output_dir, reference,
     return single_run_dict
 
 
-def run(estimators, exp_params):
+def run(estimators, exp_params, temp_folder=None):
     output_dir = join(exp_params.output_dir,
                       datetime.datetime.now().strftime('%Y-%m-%d_%H'
                                                        '-%M-%S'))
@@ -176,7 +177,7 @@ def run(estimators, exp_params):
     with open(join(output_dir, 'experiment.json'), 'w+') as f:
         json.dump(exp_params.__dict__, f)
 
-    dataset, masker = load_dataset(exp_params)
+    dataset, masker = load_dataset(exp_params, warmup=temp_folder is None)
 
     dataset_series = pd.Series(dataset)
     dataset_series.to_csv(join(output_dir, 'dataset.csv'))
@@ -190,8 +191,8 @@ def run(estimators, exp_params):
                                            masker,
                                            dict_init,
                                            n_components))
-    if exp_params.temp_folder is not None:
-        estimators_data = pd.read_csv(join(exp_params.temp_folder, 'data.csv'),
+    if temp_folder is not None:
+        estimators_data = pd.read_csv(join(temp_folder, 'data.csv'),
                                       index_col=0)
         estimators_data.reset_index(inplace=True)
         estimators_data.set_index(['compression_type', 'reduction_ratio'],
@@ -229,13 +230,13 @@ def run(estimators, exp_params):
 
 def single_drop_memmap(exp_params, temp_folder, index, dataset,
                        masker, compression_type, reduction_ratio):
-    mem_name = 'experiment_%i' % index
+    filename = 'experiment_%i' % index
     mask_reducer = MaskReducer(masker,
                                memory_level=2,
                                memory=exp_params.cache_dir,
                                n_jobs=1,
                                temp_folder=temp_folder,
-                               mem_name=mem_name,
+                               filename=filename,
                                in_memory=False,
                                compression_type=compression_type,
                                reduction_ratio=reduction_ratio,
@@ -244,7 +245,7 @@ def single_drop_memmap(exp_params, temp_folder, index, dataset,
     single_run_dict = {'compression_type': compression_type,
                        'reduction_ratio':
                            reduction_ratio,
-                       'filename': join(temp_folder, mem_name),
+                       'filename': join(temp_folder, filename),
                        'random_state': 0,
                        'math_time': mask_reducer.time_[0],
                        'io_time': mask_reducer.time_[1],
@@ -257,8 +258,8 @@ def single_drop_memmap(exp_params, temp_folder, index, dataset,
 def drop_memmmap(exp_params):
     base_temp_folder = exp_params.temp_folder
     temp_folder = join(base_temp_folder,
-                            datetime.datetime.now().strftime('%Y-%m-%d_%H'
-                                                             '-%M-%S'))
+                       datetime.datetime.now().strftime('%Y-%m-%d_%H'
+                                                        '-%M-%S'))
     try:
         os.mkdir(temp_folder)
     except:
@@ -605,7 +606,7 @@ def clean_memory():
 estimators = []
 for compression_type in ['range_finder', 'subsample']:
     for reduction_ratio in np.linspace(0.1, 1, 10):
-        for alpha in np.linspace(16, 26, 6):
+        for alpha in np.linspace(16, 26, 10):
             estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                            compression_type=compression_type,
                                            random_state=0,
@@ -616,15 +617,15 @@ estimators.append(DictLearning(alpha=26, batch_size=20,
                                random_state=0,
                                forget_rate=1,
                                reduction_ratio=1))
-experiment = Experiment('hcp_reduced',
-                        n_subjects=70,
+experiment = Experiment('adhd',
+                        n_subjects=40,
                         smoothing_fwhm=6,
-                        dict_init='rsn70',
+                        dict_init='rsn20',
                         output_dir=expanduser('~/output'),
                         cache_dir=expanduser('~/nilearn_cache'),
                         data_dir=expanduser('~/data'),
                         n_slices=1,
-                        n_jobs=10,
+                        n_jobs=5,
                         n_epochs=1,
                         # Out of core dictionary learning specifics
                         temp_folder=expanduser('~/temp'),
@@ -632,7 +633,7 @@ experiment = Experiment('hcp_reduced',
                         n_runs=3)
 
 temp_folder = drop_memmmap(experiment)
-experiment.temp_folder = temp_folder
-# output_dir = run(estimators, experiment)
+# output_dir = run(estimators, experiment,
+#                  temp_folder=expanduser('~/temp/2015-10-12_13-01-42'))
 # analyse(output_dir, n_jobs=30)
 # analyse_incr(output_dir, n_jobs=30, n_run_var=1)

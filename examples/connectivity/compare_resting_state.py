@@ -410,7 +410,7 @@ def run_dict_learning_experiment(estimators, n_split=1, init='rsn70', n_epochs=1
                                reduction_ratio=
                                reduction_ratio,
                                temp_folder=temp_folder,
-                               mem_name='concat',
+                               filename='concat',
                                n_jobs=n_jobs)
     mask_reducer.fit(data_filenames)
 

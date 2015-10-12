@@ -27,11 +27,13 @@ from .._utils.niimg_conversions import check_niimg_4d
 from .._utils.niimg import _safe_get_data
 
 
-def _remove_if_exists(filename):
+def _close_and_remove(file, filename):
     try:
+        os.close(file)
         os.remove(filename)
     except:
         pass
+
 
 class mask_and_reduce(object):
     """Mask and reduce provided data with provided masker, using a PCA
@@ -112,17 +114,17 @@ class mask_and_reduce(object):
 
     def __enter__(self):
         mask_reducer = MaskReducer(self.masker,
-                 reduction_ratio=self.reduction_ratio,
-                 # shuffle_feature=self.shuffle_features,
-                 compression_type=self.compression_type,
-                 n_components=self.n_components, random_state=self.random_state,
-                 memory_level=self.memory_level,
-                 memory=self.memory,
-                 mock=self.mock,
-                 in_memory=self.in_memory,
-                 temp_folder=self.temp_folder,
-                 n_jobs=1, power_iter=self.power_iter,
-                 parity=self.parity)
+                                   reduction_ratio=self.reduction_ratio,
+                                   compression_type=self.compression_type,
+                                   n_components=self.n_components,
+                                   random_state=self.random_state,
+                                   memory_level=self.memory_level,
+                                   memory=self.memory,
+                                   mock=self.mock,
+                                   in_memory=self.in_memory,
+                                   temp_folder=self.temp_folder,
+                                   n_jobs=1, power_iter=self.power_iter,
+                                   parity=self.parity)
         mask_reducer.fit(self.imgs, confounds=self.confounds)
         if hasattr(mask_reducer, 'file_'):
             self.filename_ = mask_reducer.filename_
@@ -133,8 +135,7 @@ class mask_and_reduce(object):
         if hasattr(self, 'file_'):
             # We use low level IO as we cannot use a file context manager
             # within this context manager
-            os.close(self.file_)
-            os.remove(self.filename_)
+            _close_and_remove(self.file_, self.filename_)
 
 
 class MaskReducer(BaseEstimator):
@@ -196,7 +197,7 @@ class MaskReducer(BaseEstimator):
                  mock=False,
                  in_memory=True,
                  temp_folder=None,
-                 mem_name=None,
+                 filename=None,
                  n_jobs=1, power_iter=3,
                  parity=None):
         self.masker = masker
@@ -207,7 +208,7 @@ class MaskReducer(BaseEstimator):
         self.memory_level = memory_level
         self.memory = memory
         self.in_memory = in_memory
-        self.mem_name = mem_name
+        self.filename = filename
         self.mock = mock
         self.n_jobs = n_jobs
         self.power_iter = power_iter
@@ -265,8 +266,8 @@ class MaskReducer(BaseEstimator):
                 subject_n_samples[i] = min(self.n_components,
                                            this_n_samples)
             else:
-                subject_n_samples[i] = int(ceil(this_n_samples
-                                                * reduction_ratio))
+                subject_n_samples[i] = int(ceil(this_n_samples *
+                                                reduction_ratio))
         subject_limits = np.zeros(subject_n_samples.shape[0] + 1,
                                   dtype='int')
         subject_limits[1:] = np.cumsum(subject_n_samples)
@@ -287,11 +288,11 @@ class MaskReducer(BaseEstimator):
                     self.temp_folder_ = self.temp_folder
 
                 # We initialize data in memory or on disk
-                if self.mem_name is None:
+                if self.filename is None:
                     self.file_, self.filename_ = mkstemp(dir=self.temp_folder_)
-                    atexit.register(lambda: _remove_if_exists(self.filename_))
+                    atexit.register(lambda: _close_and_remove(self.filename_))
                 else:
-                    self.filename_ = join(self.temp_folder_, self.mem_name)
+                    self.filename_ = join(self.temp_folder_, self.filename)
                     self.file_ = open(self.filename_, 'w+').fileno()
                 data = np.memmap(self.filename_, dtype='float64',
                                  order='F', mode='w+',
@@ -302,18 +303,19 @@ class MaskReducer(BaseEstimator):
         else:
             data = None
 
-        timings_list = Parallel(n_jobs=self.n_jobs)(delayed(_load_single_subject)(
-            self.masker, data, subject_limits, subject_n_samples,
-            compression_type, reduction_ratio,
-            # selection,
-            mock,
-            img, confound,
-            self.memory,
-            self.memory_level,
-            self.random_state,
-            i, self.power_iter,
-            self.parity,
-        ) for i, (img, confound) in enumerate(zip(imgs, confounds)))
+        timings_list = Parallel(n_jobs=self.n_jobs)(
+            delayed(_load_single_subject)(
+                self.masker, data, subject_limits, subject_n_samples,
+                compression_type, reduction_ratio,
+                # selection,
+                mock,
+                img, confound,
+                self.memory,
+                self.memory_level,
+                self.random_state,
+                i, self.power_iter,
+                self.parity,
+            ) for i, (img, confound) in enumerate(zip(imgs, confounds)))
 
         if not mock and not return_mmap and self.n_jobs > 1:
             # We used a memory map for multiprocessing, restoring
@@ -342,8 +344,6 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
     t0 = time.time()
     this_data = masker.transform(img, confound)
 
-    if this_data.shape[1] == 4:
-        print('WTF')
     timings[1] = time.time() - t0
     if parity == 0:
         if this_data.shape[0] % 2 == 1:
@@ -390,13 +390,13 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
         if reduction_ratio == 1.:
             U = this_data
         else:
-            indices = np.floor(np.linspace(0, this_data.shape[0]-1,
-                               subject_n_samples[i])).astype('int')
+            indices = np.floor(np.linspace(0, this_data.shape[0] - 1,
+                                           subject_n_samples[i])).astype('int')
             U = this_data[indices]
     else:  # compression type = 'none'
         U = this_data
     if not mock:
-        data[subject_limits[i]:subject_limits[i+1], :] = U
+        data[subject_limits[i]:subject_limits[i + 1], :] = U
     timings[0] = time.time() - t0
     return timings
 
@@ -724,7 +724,7 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
 
 
 def explained_variance(X, components, per_component=False):
-        """Score function based on explained variance
+    """Score function based on explained variance
 
         Parameters
         ----------
@@ -741,22 +741,22 @@ def explained_variance(X, components, per_component=False):
             Holds the score for each subjects. score is two dimensional if
             per_component = True
         """
-        X_ = X[::10].copy()
-        full_var = np.var(X_)
-        n_components = components.shape[0]
-        if per_component:
-            S = np.sqrt(np.sum(components ** 2, axis=1))
-            S[S == 0] = 1
-            components_ = components / S[:, np.newaxis]
-            res_var = np.zeros(n_components)
-            cXT = components_.dot(X_.T)
-            for i in range(n_components):
-                res = X_ - np.outer(cXT[i],
-                                    components_[i])
-                res_var[i] = np.var(res)
-            return np.maximum(0., 1. - res_var / full_var)
-        else:
-            lr = LinearRegression(fit_intercept=True)
-            res_var = lr.fit(components.T,
-                             X_.T).residues_.sum()
-            return np.maximum(0., 1. - res_var / full_var)
+    X_ = X[::10].copy()
+    full_var = np.var(X_)
+    n_components = components.shape[0]
+    if per_component:
+        S = np.sqrt(np.sum(components ** 2, axis=1))
+        S[S == 0] = 1
+        components_ = components / S[:, np.newaxis]
+        res_var = np.zeros(n_components)
+        cXT = components_.dot(X_.T)
+        for i in range(n_components):
+            res = X_ - np.outer(cXT[i],
+                                components_[i])
+            res_var[i] = np.var(res)
+        return np.maximum(0., 1. - res_var / full_var)
+    else:
+        lr = LinearRegression(fit_intercept=True)
+        res_var = lr.fit(components.T,
+                         X_.T).residues_.sum()
+        return np.maximum(0., 1. - res_var / full_var)
