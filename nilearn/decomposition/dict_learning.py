@@ -21,11 +21,12 @@ from sklearn.linear_model import Ridge
 from sklearn.decomposition import dict_learning_online, sparse_encode
 
 from sklearn.base import TransformerMixin
-from sklearn.utils import gen_batches
+from sklearn.utils import gen_batches, check_random_state
 
 from .canica import CanICA
 from .._utils.cache_mixin import CacheMixin
-from .base import DecompositionEstimator, mask_and_reduce, MaskReducer
+from .base import DecompositionEstimator, mask_and_reduce, MaskReducer, \
+    _remove_if_exists
 
 
 def _compute_loadings(components, data, in_memory=False):
@@ -33,9 +34,9 @@ def _compute_loadings(components, data, in_memory=False):
     n_components, n_features = components.shape
     ridge = Ridge(fit_intercept=None, alpha=0.)
     if in_memory:
-        in_core_batch_size = n_features
+        in_core_batch_size = n_samples
     else:
-        in_core_batch_size = min(n_features, 1000)
+        in_core_batch_size = min(n_samples, n_samples / 10)
     batches = gen_batches(n_samples, in_core_batch_size)
     loadings = np.empty((n_components, n_samples), dtype='float64')
     for batch in batches:
@@ -271,6 +272,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         mask_reducer.fit(imgs, confounds)
         self.time_ = mask_reducer.time_
         self._raw_fit(mask_reducer.data_)
+        _remove_if_exists(mask_reducer.filename_)
 
     def _raw_fit(self, data):
         """Compute the mask and the maps across subjects, using raw_data. Can
@@ -315,6 +317,8 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         self.time_[0] += time.time() - t0
 
         dict_init = self._loadings_init
+        random_state = check_random_state(self.random_state)
+        stream_range = random_state.permutation(n_features)
 
         if self.verbose:
             print('[DictLearning] Learning dictionary')
@@ -322,7 +326,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             n_iter = (batch.stop - batch.start) // self.batch_size
             res = self._cache(dict_learning_online,
                               func_memory_level=2)(
-                np.asarray(data[:, batch].T, order='C'),
+                np.asarray(data[:, stream_range[batch]].T, order='C'),
                 self.n_components,
                 update_scheme='mean',
                 forget_rate=self.forget_rate,
@@ -338,7 +342,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                 return_inner_stats=True,
                 inner_stats=inner_stats,
                 iter_offset=iter_offset,
-                shuffle=True,
+                shuffle=False,
                 n_jobs=1,
                 tol=0)
             self.time_[0] += time.time() - t0
