@@ -152,9 +152,11 @@ def single_run(index, estimator, dataset, output_dir, reference,
     components_img.to_filename(components_filename)
     math_time = estimator.time_[0]
     io_time = estimator.time_[1]
+    load_math_time = 0
+    load_io_time = 0
     if data is not None:
-        math_time += data['math_time']
-        io_time += data['io_time']
+        load_math_time += data['math_time']
+        load_io_time += data['io_time']
     single_run_dict = {'estimator_type': type(estimator).__name__,
                        'compression_type': estimator.compression_type,
                        'reduction_ratio':
@@ -165,6 +167,8 @@ def single_run(index, estimator, dataset, output_dir, reference,
                        'components': components_filename,
                        'math_time': math_time,
                        'io_time': io_time,
+                       'load_math_time': load_math_time,
+                       'load_io_time': load_io_time,
                        'reference': reference
                        }
     with open(join(exp_output, 'results.json'), 'w+') as f:
@@ -217,6 +221,8 @@ def run(estimators, exp_params, temp_folder=None):
                                                     'alpha',
                                                     'random_state',
                                                     'math_time', 'io_time',
+                                                    'load_math_time',
+                                                    'load_io_time',
                                                     'reference',
                                                     'components'])
 
@@ -255,6 +261,7 @@ def single_drop_memmap(exp_params, temp_folder, index, dataset,
                        'n_samples': mask_reducer.data_.shape[0],
                        'n_voxels': mask_reducer.data_.shape[1]
                        }
+
     with open(join(temp_folder, filename + '.json'), 'w+') as f:
         json.dump(single_run_dict, f)
     return single_run_dict
@@ -482,18 +489,6 @@ def plot_with_error(x, y, yerr=0, **kwargs):
                      color=plot[0].get_color())
 
 
-def convert_nii_to_pdf(output_dir, n_jobs=1):
-    list_nii = glob.glob(join(output_dir, "*.nii.gz"))
-    print(list_nii)
-    list_pdf = []
-    for this_nii in list_nii:
-        this_pdf = this_nii[:-7] + ".pdf"
-        list_pdf.append(this_pdf)
-    print(list_pdf)
-    Parallel(n_jobs=n_jobs)(delayed(plot_to_pdf)(this_nii, this_pdf)
-                            for this_nii, this_pdf in zip(list_nii, list_pdf))
-
-
 def plot_full(output_dir):
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
@@ -570,6 +565,18 @@ def plot_full(output_dir):
     plt.savefig(join(figures_dir, 'time.pgf'))
 
 
+def convert_nii_to_pdf(output_dir, n_jobs=1):
+    list_nii = glob.glob(join(output_dir, "*.nii.gz"))
+    print(list_nii)
+    list_pdf = []
+    for this_nii in list_nii:
+        this_pdf = this_nii[:-7] + ".pdf"
+        list_pdf.append(this_pdf)
+    print(list_pdf)
+    Parallel(n_jobs=n_jobs)(delayed(plot_to_pdf)(this_nii, this_pdf)
+                            for this_nii, this_pdf in zip(list_nii, list_pdf))
+
+
 def clean_memory():
     try:
         shutil.rmtree(expanduser('~/nilearn_cache/joblib/sklearn'))
@@ -611,7 +618,7 @@ def clean_memory():
 estimators = []
 for compression_type in ['range_finder', 'subsample']:
     for reduction_ratio in np.linspace(0.1, 1, 10):
-        for alpha in np.linspace(16, 26, 10):
+        for alpha in np.linspace(16, 26, 2):
             estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                            compression_type=compression_type,
                                            random_state=0,
@@ -623,7 +630,7 @@ estimators.append(DictLearning(alpha=26, batch_size=20,
                                forget_rate=1,
                                reduction_ratio=1))
 experiment = Experiment('hcp_reduced',
-                        n_subjects=75,
+                        n_subjects=70,
                         smoothing_fwhm=6,
                         dict_init='rsn70',
                         output_dir=expanduser('~/output'),
@@ -635,10 +642,10 @@ experiment = Experiment('hcp_reduced',
                         # Out of core dictionary learning specifics
                         temp_folder=expanduser('~/temp'),
                         # Stability specific
-                        n_runs=3)
+                        n_runs=1)
 
-temp_folder = drop_memmmap(experiment)
-# output_dir = run(estimators, experiment,
-#                  temp_folder=expanduser('~/temp/2015-10-12_13-08-09'))
+# temp_folder = drop_memmmap(experiment)
+output_dir = run(estimators, experiment,
+                 temp_folder=expanduser('~/temp/2015-10-12_16-29-09'))
 # analyse(output_dir, n_jobs=30)
 # analyse_incr(output_dir, n_jobs=30, n_run_var=1)

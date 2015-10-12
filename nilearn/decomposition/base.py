@@ -28,7 +28,10 @@ from .._utils.niimg import _safe_get_data
 
 
 def _close_and_remove(file, filename):
-    # os.close(file)
+    try:
+        os.close(file)
+    except:
+        pass
     os.remove(filename)
 
 
@@ -291,8 +294,6 @@ class MaskReducer(BaseEstimator):
                 if self.filename is None:
                     file_descr_C, filename_C = mkstemp(dir=self.temp_folder_)
                     file_descr, filename = mkstemp(dir=self.temp_folder_)
-                    atexit.register(lambda: _close_and_remove(file_descr_C,
-                                                              filename_C))
                     atexit.register(lambda: _close_and_remove(file_descr,
                                                               filename))
                 else:
@@ -300,6 +301,8 @@ class MaskReducer(BaseEstimator):
                     file_descr_C = open(filename_C, 'w+').fileno()
                     self.filename_ = join(self.temp_folder_, self.filename)
                     self.file_ = open(self.filename_, 'w+').fileno()
+                atexit.register(lambda: _close_and_remove(file_descr_C,
+                                                          filename_C))
                 data = np.memmap(filename_C, dtype='float64',
                                  order='C', mode='w+',
                                  shape=(n_samples, n_voxels))
@@ -325,6 +328,7 @@ class MaskReducer(BaseEstimator):
                                   for timings in timings_list])
         self.time_ = np.sum(timings, axis=0)
 
+        t0 = time.time()
         if return_mmap:
             data_F = np.memmap(self.filename_, dtype='float64',
                                order='F', mode='w+',
@@ -338,6 +342,8 @@ class MaskReducer(BaseEstimator):
             data = None
             if self.n_jobs > 1:
                 _close_and_remove(file_descr_C, filename_C)
+        ordering_time = time.time() - t0
+        self.time_[1] += ordering_time
         return self
 
 
