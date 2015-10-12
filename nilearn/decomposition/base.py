@@ -293,10 +293,6 @@ class MaskReducer(BaseEstimator):
                 else:
                     self.filename_ = join(self.temp_folder_, self.mem_name)
                     self.file_ = open(self.filename_, 'w+').fileno()
-                # f = h5py.File(self.filename_, 'r+')
-                # data = f.create_dataset('data', (n_samples, n_voxels),
-                #                         dtype='float64', chunks=(n_samples,
-                #                                                  min(n_voxels, 200)))
                 data = np.memmap(self.filename_, dtype='float64',
                                  order='F', mode='w+',
                                  shape=(n_samples, n_voxels))

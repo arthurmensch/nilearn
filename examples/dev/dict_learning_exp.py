@@ -34,10 +34,8 @@ Experiment = collections.namedtuple('Experiment',
                                      'n_slices',
                                      'n_jobs',
                                      'n_epochs',
-                                     'reduction_ratio',
-                                     'compression_type',
                                      'temp_folder',
-                                     'n_exp'])
+                                     'n_runs'])
 
 
 def load_dataset(exp_params):
@@ -139,7 +137,11 @@ def single_run(index, estimator, dataset, output_dir, reference,
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         if data is not None:
-            estimator.raw_fit(data['filename'])
+            memmap_data = np.memmap(data['filename'], dtype='float64',
+                                    order='F', mode='r',
+                                    shape=(
+                                    data['n_samples'], data['n_voxels']))
+            estimator._raw_fit(memmap_data)
         else:
             estimator.fit(dataset)
     print('[Example] Dumping results')
@@ -190,10 +192,13 @@ def run(estimators, exp_params):
                                            n_components))
     if exp_params.temp_folder is not None:
         estimators_data = pd.read_csv(join(exp_params.temp_folder, 'data.csv'),
-                                      index_col=[0, 1])
+                                      index_col=0)
+        estimators_data.reset_index(inplace=True)
+        estimators_data.set_index(['compression_type', 'reduction_ratio'],
+                                  inplace=True)
         estimators_data = [estimators_data.loc[estimator.compression_type,
                                                estimator.reduction_ratio]
-                           for estimator in exp_estimators]
+                           for estimator, _ in exp_estimators]
     else:
         estimators_data = [None] * len(exp_estimators)
     full_dict_list = Parallel(n_jobs=exp_params.n_jobs)(
@@ -232,6 +237,7 @@ def single_drop_memmap(exp_params, index, dataset,
                                n_jobs=1,
                                temp_folder=temp_folder,
                                mem_name=mem_name,
+                               in_memory=False,
                                compression_type=compression_type,
                                reduction_ratio=reduction_ratio,
                                random_state=0)
@@ -243,13 +249,21 @@ def single_drop_memmap(exp_params, index, dataset,
                        'random_state': 0,
                        'math_time': mask_reducer.time_[0],
                        'io_time': mask_reducer.time_[1],
+                       'n_samples': mask_reducer.data_.shape[0],
+                       'n_voxels': mask_reducer.data_.shape[1]
                        }
     return single_run_dict
 
 
 def drop_memmmap(exp_params):
-    temp_folder = exp_params.temp_folder
-    os.mkdir(temp_folder)
+    base_temp_folder = exp_params.temp_folder
+    temp_folder = join(base_temp_folder,
+                            datetime.datetime.now().strftime('%Y-%m-%d_%H'
+                                                             '-%M-%S'))
+    try:
+        os.mkdir(temp_folder)
+    except:
+        pass
     with open(join(temp_folder, 'experiment.json'), 'w+') as f:
         json.dump(exp_params.__dict__, f)
     dataset, masker = load_dataset(exp_params)
@@ -267,11 +281,13 @@ def drop_memmmap(exp_params):
                                                  'filename',
                                                  'random_state',
                                                  'math_time',
-                                                 'io_time'])
+                                                 'io_time',
+                                                 'n_samples',
+                                                 'n_voxels'])
     data.sort_index(by=['compression_type',
                         'reduction_ratio'], inplace=True)
     data.to_csv(join(temp_folder, 'data.csv'))
-    copy_img(masker.mask_img_).to_filename(join(output_dir,
+    copy_img(masker.mask_img_).to_filename(join(temp_folder,
                                                 'mask_img.nii.gz'))
     return temp_folder
 
@@ -561,16 +577,6 @@ def clean_memory():
         pass
 
 
-# alpha_list = {'range_finder': [18, 18, 16, 16, 18, 14, 18, 18, 18, 14],
-#               'subsample': [6, 8, 10, 12, 14, 12, 12, 16, 16, 16]}
-
-# for compression_type in ['range_finder', 'subsample']:
-#     for reduction_ratio, alpha in zip(np.linspace(0.1, 1, 10), alpha_list[compression_type]):
-#         estimators.append(DictLearning(alpha=alpha, batch_size=20,
-#                                        compression_type=compression_type,
-#                                        random_state=0,
-#                                        forget_rate=1,
-#                                        reduction_ratio=reduction_ratio))
 # experiment = Experiment('adhd',
 #                         n_subjects=40,
 #                         smoothing_fwhm=6,
@@ -600,39 +606,34 @@ def clean_memory():
 estimators = []
 for compression_type in ['range_finder', 'subsample']:
     for reduction_ratio in np.linspace(0.1, 1, 10):
-        for alpha in np.linspace(18, 26, 5):
+        for alpha in np.linspace(16, 26, 6):
             estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                            compression_type=compression_type,
                                            random_state=0,
                                            forget_rate=1,
                                            reduction_ratio=reduction_ratio))
-# Baseline
-estimators.append(DictLearning(alpha=1, batch_size=20,
+estimators.append(DictLearning(alpha=26, batch_size=20,
                                compression_type='subsample',
                                random_state=0,
                                forget_rate=1,
                                reduction_ratio=1))
-experiment = Experiment('adhd',
-                        n_subjects=2,
+experiment = Experiment('hcp_reduced',
+                        n_subjects=70,
                         smoothing_fwhm=6,
-                        dict_init='rsn20',
+                        dict_init='rsn70',
                         output_dir=expanduser('~/output'),
                         cache_dir=expanduser('~/nilearn_cache'),
                         data_dir=expanduser('~/data'),
                         n_slices=1,
-                        n_jobs=1,
+                        n_jobs=10,
                         n_epochs=1,
                         # Out of core dictionary learning specifics
                         temp_folder=expanduser('~/temp'),
                         # Stability specific
-                        n_runs=9)
+                        n_runs=3)
 
-temp_folder = drop_memmmap(experiment
-                           )
-output_dir = run(estimators, experiment)
+temp_folder = drop_memmmap(experiment)
+experiment.temp_folder = temp_folder
+# output_dir = run(estimators, experiment)
 # analyse(output_dir, n_jobs=30)
 # analyse_incr(output_dir, n_jobs=30, n_run_var=1)
-# plot_full('/home/arthur/output/2015-10-09_11-28-49')
-# plot_incr('/home/arthur/output/2015-10-09_11-28-49')
-# clean_memory()
-# convert_nii_to_pdf(expanduser('~/2015-10-09_11-28-49/stability'), n_jobs=32)
