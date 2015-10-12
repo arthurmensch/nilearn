@@ -227,9 +227,8 @@ def run(estimators, exp_params):
     return output_dir
 
 
-def single_drop_memmap(exp_params, index, dataset,
+def single_drop_memmap(exp_params, temp_folder, index, dataset,
                        masker, compression_type, reduction_ratio):
-    temp_folder = exp_params.temp_folder
     mem_name = 'experiment_%i' % index
     mask_reducer = MaskReducer(masker,
                                memory_level=2,
@@ -271,7 +270,7 @@ def drop_memmmap(exp_params):
                                estimator.reduction_ratio)
                               for estimator in estimators])
     full_dict_list = Parallel(n_jobs=exp_params.n_jobs)(
-        delayed(single_drop_memmap)(exp_params, index, dataset,
+        delayed(single_drop_memmap)(exp_params, temp_folder, index, dataset,
                                     masker, compression_type,
                                     reduction_ratio)
         for index, (compression_type, reduction_ratio) in
