@@ -9,7 +9,7 @@ component sparsity
 from __future__ import division
 import warnings
 
-from math import ceil
+from math import ceil, sqrt
 from os.path import join
 import time
 from itertools import chain, repeat

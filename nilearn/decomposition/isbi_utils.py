@@ -589,7 +589,7 @@ def plot_full(output_dir):
                      xerr=sub_df[('math_time', 'std')] / ref_time,
                      marker='o')
         plt.xlim([0.1, 1])
-        plt.ylim([0., 0.5])
+        plt.ylim([0., 1])
 
         plt.figure(fig[1].number)
 
@@ -640,14 +640,14 @@ def convert_nii_to_pdf(output_dir, n_jobs=1):
     import matplotlib as mpl
     mpl.use('PDF')
     from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
-    list_nii = glob.glob(join(output_dir, 'stability', "*.nii.gz"))
+    list_nii = glob.glob(join(output_dir, "*.nii.gz"))
     print(list_nii)
     list_pdf = []
     for this_nii in list_nii:
         this_pdf = this_nii[:-7] + ".pdf"
         list_pdf.append(this_pdf)
     print(list_pdf)
-    Parallel(n_jobs=1)(delayed(plot_to_pdf)(this_nii, this_pdf)
+    Parallel(n_jobs=n_jobs)(delayed(plot_to_pdf)(this_nii, this_pdf)
                             for this_nii, this_pdf in zip(list_nii, list_pdf))
 
 
