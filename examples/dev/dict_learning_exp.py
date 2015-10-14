@@ -54,8 +54,8 @@ def adhd_20():
                                    in_memory=False,
                                    reduction_ratio=1))
     for compression_type in ['range_finder', 'subsample']:
-        for reduction_ratio in np.linspace(0.1, 1, 2):
-            for alpha in np.linspace(2, 7, 6):
+        for reduction_ratio in np.linspace(0.1, 1, 10):
+            for alpha in np.linspace(1, 8, 8):
                 estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                                compression_type=compression_type,
                                                random_state=0,
@@ -72,16 +72,15 @@ def adhd_20():
                             n_jobs=24,
                             n_epochs=1,
                             temp_folder=expanduser('~/temp'),
-                            n_runs=10)
+                            n_runs=48)
 
-    # temp_folder = drop_memmmap(estimators, experiment)
-    # output_dir = run(estimators, experiment, temp_folder=temp_folder)
-    output_dir = expanduser('~/output/2015-10-14_20-02-30')
+    temp_folder = drop_memmmap(estimators, experiment)
+    output_dir = run(estimators, experiment, temp_folder=temp_folder)
     gather_results(output_dir)
     analyse(output_dir, n_jobs=24)
-    analyse_incr(output_dir, n_jobs=24, n_run_var=3)
-    plot_full(output_dir)
-    plot_incr(output_dir, 0.1)
+    analyse_incr(output_dir, n_jobs=24, n_run_var=4)
+    # plot_full(output_dir)
+    # plot_incr(output_dir, 0.1)
     # convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
 
 
