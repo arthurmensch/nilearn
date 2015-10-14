@@ -149,6 +149,8 @@ def single_run(index, estimator, dataset, output_dir, reference,
                                     order='F', mode='r',
                                     shape=(
                                         data['n_samples'], data['n_voxels']))
+            # For computing loading out-of-core
+            estimator.set_params(in_memory=False)
             estimator._raw_fit(memmap_data)
             del memmap_data
         else:

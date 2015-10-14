@@ -228,7 +228,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                                           func_memory_level=2)(
             self.components_init_,
             data,
-            in_memory=False)
+            in_memory=self.in_memory)
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects

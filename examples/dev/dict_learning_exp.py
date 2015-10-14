@@ -44,54 +44,53 @@ from nilearn.decomposition.isbi_utils import run, \
 #                         n_runs=100)
 
 # # ADHD RSN20 intensive experiment
-# estimators = []
-#
-# estimators.append(DictLearning(alpha=4, batch_size=20,
-#                                compression_type='none',
-#                                random_state=0,
-#                                forget_rate=1,
-#                                in_memory=True,
-#                                temp_folder=expanduser('~/temp'),
-#                                reduction_ratio=1))
-# # estimators.append(DictLearning(alpha=3, batch_size=20,
-# #                                compression_type='none',
-# #                                random_state=0,
-# #                                forget_rate=1,
-# #                                in_memory=False,
-# #                                reduction_ratio=1))
-# for compression_type in ['range_finder', 'subsample']:
-#     for reduction_ratio in np.linspace(0.1, 1, 10):
-#         for alpha in np.linspace(1, 4, 4):
-#             estimators.append(DictLearning(alpha=alpha, batch_size=20,
-#                                            compression_type=compression_type,
-#                                            random_state=0,
-#                                            forget_rate=1,
-#                                            reduction_ratio=reduction_ratio))
-# experiment = Experiment('adhd',
-#                         n_subjects=10,
-#                         smoothing_fwhm=6,
-#                         dict_init='rsn20',
-#                         output_dir=expanduser('~/output'),
-#                         cache_dir=expanduser('~/nilearn_cache'),
-#                         data_dir=expanduser('~/data'),
-#                         n_slices=1,
-#                         n_jobs=15,
-#                         n_epochs=1,
-#                         temp_folder=expanduser('~/temp'),
-#                         n_runs=1)
-# # clean_memory()
-#
-# # temp_folder = drop_memmmap(experiment, estimators)
-# # output_dir = run(estimators, experiment, temp_folder='/volatile/arthur/temp/2015-10-14_11-30-02')
-# output_dir = '/volatile/arthur/work/output/2015-10-14_15-17-34'
-# # gather_results(output_dir)
-# # analyse(output_dir, n_jobs=15)
-# # analyse_incr(output_dir, n_jobs=15, n_run_var=1)
-# plot_full(output_dir)
-# plot_incr(output_dir, 1)
-# # convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
-# # output_dir = run(estimators, experiment,
-# #                  temp_folder='/volatile/arthur/temp/2015-10-12_16-29-09')
+estimators = []
+
+estimators.append(DictLearning(alpha=4, batch_size=20,
+                               compression_type='subsample',
+                               random_state=0,
+                               forget_rate=1,
+                               in_memory=False,
+                               reduction_ratio=1))
+# for alpha in np.linspace(1, 4, 4):
+#     estimators.append(DictLearning(alpha=alpha, batch_size=20,
+#                                    compression_type='subsample',
+#                                    random_state=0,
+#                                    forget_rate=1,
+#                                    reduction_ratio=1))
+for compression_type in ['range_finder', 'subsample']:
+    for reduction_ratio in np.linspace(0.1, 1, 10):
+        for alpha in np.linspace(1, 4, 4):
+            estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                                           compression_type=compression_type,
+                                           random_state=0,
+                                           forget_rate=1,
+                                           reduction_ratio=reduction_ratio))
+experiment = Experiment('adhd',
+                        n_subjects=40,
+                        smoothing_fwhm=6,
+                        dict_init='rsn20',
+                        output_dir=expanduser('~/output'),
+                        cache_dir=expanduser('~/nilearn_cache'),
+                        data_dir=expanduser('~/data'),
+                        n_slices=1,
+                        n_jobs=15,
+                        n_epochs=1,
+                        temp_folder=expanduser('~/temp'),
+                        n_runs=10)
+# clean_memory()
+
+temp_folder = drop_memmmap(experiment, estimators)
+output_dir = run(estimators, experiment, temp_folder=temp_folder)
+# output_dir = '/volatile/arthur/work/output/2015-10-14_16-01-33'
+    # gather_results(output_dir)
+    # analyse(output_dir, n_jobs=15)
+    # analyse_incr(output_dir, n_jobs=15, n_run_var=1)
+    # plot_full(output_dir)
+    # plot_incr(output_dir, 1)
+# convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
+# output_dir = run(estimators, experiment,
+#                  temp_folder='/volatile/arthur/temp/2015-10-12_16-29-09')
 
 
 # HCP RSN70 explorative experiment
@@ -108,28 +107,28 @@ from nilearn.decomposition.isbi_utils import run, \
 #                                            random_state=0,
 #                                            forget_rate=1,
 #                                            reduction_ratio=reduction_ratio))
-estimators = []
-for alpha in np.linspace(5, 25, 5):
-    estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                   compression_type='subsample',
-                                   random_state=0,
-                                   forget_rate=1,
-                                   reduction_ratio=1))
-experiment = Experiment('hcp_reduced',
-                        n_subjects=70,
-                        smoothing_fwhm=6,
-                        dict_init='rsn70',
-                        output_dir=expanduser('~/output'),
-                        cache_dir=expanduser('~/nilearn_cache'),
-                        data_dir=expanduser('~/data'),
-                        n_slices=1,
-                        n_jobs=30,
-                        n_epochs=1,
-                        # Out of core dictionary learning specifics
-                        temp_folder=expanduser('~/temp'),
-                        # Stability specific
-                        n_runs=1)
-temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
-output_dir = run(estimators, experiment, temp_folder=temp_folder)
-output_dir = '/home/parietal/amensch/output/2015-10-14_11-41-18'
-gather_results(output_dir)
+# estimators = []
+# for alpha in np.linspace(5, 25, 5):
+#     estimators.append(DictLearning(alpha=alpha, batch_size=20,
+#                                    compression_type='subsample',
+#                                    random_state=0,
+#                                    forget_rate=1,
+#                                    reduction_ratio=1))
+# experiment = Experiment('hcp_reduced',
+#                         n_subjects=70,
+#                         smoothing_fwhm=6,
+#                         dict_init='rsn70',
+#                         output_dir=expanduser('~/output'),
+#                         cache_dir=expanduser('~/nilearn_cache'),
+#                         data_dir=expanduser('~/data'),
+#                         n_slices=1,
+#                         n_jobs=30,
+#                         n_epochs=1,
+#                         # Out of core dictionary learning specifics
+#                         temp_folder=expanduser('~/temp'),
+#                         # Stability specific
+#                         n_runs=1)
+# temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
+# output_dir = run(estimators, experiment, temp_folder=temp_folder)
+# output_dir = '/home/parietal/amensch/output/2015-10-14_11-41-18'
+# gather_results(output_dir)
