@@ -115,7 +115,7 @@ experiment = Experiment('hcp_reduced',
                         cache_dir=expanduser('~/nilearn_cache'),
                         data_dir=expanduser('~/data'),
                         n_slices=1,
-                        n_jobs=30,
+                        n_jobs=10,
                         n_epochs=1,
                         # Out of core dictionary learning specifics
                         temp_folder=expanduser('~/temp'),
