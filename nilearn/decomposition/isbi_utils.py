@@ -580,7 +580,7 @@ def plot_full(output_dir):
         ('DictLearning', 'subsample', 1.), (n_exp, 'std')]
     fig = []
     for i in range(3):
-        fig.append(figsize=figsize(1))
+        fig.append(plt.fig(figsize=figsize(1)))
     for index, sub_df in time_v_corr[not time_v_corr[('reference',
                                                       'last')]].groupby(
         level=['estimator_type',
