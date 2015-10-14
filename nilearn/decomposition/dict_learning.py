@@ -35,7 +35,7 @@ def _compute_loadings(components, data, in_memory=False):
     if in_memory:
         in_core_batch_size = n_samples
     else:
-        in_core_batch_size = min(n_samples, n_samples / 10)
+        in_core_batch_size = min(n_samples, 400)
     batches = gen_batches(n_samples, in_core_batch_size)
     loadings = np.empty((n_components, n_samples), dtype='float64')
     for batch in batches:
