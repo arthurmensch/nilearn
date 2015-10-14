@@ -61,7 +61,7 @@ estimators.append(DictLearning(alpha=4, batch_size=20,
 #                                    reduction_ratio=1))
 for compression_type in ['range_finder', 'subsample']:
     for reduction_ratio in np.linspace(0.1, 1, 2):
-        for alpha in np.linspace(2, 8, 4):
+        for alpha in np.linspace(2, 7, 6):
             estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                            compression_type=compression_type,
                                            random_state=0,
@@ -80,17 +80,17 @@ experiment = Experiment('adhd',
                         temp_folder=expanduser('~/temp'),
                         n_runs=10)
 
-temp_folder = '/volatile/arthur/temp/2015-10-12_16-29-09'
-# output_dir = run(estimators, experiment, temp_folder=temp_folder)
+temp_folder = drop_memmmap(estimators, experiment)
+output_dir = run(estimators, experiment, temp_folder=temp_folder)
 output_dir = '/volatile/arthur/work/output/2015-10-14_17-17-11'
 gather_results(output_dir)
-analyse(output_dir, n_jobs=5)
-analyse_incr(output_dir, n_jobs=5, n_run_var=1)
+analyse(output_dir, n_jobs=20)
+analyse_incr(output_dir, n_jobs=20, n_run_var=1)
 plot_full(output_dir)
-plot_incr(output_dir, 1)
+plot_incr(output_dir, 0.1)
 # convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
-# output_dir = run(estimators, experiment,
-#                  temp_folder='/volatile/arthur/temp/2015-10-12_16-29-09')
+
+
 
 # HCP RSN70 explorative experiment
 # estimators = []

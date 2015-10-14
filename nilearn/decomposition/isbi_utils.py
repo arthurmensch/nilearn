@@ -302,7 +302,7 @@ def single_drop_memmap(exp_params, temp_folder, index, dataset,
     return single_run_dict
 
 
-def drop_memmmap(exp_params, estimators):
+def drop_memmmap(estimators, exp_params):
     base_temp_folder = exp_params.temp_folder
     temp_folder = join(base_temp_folder,
                        datetime.datetime.now().strftime('%Y-%m-%d_%H'
@@ -362,7 +362,8 @@ def analyse(output_dir, n_jobs=1):
     masker = MultiNiftiMasker(mask_img=mask).fit()
     results.set_index(['estimator_type', 'compression_type', 'reduction_ratio',
                        'alpha', 'random_state'], inplace=True)
-    print('[Experiment] Performing Hungarian alg. and computing correlation score')
+    print(
+    '[Experiment] Performing Hungarian alg. and computing correlation score')
 
     stack_base = np.concatenate(
         masker.transform(results.loc[results['reference'], 'components']))
@@ -479,7 +480,7 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
     full.to_csv(join(results_dir, 'full.csv'))
 
 
-def plot_incr(output_dir, reduction_ratio=0.2):
+def plot_incr(output_dir, reduction_ratio=0.1):
     from mpl_utils import plt, figsize
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
@@ -508,7 +509,7 @@ def plot_incr(output_dir, reduction_ratio=0.2):
     plt.xlabel('Number of experiments')
     plt.ylabel('Baseline reproduction')
     plt.savefig(join(figures_dir, 'incr_stability.pdf'))
-    # plt.savefig(join(figures_dir, 'incr_stability.pgf'))
+    plt.savefig(join(figures_dir, 'incr_stability.pgf'))
 
 
 def plot_with_error(plt, x, y, yerr=0, **kwargs):
@@ -536,9 +537,9 @@ def plot_median_maps(output_dir, reduction_ratio=0.1):
     idx = pd.IndexSlice
     base_components = join(results_dir, 'base.nii.gz')
     target_components = \
-    pd.concat([time_v_corr.loc[idx[:, :, reduction_ratio], :],
-               time_v_corr.loc[idx[:, 'subsample', 1], :]],
-              axis=0)['aligned_filename']
+        pd.concat([time_v_corr.loc[idx[:, :, reduction_ratio], :],
+                   time_v_corr.loc[idx[:, 'subsample', 1], :]],
+                  axis=0)['aligned_filename']
     aligned_target_components = align_many_to_one_nii(masker, base_components,
                                                       target_components)
     aligned_series = pd.Series("", index=target_components.index)
@@ -558,6 +559,7 @@ def plot_median_maps(output_dir, reduction_ratio=0.1):
         plt.savefig('median_%i.pdf')
     aligned_series.to_csv(join(median_dir, 'csv'))
 
+
 def plot_full(output_dir):
     from mpl_utils import plt, figsize
     results_dir = join(output_dir, 'stability')
@@ -569,31 +571,24 @@ def plot_full(output_dir):
     time_v_corr.rename(columns=convert_litteral_int_to_int, inplace=True)
     n_exp = time_v_corr.columns.get_level_values(0)[-1]
 
-    ref_time = \
-        time_v_corr.loc[
-            time_v_corr[('reference', 'last')], ('math_time', 'mean')][
-            0]
+    ref_time = time_v_corr.loc[time_v_corr[('reference', 'last')],
+                               ('math_time', 'mean')][
+        0]
     ref_reproduction = time_v_corr.loc[
         ('DictLearning', 'subsample', 1.), (n_exp, 'mean')]
     ref_std = time_v_corr.loc[
         ('DictLearning', 'subsample', 1.), (n_exp, 'std')]
-    # ref_reproduction = time_v_corr.loc[
-    #     ('DictLearning', 'subsample', 1.), ('score', 'last')]
     fig = []
     for i in range(3):
         fig.append(figsize=figsize(1))
-    for index, sub_df in time_v_corr[
-                time_v_corr[('reference', 'last')] == False].groupby(
+    for index, sub_df in time_v_corr[not time_v_corr[('reference',
+                                                      'last')]].groupby(
         level=['estimator_type',
                'compression_type']):
         plt.figure(fig[0].number, axis='square')
-        # plt.plot(np.linspace(0, 1, 10), np.linspace(0, ref_reproduction, 10),
-        #          '--', color='black',
-        #          label='Time / accuracy tradeoff')
         plt.errorbar(sub_df[('math_time', 'mean')] / ref_time,
                      sub_df[(n_exp, 'mean')],
                      yerr=sub_df[(n_exp, 'std')],
-                     # label=sub_df.index.get_level_values(1)[0],
                      xerr=sub_df[('math_time', 'std')] / ref_time,
                      marker='o')
         plt.xlim([0.1, 1])
@@ -620,21 +615,21 @@ def plot_full(output_dir):
     plt.ylabel('Mean overlap')
     plt.xlabel('Time (relative to baseline)')
     plt.savefig(join(figures_dir, 'time_v_corr.pdf'))
-    # plt.savefig(join(figures_dir, 'time_v_corr.pgf'))
+    plt.savefig(join(figures_dir, 'time_v_corr.pgf'))
 
     plt.figure(fig[1].number)
     plt.legend(loc='lower right')
     plt.ylabel('Baseline reproduction')
     plt.xlabel('Reduction ratio')
     plt.savefig(join(figures_dir, 'corr.pdf'))
-    # plt.savefig(join(figures_dir, 'corr.pgf'))
+    plt.savefig(join(figures_dir, 'corr.pgf'))
 
     plt.figure(fig[2].number)
     plt.legend(loc='lower right')
     plt.ylabel('Time')
     plt.xlabel('Reduction ratio')
     plt.savefig(join(figures_dir, 'time.pdf'))
-    # plt.savefig(join(figures_dir, 'time.pgf'))
+    plt.savefig(join(figures_dir, 'time.pgf'))
 
 
 def convert_litteral_int_to_int(x):
