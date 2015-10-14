@@ -13,7 +13,7 @@ from nilearn_sandbox._utils.map_alignment import _align_one_to_one_flat, \
     _spatial_correlation_flat
 from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
 from sklearn.utils import gen_even_slices
-from nilearn._utils import check_niimg, copy_img
+from nilearn._utils import check_niimg
 from nilearn.decomposition import SparsePCA, DictLearning
 from nilearn.decomposition.base import MaskReducer, DecompositionEstimator
 from nilearn import datasets
@@ -188,7 +188,8 @@ def run(estimators, exp_params, temp_folder=None):
     with open(join(output_dir, 'experiment.json'), 'w+') as f:
         json.dump(exp_params.__dict__, f)
 
-    dataset, masker = load_dataset(exp_params, output_dir=output_dir)
+    dataset, masker = load_dataset(exp_params, output_dir=output_dir,
+                                   warmup=(temp_folder is None))
 
     dataset_series = pd.Series(dataset)
     dataset_series.to_csv(join(output_dir, 'dataset.csv'))
@@ -709,33 +710,35 @@ def clean_memory():
 
 
 # HCP RSN70 explorative experiment
-estimators = []
-for compression_type in ['range_finder', 'subsample']:
-    for reduction_ratio in np.linspace(0.1, 1, 10):
-        for alpha in np.linspace(18, 26, 5):
-            estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                           compression_type=compression_type,
-                                           random_state=0,
-                                           forget_rate=1,
-                                           reduction_ratio=reduction_ratio))
-estimators.append(DictLearning(alpha=26, batch_size=20,
-                               compression_type='subsample',
-                               random_state=0,
-                               forget_rate=1,
-                               reduction_ratio=1))
-experiment = Experiment('hcp_reduced',
-                        n_subjects=70,
-                        smoothing_fwhm=6,
-                        dict_init='rsn70',
-                        output_dir=expanduser('~/output'),
-                        cache_dir=expanduser('~/nilearn_cache'),
-                        data_dir=expanduser('~/data'),
-                        n_slices=1,
-                        n_jobs=30,
-                        n_epochs=1,
-                        # Out of core dictionary learning specifics
-                        temp_folder=expanduser('~/temp'),
-                        # Stability specific
-                        n_runs=10)
-temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
-output_dir = run(estimators, experiment, temp_folder=temp_folder)
+# estimators = []
+# for compression_type in ['range_finder', 'subsample']:
+#     for reduction_ratio in np.linspace(0.1, 1, 10):
+#         for alpha in np.linspace(18, 26, 5):
+#             estimators.append(DictLearning(alpha=alpha, batch_size=20,
+#                                            compression_type=compression_type,
+#                                            random_state=0,
+#                                            forget_rate=1,
+#                                            reduction_ratio=reduction_ratio))
+# estimators.append(DictLearning(alpha=26, batch_size=20,
+#                                compression_type='subsample',
+#                                random_state=0,
+#                                forget_rate=1,
+#                                reduction_ratio=1))
+# experiment = Experiment('hcp_reduced',
+#                         n_subjects=70,
+#                         smoothing_fwhm=6,
+#                         dict_init='rsn70',
+#                         output_dir=expanduser('~/output'),
+#                         cache_dir=expanduser('~/nilearn_cache'),
+#                         data_dir=expanduser('~/data'),
+#                         n_slices=1,
+#                         n_jobs=30,
+#                         n_epochs=1,
+#                         # Out of core dictionary learning specifics
+#                         temp_folder=expanduser('~/temp'),
+#                         # Stability specific
+#                         n_runs=10)
+# temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
+# output_dir = run(estimators, experiment, temp_folder=temp_folder)
+output_dir = '/home/parietal/amensch/output/2015-10-14_11-41-18'
+gather_results(output_dir)
