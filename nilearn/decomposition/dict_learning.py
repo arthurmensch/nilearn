@@ -324,6 +324,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             print('[DictLearning] Learning dictionary')
         for batch in batches:
             n_iter = (batch.stop - batch.start) // self.batch_size
+            t0 = time.time()
             res = self._cache(dict_learning_online,
                               func_memory_level=2)(
                 np.asarray(data[:, stream_range[batch]].T, order='C'),

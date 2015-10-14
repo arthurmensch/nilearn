@@ -27,6 +27,7 @@ from .base import MaskReducer, DecompositionEstimator
 from .._utils import check_niimg
 from ..input_data import MultiNiftiMasker
 from nilearn.image import index_img
+from nilearn.plotting import plot_stat_map
 
 Experiment = collections.namedtuple('Experiment',
                                     ['dataset_name',
@@ -517,6 +518,7 @@ def plot_with_error(plt, x, y, yerr=0, **kwargs):
 
 
 def plot_median_maps(output_dir, reduction_ratio=0.1):
+    from mpl_utils import plt, figsize
     mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
     masker = MultiNiftiMasker(mask_img=mask).fit()
     results_dir = join(output_dir, 'stability')
@@ -549,8 +551,11 @@ def plot_median_maps(output_dir, reduction_ratio=0.1):
         median_filename = join(median_dir, 'median_%i.nii.gz' % i)
         median_img.to_filename(median_filename)
         aligned_series.append(median_filename)
+        plt.figure()
+        plt.figure(figsize=figsize(1))
+        plot_stat_map(median_img)
+        plt.savefig('median_%i.pdf')
     aligned_series.to_csv(join(median_dir, 'csv'))
-
 
 def plot_full(output_dir):
     from mpl_utils import plt, figsize
