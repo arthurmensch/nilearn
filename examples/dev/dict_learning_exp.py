@@ -80,10 +80,9 @@ experiment = Experiment('adhd',
                         temp_folder=expanduser('~/temp'),
                         n_runs=10)
 
-clean_memory()
 temp_folder = '/volatile/arthur/temp/2015-10-12_16-29-09'
-output_dir = run(estimators, experiment, temp_folder=temp_folder)
-output_dir = '/volatile/arthur/work/output/2015-10-14_16-57-02'
+# output_dir = run(estimators, experiment, temp_folder=temp_folder)
+output_dir = '/volatile/arthur/work/output/2015-10-14_17-17-11'
 gather_results(output_dir)
 analyse(output_dir, n_jobs=5)
 analyse_incr(output_dir, n_jobs=5, n_run_var=1)

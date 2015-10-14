@@ -355,13 +355,14 @@ def analyse(output_dir, n_jobs=1):
 
     results['score'] = pd.Series(np.zeros(len(results)), results.index)
     results['aligned_filename'] = pd.Series("", index=results.index)
-
+    # max_random_state = results.loc[results['alpha'] < 100]['alpha'].max()
+    # results = results.loc[results['alpha'] != max_random_state]
+    # results = results.loc[results['alpha'] != max_random_state + 100]
     mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
     masker = MultiNiftiMasker(mask_img=mask).fit()
     results.set_index(['estimator_type', 'compression_type', 'reduction_ratio',
                        'alpha', 'random_state'], inplace=True)
-    print(
-        '[Experiment] Performing Hungarian alg. and computing correlation score')
+    print('[Experiment] Performing Hungarian alg. and computing correlation score')
 
     stack_base = np.concatenate(
         masker.transform(results.loc[results['reference'], 'components']))
@@ -507,7 +508,7 @@ def plot_incr(output_dir, reduction_ratio=0.2):
     plt.xlabel('Number of experiments')
     plt.ylabel('Baseline reproduction')
     plt.savefig(join(figures_dir, 'incr_stability.pdf'))
-    plt.savefig(join(figures_dir, 'incr_stability.pgf'))
+    # plt.savefig(join(figures_dir, 'incr_stability.pgf'))
 
 
 def plot_with_error(plt, x, y, yerr=0, **kwargs):
@@ -580,7 +581,7 @@ def plot_full(output_dir):
     #     ('DictLearning', 'subsample', 1.), ('score', 'last')]
     fig = []
     for i in range(3):
-        fig.append(plt.figure(figsize=figsize(1)))
+        fig.append(figsize=figsize(1))
     for index, sub_df in time_v_corr[
                 time_v_corr[('reference', 'last')] == False].groupby(
         level=['estimator_type',
@@ -619,21 +620,21 @@ def plot_full(output_dir):
     plt.ylabel('Mean overlap')
     plt.xlabel('Time (relative to baseline)')
     plt.savefig(join(figures_dir, 'time_v_corr.pdf'))
-    plt.savefig(join(figures_dir, 'time_v_corr.pgf'))
+    # plt.savefig(join(figures_dir, 'time_v_corr.pgf'))
 
     plt.figure(fig[1].number)
     plt.legend(loc='lower right')
     plt.ylabel('Baseline reproduction')
     plt.xlabel('Reduction ratio')
     plt.savefig(join(figures_dir, 'corr.pdf'))
-    plt.savefig(join(figures_dir, 'corr.pgf'))
+    # plt.savefig(join(figures_dir, 'corr.pgf'))
 
     plt.figure(fig[2].number)
     plt.legend(loc='lower right')
     plt.ylabel('Time')
     plt.xlabel('Reduction ratio')
     plt.savefig(join(figures_dir, 'time.pdf'))
-    plt.savefig(join(figures_dir, 'time.pgf'))
+    # plt.savefig(join(figures_dir, 'time.pgf'))
 
 
 def convert_litteral_int_to_int(x):
