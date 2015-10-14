@@ -1,3 +1,5 @@
+from mpl_utils import plt, figsize
+
 import fnmatch
 
 import collections
@@ -481,7 +483,6 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
 
 
 def plot_incr(output_dir, reduction_ratio=0.1):
-    from mpl_utils import plt, figsize
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
     if not exists(figures_dir):
@@ -561,7 +562,6 @@ def plot_median_maps(output_dir, reduction_ratio=0.1):
 
 
 def plot_full(output_dir):
-    from mpl_utils import plt, figsize
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
     if not exists(figures_dir):
