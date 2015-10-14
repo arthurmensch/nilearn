@@ -129,4 +129,4 @@ def hcp_70():
     analyse_incr(output_dir, n_jobs=10,
                  n_run_var=1)
 
-adhdh_20()
+adhd_20()
