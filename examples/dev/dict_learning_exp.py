@@ -43,7 +43,7 @@ from nilearn.decomposition.isbi_utils import run, \
 #                         # Stability specific
 #                         n_runs=100)
 
-def adhdh_20():
+def adhd_20():
 # ADHD RSN20 intensive experiment
     estimators = []
 
