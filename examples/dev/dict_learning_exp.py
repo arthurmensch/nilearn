@@ -43,52 +43,45 @@ from nilearn.decomposition.isbi_utils import run, \
 #                         # Stability specific
 #                         n_runs=100)
 
-clean_memory()
-# # ADHD RSN20 intensive experiment
-estimators = []
-
-estimators.append(DictLearning(alpha=4, batch_size=20,
-                               compression_type='subsample',
-                               random_state=0,
-                               forget_rate=1,
-                               in_memory=False,
-                               reduction_ratio=1))
-# for alpha in np.linspace(1, 4, 4):
-#     estimators.append(DictLearning(alpha=alpha, batch_size=20,
-#                                    compression_type='subsample',
-#                                    random_state=0,
-#                                    forget_rate=1,
-#                                    reduction_ratio=1))
-for compression_type in ['range_finder', 'subsample']:
-    for reduction_ratio in np.linspace(0.1, 1, 2):
-        for alpha in np.linspace(2, 7, 6):
-            estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                           compression_type=compression_type,
-                                           random_state=0,
-                                           forget_rate=1,
-                                           reduction_ratio=reduction_ratio))
-experiment = Experiment('adhd',
-                        n_subjects=40,
-                        smoothing_fwhm=6,
-                        dict_init='rsn20',
-                        output_dir=expanduser('~/output'),
-                        cache_dir=expanduser('~/nilearn_cache'),
-                        data_dir=expanduser('~/data'),
-                        n_slices=1,
-                        n_jobs=15,
-                        n_epochs=1,
-                        temp_folder=expanduser('~/temp'),
-                        n_runs=10)
-
-temp_folder = drop_memmmap(estimators, experiment)
-output_dir = run(estimators, experiment, temp_folder=temp_folder)
-output_dir = '/volatile/arthur/work/output/2015-10-14_17-17-11'
-gather_results(output_dir)
-analyse(output_dir, n_jobs=20)
-analyse_incr(output_dir, n_jobs=20, n_run_var=1)
-plot_full(output_dir)
-plot_incr(output_dir, 0.1)
-# convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
+# ADHD RSN20 intensive experiment
+# estimators = []
+#
+# estimators.append(DictLearning(alpha=4, batch_size=20,
+#                                compression_type='subsample',
+#                                random_state=0,
+#                                forget_rate=1,
+#                                in_memory=False,
+#                                reduction_ratio=1))
+# for compression_type in ['range_finder', 'subsample']:
+#     for reduction_ratio in np.linspace(0.1, 1, 2):
+#         for alpha in np.linspace(2, 7, 6):
+#             estimators.append(DictLearning(alpha=alpha, batch_size=20,
+#                                            compression_type=compression_type,
+#                                            random_state=0,
+#                                            forget_rate=1,
+#                                            reduction_ratio=reduction_ratio))
+# experiment = Experiment('adhd',
+#                         n_subjects=40,
+#                         smoothing_fwhm=6,
+#                         dict_init='rsn20',
+#                         output_dir=expanduser('~/output'),
+#                         cache_dir=expanduser('~/nilearn_cache'),
+#                         data_dir=expanduser('~/data'),
+#                         n_slices=1,
+#                         n_jobs=15,
+#                         n_epochs=1,
+#                         temp_folder=expanduser('~/temp'),
+#                         n_runs=10)
+#
+# temp_folder = drop_memmmap(estimators, experiment)
+# output_dir = run(estimators, experiment, temp_folder=temp_folder)
+# output_dir = '/volatile/arthur/work/output/2015-10-14_17-17-11'
+# gather_results(output_dir)
+# analyse(output_dir, n_jobs=20)
+# analyse_incr(output_dir, n_jobs=20, n_run_var=1)
+# plot_full(output_dir)
+# plot_incr(output_dir, 0.1)
+# # convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
 
 
 
@@ -130,4 +123,7 @@ plot_incr(output_dir, 0.1)
 #                         n_runs=1)
 # temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
 # output_dir = run(estimators, experiment, temp_folder=temp_folder)
-# gather_results(output_dir)
+output_dir = '/home/parietal/amensch/output/2015-10-14_16-22-24'
+gather_results('/home/parietal/amensch/output/2015-10-14_16-22-24')
+analyse('/home/parietal/amensch/output/2015-10-14_16-22-24')
+analyse_incr('/home/parietal/amensch/output/2015-10-14_16-22-24')
