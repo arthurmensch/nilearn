@@ -39,7 +39,7 @@ Experiment = collections.namedtuple('Experiment',
                                      'n_runs'])
 
 
-def load_dataset(exp_params, warmup=True):
+def load_dataset(exp_params, output_dir=None, warmup=True):
     n_subjects = exp_params.n_subjects
     data_dir = exp_params.data_dir
 
@@ -58,6 +58,9 @@ def load_dataset(exp_params, warmup=True):
         mask = join(exp_params.data_dir, 'HCP_mask', 'mask_img.nii.gz')
     else:
         raise ValueError("Dataset not supported")
+    if output_dir is not None:
+        check_niimg(mask).to_filename(join(output_dir, 'mask_img.nii.gz'))
+
 
     print('[Experiment] Computing global mask')
     smoothing_fwhm = exp_params.smoothing_fwhm
@@ -123,7 +126,7 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
                                  n_components=n_components,
                                  memory_level=2, memory=cache_dir,
                                  verbose=3,
-                                 random_state=random_state+reference)
+                                 random_state=random_state + offset)
             yield estimator, reference
 
 
@@ -185,10 +188,7 @@ def run(estimators, exp_params, temp_folder=None):
     with open(join(output_dir, 'experiment.json'), 'w+') as f:
         json.dump(exp_params.__dict__, f)
 
-    dataset, masker = load_dataset(exp_params, warmup=temp_folder is None)
-
-    copy_img(masker.mask_img_).to_filename(join(output_dir,
-                                                'mask_img.nii.gz'))
+    dataset, masker = load_dataset(exp_params, output_dir=output_dir)
 
     dataset_series = pd.Series(dataset)
     dataset_series.to_csv(join(output_dir, 'dataset.csv'))
@@ -305,7 +305,7 @@ def drop_memmmap(exp_params):
         pass
     with open(join(temp_folder, 'experiment.json'), 'w+') as f:
         json.dump(exp_params.__dict__, f)
-    dataset, masker = load_dataset(exp_params)
+    dataset, masker = load_dataset(exp_params, output_dir=temp_folder)
     loading_parameters = set([(estimator.compression_type,
                                estimator.reduction_ratio)
                               for estimator in estimators])
@@ -326,8 +326,6 @@ def drop_memmmap(exp_params):
     data.sort_index(by=['compression_type',
                         'reduction_ratio'], inplace=True)
     data.to_csv(join(temp_folder, 'data.csv'))
-    copy_img(masker.mask_img_).to_filename(join(temp_folder,
-                                                'mask_img.nii.gz'))
     return temp_folder
 
 
@@ -576,7 +574,6 @@ def plot_full(output_dir):
     plot_with_error(np.linspace(0, 1, 10),
                         ref_reproduction * np.ones(10),
              yerr=ref_std * np.ones(10),
-             # label='Non reduced',
              color='red')
     plt.legend(['Range finder', 'Subsample', 'No reduction'], loc='lower left')
     plt.ylabel('Mean overlap')
@@ -698,6 +695,7 @@ estimators.append(DictLearning(alpha=20, batch_size=20,
                                compression_type='none',
                                random_state=0,
                                forget_rate=1,
+                               in_memory=False,
                                reduction_ratio=1))
 for compression_type in ['range_finder', 'subsample']:
     for reduction_ratio, alpha in zip(np.linspace(0.1, 1, 10),
@@ -706,9 +704,11 @@ for compression_type in ['range_finder', 'subsample']:
                                        compression_type=compression_type,
                                        random_state=0,
                                        forget_rate=1,
+                                       in_memory=False,
+                                       temp_folder=expanduser('~/temp_mem'),
                                        reduction_ratio=reduction_ratio))
 experiment = Experiment('adhd',
-                        n_subjects=4,
+                        n_subjects=40,
                         smoothing_fwhm=6,
                         dict_init='rsn20',
                         output_dir=expanduser('~/output'),
@@ -718,19 +718,18 @@ experiment = Experiment('adhd',
                         n_jobs=15,
                         n_epochs=1,
                         temp_folder=expanduser('~/temp'),
-                        n_runs=1)
-output_dir = run(estimators, experiment)
+                        n_runs=30)
 
 
 
 
-# temp_folder = drop_memmmap(experiment)
-output_dir = '/volatile/arthur/work/output/2015-10-12_17-44-04'
-# gather_results(output_dir)
+temp_folder = drop_memmmap(experiment)
+output_dir = run(estimators, experiment, temp_folder=temp_folder)
+gather_results(output_dir)
 # analyse(output_dir, n_jobs=15)
 # analyse_incr(output_dir, n_jobs=15, n_run_var=1)
 # plot_full(output_dir)
-plot_incr(output_dir, 1)
+# plot_incr(output_dir, 1)
 
 # output_dir = run(estimators, experiment,
 #                  temp_folder='/volatile/arthur/temp/2015-10-12_16-29-09')

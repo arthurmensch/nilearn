@@ -25,8 +25,7 @@ from sklearn.utils import gen_batches, check_random_state
 
 from .canica import CanICA
 from .._utils.cache_mixin import CacheMixin
-from .base import DecompositionEstimator, mask_and_reduce, MaskReducer, \
-    _close_and_remove
+from .base import DecompositionEstimator, MaskReducer
 
 
 def _compute_loadings(components, data, in_memory=False):
@@ -273,6 +272,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         mask_reducer.fit(imgs, confounds)
         self.time_ = mask_reducer.time_
         self._raw_fit(mask_reducer.data_)
+        mask_reducer.close()
 
     def _raw_fit(self, data):
         """Compute the mask and the maps across subjects, using raw_data. Can

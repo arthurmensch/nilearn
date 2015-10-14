@@ -27,14 +27,6 @@ from .._utils.niimg_conversions import check_niimg_4d
 from .._utils.niimg import _safe_get_data
 
 
-def _close_and_remove(file, filename):
-    try:
-        os.close(file)
-    except:
-        pass
-    os.remove(filename)
-
-
 class mask_and_reduce(object):
     """Mask and reduce provided data with provided masker, using a PCA
 
@@ -113,31 +105,28 @@ class mask_and_reduce(object):
         self.parity = parity
 
     def __enter__(self):
-        mask_reducer = MaskReducer(self.masker,
-                                   reduction_ratio=self.reduction_ratio,
-                                   compression_type=self.compression_type,
-                                   n_components=self.n_components,
-                                   random_state=self.random_state,
-                                   memory_level=self.memory_level,
-                                   memory=self.memory,
-                                   mock=self.mock,
-                                   in_memory=self.in_memory,
-                                   temp_folder=self.temp_folder,
-                                   n_jobs=1, power_iter=self.power_iter,
-                                   parity=self.parity)
-        mask_reducer.fit(self.imgs, confounds=self.confounds)
-        if hasattr(mask_reducer, 'file_'):
-            self.filename_ = mask_reducer.filename_
-            self.file_ = mask_reducer.file_
-        self.data_ = mask_reducer.data_
+        self.mask_reducer_ = MaskReducer(self.masker,
+                                         reduction_ratio=self.reduction_ratio,
+                                         compression_type=self.compression_type,
+                                         n_components=self.n_components,
+                                         random_state=self.random_state,
+                                         memory_level=self.memory_level,
+                                         memory=self.memory,
+                                         mock=self.mock,
+                                         in_memory=self.in_memory,
+                                         temp_folder=self.temp_folder,
+                                         n_jobs=1, power_iter=self.power_iter,
+                                         parity=self.parity)
+        self.mask_reducer_.fit(self.imgs, confounds=self.confounds)
+        if hasattr(self.mask_reducer_.mask_reducer, 'file_'):
+            self.filename_ = self.mask_reducer_.filename_
+            self.file_ = self.mask_reducer_.file_
+        self.data_ = self.mask_reducer_.mask_reducer.data_
         return self.data_
 
     def __exit__(self, type, value, traceback):
-        if hasattr(self, 'file_'):
-            # We use low level IO as we cannot use a file context manager
-            # within this context manager
-            del self.data_
-            _close_and_remove(self.file_, self.filename_)
+        self.data_ = None
+        self.mask_reducer_.close()
 
 
 class MaskReducer(BaseEstimator):
@@ -292,9 +281,8 @@ class MaskReducer(BaseEstimator):
 
                 # We initialize data in memory or on disk
                 if self.filename is None:
-                    self.filename_, self.file_ = mkstemp(dir=self.temp_folder_)
-                    atexit.register(lambda: _close_and_remove(self.filename_,
-                                                              self.file_))
+                    self.file_, self.filename_ = mkstemp(dir=self.temp_folder_)
+                    atexit.register(lambda: self.close())
                 else:
                     self.filename_ = join(self.temp_folder_, self.filename)
                     self.file_ = open(self.filename_, 'w+').fileno()
@@ -334,10 +322,15 @@ class MaskReducer(BaseEstimator):
             self.time_[1] += ordering_time
         return self
 
-    def __del__(self):
+    def close(self):
         self.data_ = None
+        if hasattr(self, 'file_'):
+            try:
+                os.close(self.file_)
+            except:
+                pass
         if hasattr(self, 'filename_') and self.filename is None:
-            _close_and_remove(self.filename_, self.file_)
+            os.remove(self.filename_)
 
 
 def _load_single_subject(masker, data, subject_limits, subject_n_samples,
