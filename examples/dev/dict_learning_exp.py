@@ -54,13 +54,16 @@ def adhd_20():
                                    in_memory=False,
                                    reduction_ratio=1))
     for compression_type in ['range_finder', 'subsample']:
-        for reduction_ratio in np.linspace(0.1, 1, 10):
+        for reduction_ratio in np.concatenate((np.array([0.025, 0.05]),
+                                              np.linspace(0.1, 1, 10))):
             for alpha in np.linspace(1, 8, 8):
                 estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                               compression_type=compression_type,
+                                               compression_type=
+                                               compression_type,
                                                random_state=0,
                                                forget_rate=1,
-                                               reduction_ratio=reduction_ratio))
+                                               reduction_ratio=
+                                               reduction_ratio))
     experiment = Experiment('adhd',
                             n_subjects=40,
                             smoothing_fwhm=6,
