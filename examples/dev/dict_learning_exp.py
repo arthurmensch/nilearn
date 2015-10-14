@@ -77,12 +77,12 @@ def adhd_20():
     # temp_folder = drop_memmmap(estimators, experiment)
     # output_dir = run(estimators, experiment, temp_folder=temp_folder)
     output_dir = expanduser('~/output/2015-10-14_20-02-30')
-    gather_results(output_dir)
-    analyse(output_dir, n_jobs=24)
-    analyse_incr(output_dir, n_jobs=24, n_run_var=1)
+    # gather_results(output_dir)
+    # analyse(output_dir, n_jobs=24)
+    # analyse_incr(output_dir, n_jobs=24, n_run_var=1)
     plot_full(output_dir)
     plot_incr(output_dir, 0.1)
-    convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
+    # convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
 
 
 def hcp_70():
