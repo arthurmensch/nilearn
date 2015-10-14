@@ -1,3 +1,4 @@
+import fnmatch
 from mpl_utils import plt, figsize
 
 import collections
@@ -109,10 +110,10 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
     n_epochs = exp_params.n_epochs
     n_runs = exp_params.n_runs
     cache_dir = exp_params.cache_dir
-    for i, estimator in enumerate(estimators):
-        reference = (i == len(estimators) - 1)
-        offset = 100 if reference else 0
-        for random_state in offset + np.arange(n_runs):
+    for random_state in np.arange(n_runs):
+        for i, estimator in enumerate(estimators):
+            reference = (i == 0)
+            offset = 100 if reference else 0
             estimator = clone(estimator)
             estimator.set_params(mask=masker,
                                  smoothing_fwhm=smoothing_fwhm,
@@ -122,8 +123,8 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
                                  n_components=n_components,
                                  memory_level=2, memory=cache_dir,
                                  verbose=3,
-                                 random_state=random_state)
-            yield estimator, (i == len(estimators) - 1)
+                                 random_state=random_state+reference)
+            yield estimator, reference
 
 
 def single_run(index, estimator, dataset, output_dir, reference,
@@ -186,6 +187,9 @@ def run(estimators, exp_params, temp_folder=None):
 
     dataset, masker = load_dataset(exp_params, warmup=temp_folder is None)
 
+    copy_img(masker.mask_img_).to_filename(join(output_dir,
+                                                'mask_img.nii.gz'))
+
     dataset_series = pd.Series(dataset)
     dataset_series.to_csv(join(output_dir, 'dataset.csv'))
 
@@ -232,9 +236,32 @@ def run(estimators, exp_params, temp_folder=None):
                            'alpha',
                            'random_state'], inplace=True)
     results.to_csv(join(output_dir, 'results.csv'))
-    copy_img(masker.mask_img_).to_filename(join(output_dir,
-                                                'mask_img.nii.gz'))
     return output_dir
+
+
+def gather_results(output_dir):
+    full_dict_list = []
+    for dirpath, dirname, filenames in os.walk(output_dir):
+        for filename in fnmatch.filter(filenames, 'results.json'):
+            with open(join(dirpath, filename), 'r') as f:
+                full_dict_list.append(json.load(f))
+    results = pd.DataFrame(full_dict_list, columns=['estimator_type',
+                                                    'compression_type',
+                                                    'reduction_ratio',
+                                                    'alpha',
+                                                    'random_state',
+                                                    'math_time', 'io_time',
+                                                    'load_math_time',
+                                                    'load_io_time',
+                                                    'reference',
+                                                    'components'])
+
+    results.sort_index(by=['estimator_type',
+                           'compression_type',
+                           'reduction_ratio',
+                           'alpha',
+                           'random_state'], inplace=True)
+    results.to_csv(join(output_dir, 'results.csv'))
 
 
 def single_drop_memmap(exp_params, temp_folder, index, dataset,
@@ -475,18 +502,22 @@ def plot_incr(output_dir, reduction_ratio=0.2):
     plt.savefig(join(figures_dir, 'incr_stability.pgf'))
 
 
-def convert_litteral_int_to_int(x):
-    try:
-        return int(x)
-    except ValueError:
-        return x
-
-
 def plot_with_error(x, y, yerr=0, **kwargs):
     plot = plt.plot(x, y, **kwargs)
     plt.fill_between(x, (y + yerr),
                      (y - yerr), alpha=0.3,
                      color=plot[0].get_color())
+
+
+def plot_median_maps():
+    results_dir = join(output_dir, 'stability')
+    figures_dir = join(output_dir, 'figures')
+    if not exists(figures_dir):
+        os.mkdir(figures_dir)
+    time_v_corr = pd.read_csv(join(results_dir, 'full.csv'),
+                              index_col=range(3), header=[0, 1])
+    time_v_corr.rename(columns=convert_litteral_int_to_int, inplace=True)
+    n_exp = time_v_corr.columns.get_level_values(0)[-1]
 
 
 def plot_full(output_dir):
@@ -504,7 +535,11 @@ def plot_full(output_dir):
             time_v_corr[('reference', 'last')], ('math_time', 'mean')][
             0]
     ref_reproduction = time_v_corr.loc[
-        ('DictLearning', 'subsample', 1.), ('score', 'last')]
+        ('DictLearning', 'subsample', 1.), (n_exp, 'mean')]
+    ref_std = time_v_corr.loc[
+        ('DictLearning', 'subsample', 1.), (n_exp, 'std')]
+    # ref_reproduction = time_v_corr.loc[
+    #     ('DictLearning', 'subsample', 1.), ('score', 'last')]
     fig = []
     for i in range(3):
         fig.append(plt.figure(figsize=figsize(1)))
@@ -513,20 +548,17 @@ def plot_full(output_dir):
         level=['estimator_type',
                'compression_type']):
         plt.figure(fig[0].number, axis='square')
-        plt.plot(np.linspace(0, 1, 10), np.linspace(0, ref_reproduction, 10),
-                 '--', color='black',
-                 label='Time / accuracy tradeoff')
-        plt.plot(np.linspace(0, 1, 10), ref_reproduction * np.ones((10, 1)),
-                 label='Same data accuracy',
-                 color='red')
+        # plt.plot(np.linspace(0, 1, 10), np.linspace(0, ref_reproduction, 10),
+        #          '--', color='black',
+        #          label='Time / accuracy tradeoff')
         plt.errorbar(sub_df[('math_time', 'mean')] / ref_time,
-                     sub_df[('score', 'last')],
-                     # yerr=sub_df[(n_exp, 'std')],
-                     label=sub_df.index.get_level_values(1)[0],
+                     sub_df[(n_exp, 'mean')],
+                     yerr=sub_df[(n_exp, 'std')],
+                     # label=sub_df.index.get_level_values(1)[0],
                      xerr=sub_df[('math_time', 'std')] / ref_time,
                      marker='o')
         plt.xlim([0.1, 1])
-        plt.ylim([0., 0.4])
+        plt.ylim([0., 0.5])
 
         plt.figure(fig[1].number)
 
@@ -541,11 +573,13 @@ def plot_full(output_dir):
                         yerr=sub_df[('math_time', 'std')],
                         label=sub_df.index.get_level_values(1)[0], marker='o')
     plt.figure(fig[0].number)
-    from collections import OrderedDict
-    handles, labels = plt.gca().get_legend_handles_labels()
-    by_label = OrderedDict(zip(labels, handles))
-    plt.legend(by_label.values(), by_label.keys(), loc='lower left')
-    plt.ylabel('Baseline reproduction')
+    plot_with_error(np.linspace(0, 1, 10),
+                        ref_reproduction * np.ones(10),
+             yerr=ref_std * np.ones(10),
+             # label='Non reduced',
+             color='red')
+    plt.legend(['Range finder', 'Subsample', 'No reduction'], loc='lower left')
+    plt.ylabel('Mean overlap')
     plt.xlabel('Time (relative to baseline)')
     plt.savefig(join(figures_dir, 'time_v_corr.pdf'))
     plt.savefig(join(figures_dir, 'time_v_corr.pgf'))
@@ -563,6 +597,13 @@ def plot_full(output_dir):
     plt.xlabel('Reduction ratio')
     plt.savefig(join(figures_dir, 'time.pdf'))
     plt.savefig(join(figures_dir, 'time.pgf'))
+
+
+def convert_litteral_int_to_int(x):
+    try:
+        return int(x)
+    except ValueError:
+        return x
 
 
 def convert_nii_to_pdf(output_dir, n_jobs=1):
@@ -615,37 +656,81 @@ def clean_memory():
 # analyse_incr(output_dir, n_jobs=32, n_run_var=5)
 # plot_full(output_dir)
 # plot_incr(output_dir)
+# estimators = []
+# for compression_type in ['range_finder', 'subsample']:
+#     for reduction_ratio in np.linspace(0.1, 1, 3):
+#         for alpha in np.linspace(18, 26, 5):
+#             estimators.append(DictLearning(alpha=alpha, batch_size=20,
+#                                            compression_type=compression_type,
+#                                            random_state=0,
+#                                            forget_rate=1,
+#                                            reduction_ratio=reduction_ratio))
+# estimators.append(DictLearning(alpha=20, batch_size=20,
+#                                compression_type='subsample',
+#                                random_state=0,
+#                                forget_rate=1,
+#                                reduction_ratio=1))
+# estimators.append(DictLearning(alpha=20, batch_size=20,
+#                                compression_type='subsample',
+#                                random_state=0,
+#                                forget_rate=1,
+#                                reduction_ratio=1))
+# experiment = Experiment('adhd',
+#                         n_subjects=40,
+#                         smoothing_fwhm=6,
+#                         dict_init='rsn20',
+#                         output_dir=expanduser('~/output'),
+#                         cache_dir=expanduser('~/nilearn_cache'),
+#                         data_dir=expanduser('~/data'),
+#                         n_slices=1,
+#                         n_jobs=5,
+#                         n_epochs=1,
+#                         # Out of core dictionary learning specifics
+#                         temp_folder=expanduser('~/temp'),
+#                         # Stability specific
+#                         n_runs=100)
+
 estimators = []
-for compression_type in ['range_finder', 'subsample']:
-    for reduction_ratio in np.linspace(0.1, 1, 10):
-        for alpha in np.linspace(18, 26, 5):
-            estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                           compression_type=compression_type,
-                                           random_state=0,
-                                           forget_rate=1,
-                                           reduction_ratio=reduction_ratio))
-estimators.append(DictLearning(alpha=26, batch_size=20,
-                               compression_type='subsample',
+alpha_list = {'range_finder': [18, 18, 16, 16, 18, 14, 18, 18, 18, 14],
+              'subsample': [6, 8, 10, 12, 14, 12, 12, 16, 16, 16]}
+
+estimators.append(DictLearning(alpha=20, batch_size=20,
+                               compression_type='none',
                                random_state=0,
                                forget_rate=1,
                                reduction_ratio=1))
-experiment = Experiment('hcp_reduced',
-                        n_subjects=70,
+for compression_type in ['range_finder', 'subsample']:
+    for reduction_ratio, alpha in zip(np.linspace(0.1, 1, 10),
+                                      alpha_list[compression_type]):
+        estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                                       compression_type=compression_type,
+                                       random_state=0,
+                                       forget_rate=1,
+                                       reduction_ratio=reduction_ratio))
+experiment = Experiment('adhd',
+                        n_subjects=4,
                         smoothing_fwhm=6,
-                        dict_init='rsn70',
+                        dict_init='rsn20',
                         output_dir=expanduser('~/output'),
                         cache_dir=expanduser('~/nilearn_cache'),
                         data_dir=expanduser('~/data'),
                         n_slices=1,
-                        n_jobs=10,
+                        n_jobs=15,
                         n_epochs=1,
-                        # Out of core dictionary learning specifics
                         temp_folder=expanduser('~/temp'),
-                        # Stability specific
-                        n_runs=10)
+                        n_runs=1)
+output_dir = run(estimators, experiment)
 
-temp_folder = drop_memmmap(experiment)
-output_dir = run(estimators, experiment,
-                 temp_folder=temp_folder)
-# analyse(output_dir, n_jobs=30)
-# analyse_incr(output_dir, n_jobs=30, n_run_var=1)
+
+
+
+# temp_folder = drop_memmmap(experiment)
+output_dir = '/volatile/arthur/work/output/2015-10-12_17-44-04'
+# gather_results(output_dir)
+# analyse(output_dir, n_jobs=15)
+# analyse_incr(output_dir, n_jobs=15, n_run_var=1)
+# plot_full(output_dir)
+plot_incr(output_dir, 1)
+
+# output_dir = run(estimators, experiment,
+#                  temp_folder='/volatile/arthur/temp/2015-10-12_16-29-09')

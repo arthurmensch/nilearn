@@ -129,7 +129,7 @@ class mask_and_reduce(object):
         if hasattr(mask_reducer, 'file_'):
             self.filename_ = mask_reducer.filename_
             self.file_ = mask_reducer.file_
-        self.data_, mask_reducer.data_
+        self.data_ = mask_reducer.data_
         return self.data_
 
     def __exit__(self, type, value, traceback):
@@ -275,8 +275,8 @@ class MaskReducer(BaseEstimator):
         subject_limits[1:] = np.cumsum(subject_n_samples)
         n_voxels = np.sum(_safe_get_data(self.masker.mask_img_))
         n_samples = subject_limits[-1]
+        self.subject_limits_ = subject_limits
 
-        data = None
         if not mock:
             if return_mmap or self.n_jobs > 1:
                 if self.temp_folder is None:
@@ -292,23 +292,20 @@ class MaskReducer(BaseEstimator):
 
                 # We initialize data in memory or on disk
                 if self.filename is None:
-                    file_descr_C, filename_C = mkstemp(dir=self.temp_folder_)
-                    file_descr, filename = mkstemp(dir=self.temp_folder_)
-                    atexit.register(lambda: _close_and_remove(file_descr,
-                                                              filename))
+                    self.filename_, self.file_ = mkstemp(dir=self.temp_folder_)
+                    atexit.register(lambda: _close_and_remove(self.filename_,
+                                                              self.file_))
                 else:
-                    filename_C = join(self.temp_folder_, self.filename + '_C')
-                    file_descr_C = open(filename_C, 'w+').fileno()
                     self.filename_ = join(self.temp_folder_, self.filename)
                     self.file_ = open(self.filename_, 'w+').fileno()
-                atexit.register(lambda: _close_and_remove(file_descr_C,
-                                                          filename_C))
-                data = np.memmap(filename_C, dtype='float64',
-                                 order='C', mode='w+',
+                data = np.memmap(self.filename_, dtype='float64',
+                                 order='F', mode='w+',
                                  shape=(n_samples, n_voxels))
             else:
                 data = np.empty((n_samples, n_voxels), order='F',
                                 dtype='float64')
+        else:
+            data = None
         timings_list = Parallel(n_jobs=self.n_jobs)(
             delayed(_load_single_subject)(
                 self.masker, data, subject_limits, subject_n_samples,
@@ -322,29 +319,25 @@ class MaskReducer(BaseEstimator):
                 i, self.power_iter,
                 self.parity,
             ) for i, (img, confound) in enumerate(zip(imgs, confounds)))
-        self.subject_limits_ = subject_limits
 
-        timings = np.concatenate([timings[np.newaxis, :]
-                                  for timings in timings_list])
-        self.time_ = np.sum(timings, axis=0)
+        if not mock:
+            timings = np.concatenate([timings[np.newaxis, :]
+                                      for timings in timings_list])
+            self.time_ = np.sum(timings, axis=0)
 
-        t0 = time.time()
-        if return_mmap:
-            data_F = np.memmap(self.filename_, dtype='float64',
-                               order='F', mode='w+',
-                               shape=(n_samples, n_voxels))
-            data_F[:] = data
-            self.data_ = data_F
-            data = None
-            _close_and_remove(file_descr_C, filename_C)
-        elif not mock:
-            self.data_ = check_array(data, order='F', copy=True)
-            data = None
-            if self.n_jobs > 1:
-                _close_and_remove(file_descr_C, filename_C)
-        ordering_time = time.time() - t0
-        self.time_[1] += ordering_time
+            t0 = time.time()
+            if return_mmap:
+                self.data_ = data
+            else:
+                self.data_ = check_array(data, order='F')
+            ordering_time = time.time() - t0
+            self.time_[1] += ordering_time
         return self
+
+    def __del__(self):
+        self.data_ = None
+        if hasattr(self, 'filename_') and self.filename is None:
+            _close_and_remove(self.filename_, self.file_)
 
 
 def _load_single_subject(masker, data, subject_limits, subject_n_samples,

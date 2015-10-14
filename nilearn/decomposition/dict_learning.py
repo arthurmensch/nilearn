@@ -226,9 +226,10 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
             self.masker_.inverse_transform(self.components_init_).to_filename(
                 join(self.debug_folder, 'init.nii.gz'))
         self._loadings_init = self._cache(_compute_loadings,
-                                      func_memory_level=2)(self.components_init_,
-                                                           data,
-                                                           in_memory=False)
+                                          func_memory_level=2)(
+            self.components_init_,
+            data,
+            in_memory=False)
 
     def fit(self, imgs, y=None, confounds=None):
         """Compute the mask and the ICA maps across subjects
@@ -258,28 +259,20 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
         if self.verbose:
             print('[DictLearning] Loading data')
         mask_reducer = MaskReducer(self.masker_,
-                             reduction_ratio=self.reduction_ratio,
-                             n_components=self.n_components,
-                             compression_type=self.compression_type,
-                             power_iter=self.power_iter,
-                             random_state=self.random_state,
-                             memory_level=max(0, self.memory_level - 1),
-                             temp_folder=self.temp_folder,
-                             n_jobs=self.n_jobs,
-                             memory=self.memory,
-                             in_memory=self.in_memory,
-                             parity=self.parity)
+                                   reduction_ratio=self.reduction_ratio,
+                                   n_components=self.n_components,
+                                   compression_type=self.compression_type,
+                                   power_iter=self.power_iter,
+                                   random_state=0,  # self.random_state,
+                                   memory_level=max(0, self.memory_level - 1),
+                                   temp_folder=self.temp_folder,
+                                   n_jobs=self.n_jobs,
+                                   memory=self.memory,
+                                   in_memory=self.in_memory,
+                                   parity=self.parity)
         mask_reducer.fit(imgs, confounds)
         self.time_ = mask_reducer.time_
         self._raw_fit(mask_reducer.data_)
-
-        # Remove temporary file
-        if hasattr(mask_reducer, 'file_'):
-            filename = mask_reducer.filename_
-            file = mask_reducer.file_
-            # Delete data_ memory map
-            del mask_reducer
-            _close_and_remove(file, filename)
 
     def _raw_fit(self, data):
         """Compute the mask and the maps across subjects, using raw_data. Can
