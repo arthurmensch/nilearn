@@ -111,10 +111,10 @@ from nilearn.decomposition.isbi_utils import run, \
 estimators = []
 for alpha in np.linspace(5, 25, 5):
     estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                           compression_type='none',
-                                           random_state=0,
-                                           forget_rate=1,
-                                           reduction_ratio=1))
+                                   compression_type='subsample',
+                                   random_state=0,
+                                   forget_rate=1,
+                                   reduction_ratio=1))
 experiment = Experiment('hcp_reduced',
                         n_subjects=70,
                         smoothing_fwhm=6,
