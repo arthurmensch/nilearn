@@ -581,8 +581,8 @@ def plot_full(output_dir):
     fig = []
     for i in range(3):
         fig.append(plt.figure(figsize=figsize(1)))
-    for index, sub_df in time_v_corr[not time_v_corr[('reference',
-                                                      'last')]].groupby(
+    for index, sub_df in time_v_corr[time_v_corr[('reference',
+                                                      'last')] == False].groupby(
         level=['estimator_type',
                'compression_type']):
         plt.figure(fig[0].number, axis='square')
