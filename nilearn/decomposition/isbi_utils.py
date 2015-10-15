@@ -462,10 +462,11 @@ def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1):
 
     mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
     masker = MultiNiftiMasker(mask_img=mask).fit()
-    # Number of experiment = number of reference experiment
-    n_exp = results.loc[True]['random_state'].count()
+    n_exp = results.loc[True]['random_state'].count() / n_run_var
 
     slices = gen_even_slices(n_exp, n_run_var)
+    n_exp /= n_run_var
+    # Number of experiment = number of reference experiment
 
     score_num_exp = []
 
@@ -482,8 +483,7 @@ def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1):
             results_score.groupby(level=['reference',
                                          'estimator_type',
                                          'compression_type',
-                                         'reduction_ratio'])
-            for i in range(n_exp))
+                                         'reduction_ratio']))
         for index, n_exp, score in res:
             this_stability.loc[index, n_exp] = score
 
@@ -520,7 +520,7 @@ def analyse_median_maps(output_dir, reduction_ratio=0.1):
     if not exists(median_dir):
         os.mkdir(median_dir)
 
-    scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
+    scores_extended = pd.read_csv(join(results_dir, 'scores.csv'),
                                   index_col=range(4), header=[0, 1])
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
     n_exp = scores_extended.columns.get_level_values(0)[-1]

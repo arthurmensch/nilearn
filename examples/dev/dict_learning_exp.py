@@ -80,15 +80,14 @@ def adhd_20():
     # temp_folder = '/volatile/arthur/temp/2015-10-15_17-38-44'
     # output_dir = run(estimators, experiment, temp_folder=temp_folder)
     output_dir = expanduser('~/output/2015-10-14_21-02-57')
-    # output_dir = expanduser('/volatile/arthur/work/output/test/2015-10-06_13-04-14')
+    analyse_median_maps(output_dir)
     # gather_results(output_dir=output_dir)
     # analyse(output_dir, n_jobs=28, limit=12)
-    analyse_num_exp(output_dir, n_jobs=20, n_run_var=4)
+    # analyse_num_exp(output_dir, n_jobs=20, n_run_var=4)
     # analyse_median_maps(output_dir)
     # plot_num_exp(output_dir)
-    # plot_full(output_dir)
+    plot_full(output_dir)
     # plot_num_exp(output_dir, 0.1)
-    # analyse_median_maps(output_dir)
     # convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
 
 
