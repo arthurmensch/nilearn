@@ -156,7 +156,7 @@ def run_single(index, slice_index, estimator, dataset, output_dir, reference,
             estimator.set_params(in_memory=False)
             subject_limits = np.load(data['subject_limits'])
             estimator._raw_fit(memmap_data[subject_limits[this_slice.start]:
-                                           subject_limits[this_slice.stop]])
+            subject_limits[this_slice.stop]])
             del memmap_data
         else:
             estimator.fit(dataset[this_slice])
@@ -357,7 +357,8 @@ def analyse_single(masker, stack_base, results_dir, num, index,
                    random_state_df, limit, cache_dir):
     stack_target = np.concatenate(
         masker.transform(random_state_df['components'][:limit]))
-    aligned = _align_one_to_one_flat(stack_base, stack_target, mem=Memory(cache_dir=cache_dir))
+    aligned = _align_one_to_one_flat(stack_base, stack_target,
+                                     mem=Memory(cachedir=cache_dir))
     filename = join(results_dir, 'aligned_%i.nii.gz' % num)
     masker.inverse_transform(aligned).to_filename(filename)
     corr = _spatial_correlation_flat(aligned, stack_base)
@@ -568,7 +569,7 @@ def plot_num_exp(output_dir, reduction_ratio=0.1):
     scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
                                   index_col=range(4), header=[0, 1])
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
-    n_exp = scores_extended.columns.get_level_values(0)[-1]
+    n_exp = 10  # scores_extended.columns.get_level_values(0)[-1]
 
     scores_extended = pd.concat((scores_extended.loc[idx[False, :,
                                                      ['subsample',
@@ -581,16 +582,20 @@ def plot_num_exp(output_dir, reduction_ratio=0.1):
     labels = ['Range finder', 'Subsampling', 'Baseline']
     plt.figure()
     for j, (index, exp_df) in enumerate(scores_extended.iterrows()):
-        mean_score = exp_df[[(i, 'mean') for i in np.arange(n_exp + 1)]].values.astype('float')
-        std_score = exp_df[[(i, 'std') for i in np.arange(n_exp + 1)]].values.astype('float')
-        plot_with_error(np.arange(len(mean_score)),
+        mean_score = exp_df[
+            [(i, 'mean') for i in np.arange(n_exp + 1)]].values.astype('float')
+        std_score = exp_df[
+            [(i, 'std') for i in np.arange(n_exp + 1)]].values.astype('float')
+        plot_with_error(np.arange(len(mean_score)) + 1,
                         mean_score,
                         yerr=std_score, label=labels[j], marker='o')
     plt.legend(loc='lower right', ncol=2)
+    plt.xlim([1, 11])
+    plt.ylim([0.4, 0.9])
     plt.xlabel('Number of experiments')
     plt.ylabel('Baseline reproduction')
-    plt.savefig(join(figures_dir, 'incr_stability.pgf'))
-    plt.savefig(join(figures_dir, 'incr_stability.pdf'))
+    # plt.savefig(join(figures_dir, 'incr_stability.pgf'))
+    plt.savefig(join(figures_dir, 'incr_stability_%f.pdf' % reduction_ratio))
 
 
 def plot_with_error(x, y, yerr=0, **kwargs):
@@ -606,10 +611,10 @@ def plot_full(output_dir):
     if not exists(figures_dir):
         os.mkdir(figures_dir)
 
-    scores_extended = pd.read_csv(join(results_dir, 'scores.csv'),
+    scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
                                   index_col=range(4), header=[0, 1])
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
-    n_exp = scores_extended.columns.get_level_values(0)[-1]
+    n_exp = 9
 
     ref_time = scores_extended.loc[
         idx[False, 'DictLearning', 'subsample', 1], ('math_time', 'mean')]
@@ -617,10 +622,9 @@ def plot_full(output_dir):
         idx[False, 'DictLearning', 'subsample', 1], ('load_math_time', 'last')]
 
     ref_reproduction = scores_extended.loc[
-        idx[False, 'DictLearning', 'subsample', 1], ('score', 'last')]
-    ref_std = 0
-    # ref_std = scores_extended.loc[
-    #     idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'std')]
+        idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
+    ref_std = scores_extended.loc[
+        idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'std')]
 
     scores_extended = scores_extended.loc[idx[False, :,
                                           ['subsample',
@@ -632,14 +636,14 @@ def plot_full(output_dir):
     name_index = {'range_finder': 'Range finder',
                   'subsample': 'Subsample'}
     plt.figure(fig[0].number)
-    plot_with_error(np.linspace(0, 1, 10),
+    plot_with_error(np.linspace(0, 1.2, 10),
                     ref_reproduction * np.ones(10),
                     yerr=ref_std,
-                    label='Baseline')
+                    label='Baseline', color='red')
     for index, exp_df in scores_extended.groupby(level=['estimator_type',
                                                         'compression_type']):
         plt.figure(fig[0].number)
-        score = exp_df['score']
+        score = exp_df[n_exp]
         total_time = pd.DataFrame(exp_df['math_time'])
         total_time.loc[:, 'mean'] += exp_df['load_math_time', 'last']
         total_time /= ref_time
@@ -647,20 +651,29 @@ def plot_full(output_dir):
         compression_type = index[1]
         label = name_index[compression_type]
 
-        plt.errorbar(total_time['mean'],
-                     score['last'].values,
-                     xerr=total_time['std'],
-                     yerr=0, # score['std'].values,
+        # order = np.argsort(total_time['mean'].values)
+
+        plt.errorbar(total_time['mean'].values,
+                     score['mean'].values,
+                     xerr=total_time['std'].values,
+                     yerr=score['std'].values,
                      label=label,
-                     marker='o')
-        plt.xlim([0.1, 1])
-        plt.ylim([0., 1])
+                     fmt='o--')
+        for (x, y, l) in zip(total_time['mean'].values, score['mean'].values,
+                             reduction_ratio):
+            if l in [0.1, 0.2, 0.3, 0.4] and compression_type == 'subsample' \
+                    or l in [0.1, 0.2,
+                             0.05] and compression_type == 'range_finder':
+                plt.annotate(l, xy=(x, y), xytext=(10, 5), textcoords='offset points',
+                             arrowprops=dict(arrowstyle="->"))
+        plt.xlim([0.05, 1.2])
+        plt.ylim([0.65, 0.85])
 
         plt.figure(fig[1].number)
 
         plot_with_error(reduction_ratio,
-                        score['last'].values,
-                        yerr=0, # total_time['std'].values,
+                        score['mean'].values,
+                        yerr=score['std'].values,
                         label=label, marker='o')
         plt.figure(fig[2].number)
 
@@ -670,25 +683,25 @@ def plot_full(output_dir):
                         label=label, marker='o')
     plt.figure(fig[0].number)
 
-    plt.legend(loc='lower left')
-    plt.ylabel('Mean overlap')
+    plt.legend(loc='lower right')
+    plt.ylabel('Recovery metric')
     plt.xlabel('Time (relative to baseline)')
     plt.savefig(join(figures_dir, 'time_v_corr.pdf'))
-    plt.savefig(join(figures_dir, 'time_v_corr.pgf'))
+    # plt.savefig(join(figures_dir, 'time_v_corr.pgf'))
 
     plt.figure(fig[1].number)
     plt.legend(loc='lower right')
     plt.ylabel('Baseline reproduction')
     plt.xlabel('Reduction ratio')
     plt.savefig(join(figures_dir, 'corr.pdf'))
-    plt.savefig(join(figures_dir, 'corr.pgf'))
+    # plt.savefig(join(figures_dir, 'corr.pgf'))
 
     plt.figure(fig[2].number)
     plt.legend(loc='lower right')
     plt.ylabel('Time')
     plt.xlabel('Reduction ratio')
     plt.savefig(join(figures_dir, 'time.pdf'))
-    plt.savefig(join(figures_dir, 'time.pgf'))
+    # plt.savefig(join(figures_dir, 'time.pgf'))
 
 
 def convert_litteral_int_to_int(x):

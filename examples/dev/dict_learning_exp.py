@@ -85,7 +85,8 @@ def adhd_20():
     # analyse(output_dir, n_jobs=28, limit=12)
     # analyse_num_exp(output_dir, n_jobs=20, n_run_var=4)
     # analyse_median_maps(output_dir)
-    # plot_num_exp(output_dir)
+    plot_num_exp(output_dir, reduction_ratio=0.2)
+    plot_num_exp(output_dir, reduction_ratio=0.05)
     plot_full(output_dir)
     # plot_num_exp(output_dir, 0.1)
     # convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
@@ -131,9 +132,9 @@ def hcp_70():
     # temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
     # output_dir = run(estimators, experiment, temp_folder=temp_folder)
     output_dir = expanduser('~/output/2015-10-14_23-46-52')
-    # gather_results(output_dir)
-    analyse(experiment, output_dir, n_jobs=10, limit=1)
-    analyse_num_exp(output_dir, n_jobs=10,
+    gather_results(output_dir)
+    analyse(experiment, output_dir, n_jobs=20, limit=1)
+    analyse_num_exp(output_dir, n_jobs=20,
                  n_run_var=1)
 
 hcp_70()
