@@ -438,7 +438,7 @@ def align_num_exp_single(masker, base_list, this_slice, n_exp, index,
         _spatial_correlation_flat(aligned, base)) / len(base)
 
 
-def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1):
+def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1, limit=1000):
     results_dir = join(output_dir, 'stability')
     results = pd.read_csv(join(output_dir, 'results.csv'), index_col=0)
     results.set_index(['reference', 'estimator_type', 'compression_type',
@@ -464,10 +464,12 @@ def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1):
     mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
     masker = MultiNiftiMasker(mask_img=mask).fit()
     # Number of experiment = number of reference experiment
-    n_exp = results.loc[True]['random_state'].count()
+    n_exp = min(limit, results.loc[True]['random_state'].count())
 
     slices = gen_even_slices(n_exp, n_run_var)
+    n_exp += 1
     n_exp /= n_run_var
+    n_exp -= 1
     score_num_exp = []
 
     for this_slice in slices:
