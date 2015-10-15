@@ -373,7 +373,7 @@ def analyse(output_dir, n_jobs=1, limit=10):
         join(results_dir, 'base.nii.gz'))
     res_list = Parallel(n_jobs=n_jobs, verbose=3)(
         delayed(align_single)(masker, stack_base, results_dir, exp_int_index,
-                              index, sub_df)
+                              index, sub_df, limit)
         for exp_int_index, (index, sub_df) in enumerate(results.groupby(
             level=['estimator_type', 'compression_type', 'reduction_ratio',
                    'alpha'])))
