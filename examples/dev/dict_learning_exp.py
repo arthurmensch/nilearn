@@ -81,7 +81,7 @@ def adhd_20():
     # output_dir = run(estimators, experiment, temp_folder=temp_folder)
     output_dir = expanduser('~/output/2015-10-14_21-02-57')
     # gather_results(output_dir=output_dir)
-    analyse(output_dir, n_jobs=24)
+    analyse(output_dir, n_jobs=24, limit=10)
     analyse_incr(output_dir, n_jobs=24, n_run_var=4)
     # plot_full(output_dir)
     # plot_incr(output_dir, 0.1)
@@ -130,7 +130,7 @@ def hcp_70():
     output_dir = expanduser('~/output/2015-10-14_23-46-52')
     # gather_results(output_dir)
     analyse(output_dir, n_jobs=4, limit=1)
-    analyse_incr(output_dir, n_jobs=16,
+    analyse_incr(output_dir, n_jobs=4,
                  n_run_var=1)
 
 adhd_20()
