@@ -80,6 +80,7 @@ def adhd_20():
     # temp_folder = drop_memmmap(estimators, experiment)
     # output_dir = run(estimators, experiment, temp_folder=temp_folder)
     output_dir = expanduser('~/output/2015-10-14_21-02-57')
+    gather_results(output_dir=output_dir)
     analyse(output_dir, n_jobs=24)
     analyse_incr(output_dir, n_jobs=24, n_run_var=4)
     # plot_full(output_dir)
