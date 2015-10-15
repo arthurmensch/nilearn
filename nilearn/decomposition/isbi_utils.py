@@ -1,6 +1,6 @@
-from mpl_utils import plt, figsize
-
 import fnmatch
+
+import matplotlib.pyplot as plt
 
 import collections
 import glob
@@ -23,7 +23,6 @@ from sklearn.base import clone
 from nilearn_sandbox._utils.map_alignment import _align_one_to_one_flat, \
     _spatial_correlation_flat, spatial_correlation, align_many_to_one_nii
 
-from . import SparsePCA, DictLearning
 from .. import datasets
 from .base import MaskReducer, DecompositionEstimator
 from .._utils import check_niimg
