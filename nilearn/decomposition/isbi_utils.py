@@ -177,7 +177,7 @@ def run_single(index, slice_index, estimator, dataset, output_dir, reference,
                            estimator.reduction_ratio,
                        'alpha': estimator.alpha,
                        'random_state': estimator.random_state,
-                       'slice': this_slice.indices(10000),
+                       'slice': str(this_slice),
                        # Columns
                        'components': components_filename,
                        'math_time': math_time,
