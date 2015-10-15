@@ -465,7 +465,7 @@ def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1):
     # Number of experiment = number of reference experiment
     n_exp = results.loc[True]['random_state'].count()
 
-    slices = gen_even_slices(n_exp, 1)
+    slices = gen_even_slices(n_exp, n_run_var)
 
     score_num_exp = []
 
@@ -475,7 +475,7 @@ def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1):
 
         this_stability = pd.DataFrame(columns=np.arange(len(base_list)),
                                       index=results_score.index)
-        res = Parallel(n_jobs=16, verbose=3)(
+        res = Parallel(n_jobs=n_jobs, verbose=3)(
             delayed(align_num_exp_single)(masker, base_list, this_slice,
                                           i, index, random_state_df)
             for index, random_state_df in
