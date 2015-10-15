@@ -136,4 +136,4 @@ def hcp_70():
     analyse_num_exp(output_dir, n_jobs=10,
                  n_run_var=1)
 
-adhd_20()
+hcp_70()
