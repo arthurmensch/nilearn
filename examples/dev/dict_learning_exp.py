@@ -77,9 +77,9 @@ def adhd_20():
                             temp_folder=expanduser('~/temp'),
                             n_runs=48)
 
-    temp_folder = drop_memmmap(estimators, experiment)
-    output_dir = run(estimators, experiment, temp_folder=temp_folder)
-    gather_results(output_dir)
+    # temp_folder = drop_memmmap(estimators, experiment)
+    # output_dir = run(estimators, experiment, temp_folder=temp_folder)
+    output_dir = expanduser('~/output/2015-10-14_21-02-57')
     analyse(output_dir, n_jobs=24)
     analyse_incr(output_dir, n_jobs=24, n_run_var=4)
     # plot_full(output_dir)
@@ -131,4 +131,4 @@ def hcp_70():
     analyse_incr(output_dir, n_jobs=16,
                  n_run_var=1)
 
-hcp_70()
+adhd_20()
