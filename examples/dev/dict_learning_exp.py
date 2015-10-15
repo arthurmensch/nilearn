@@ -83,10 +83,10 @@ def adhd_20():
     # analyse_median_maps(output_dir)
     # gather_results(output_dir=output_dir)
     # analyse(output_dir, n_jobs=28, limit=12)
-    analyse_num_exp(output_dir, n_jobs=20, n_run_var=4)
+    # analyse_num_exp(output_dir, n_jobs=20, n_run_var=4)
     # analyse_median_maps(output_dir)
     # plot_num_exp(output_dir)
-    # plot_full(output_dir)
+    plot_full(output_dir)
     # plot_num_exp(output_dir, 0.1)
     # convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
 

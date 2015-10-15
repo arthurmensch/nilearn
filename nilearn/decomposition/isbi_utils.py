@@ -606,7 +606,7 @@ def plot_full(output_dir):
     if not exists(figures_dir):
         os.mkdir(figures_dir)
 
-    scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
+    scores_extended = pd.read_csv(join(results_dir, 'scores.csv'),
                                   index_col=range(4), header=[0, 1])
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
     n_exp = scores_extended.columns.get_level_values(0)[-1]
@@ -617,9 +617,10 @@ def plot_full(output_dir):
         idx[False, 'DictLearning', 'subsample', 1], ('load_math_time', 'last')]
 
     ref_reproduction = scores_extended.loc[
-        idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
-    ref_std = scores_extended.loc[
-        idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'std')]
+        idx[False, 'DictLearning', 'subsample', 1], ('score', 'last')]
+    ref_std = 0
+    # ref_std = scores_extended.loc[
+    #     idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'std')]
 
     scores_extended = scores_extended.loc[idx[False, :,
                                           ['subsample',
@@ -638,7 +639,7 @@ def plot_full(output_dir):
     for index, exp_df in scores_extended.groupby(level=['estimator_type',
                                                         'compression_type']):
         plt.figure(fig[0].number)
-        score = exp_df[n_exp]
+        score = exp_df['score']
         total_time = pd.DataFrame(exp_df['math_time'])
         total_time.loc[:, 'mean'] += exp_df['load_math_time', 'last']
         total_time /= ref_time
@@ -647,9 +648,9 @@ def plot_full(output_dir):
         label = name_index[compression_type]
 
         plt.errorbar(total_time['mean'],
-                     score['mean'].values,
+                     score['last'].values,
                      xerr=total_time['std'],
-                     yerr=score['std'].values,
+                     yerr=0, # score['std'].values,
                      label=label,
                      marker='o')
         plt.xlim([0.1, 1])
@@ -658,14 +659,14 @@ def plot_full(output_dir):
         plt.figure(fig[1].number)
 
         plot_with_error(reduction_ratio,
-                        score['mean'].values,
-                        yerr=score['std'].values,
+                        score['last'].values,
+                        yerr=0, # total_time['std'].values,
                         label=label, marker='o')
         plt.figure(fig[2].number)
 
         plot_with_error(reduction_ratio,
-                        score['mean'].values,
-                        yerr=score['std'].values,
+                        total_time['mean'].values,
+                        yerr=total_time['std'].values,
                         label=label, marker='o')
     plt.figure(fig[0].number)
 
