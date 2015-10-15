@@ -44,7 +44,7 @@ from nilearn.decomposition.isbi_utils import run, \
 #                         n_runs=100)
 
 def adhd_20():
-# ADHD RSN20 intensive experiment
+    # ADHD RSN20 intensive experiment
     estimators = []
 
     estimators.append(DictLearning(alpha=4, batch_size=20,
@@ -135,6 +135,7 @@ def hcp_70():
     gather_results(output_dir)
     analyse(experiment, output_dir, n_jobs=20, limit=1)
     analyse_num_exp(output_dir, n_jobs=20,
-                 n_run_var=1)
+                    n_run_var=1)
+
 
 hcp_70()
