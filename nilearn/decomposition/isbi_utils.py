@@ -29,7 +29,6 @@ from .base import MaskReducer, DecompositionEstimator
 from .._utils import check_niimg
 from ..input_data import MultiNiftiMasker
 from nilearn.image import index_img
-from nilearn.plotting import plot_stat_map
 
 Experiment = collections.namedtuple('Experiment',
                                     ['dataset_name',
@@ -136,7 +135,7 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
             yield estimator, reference
 
 
-def single_run(index, estimator, dataset, output_dir, reference,
+def run_single(index, estimator, dataset, output_dir, reference,
                this_slice,
                data=None):
     exp_output = join(output_dir, "experiment_%i" % index)
@@ -149,7 +148,7 @@ def single_run(index, estimator, dataset, output_dir, reference,
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         if data is not None:
-            memmap_data = np.memmap(data['filename'], dtype='float64',
+            memmap_data = np.memmap(data['components'], dtype='float64',
                                     order='F', mode='r',
                                     shape=(
                                         data['n_samples'], data['n_voxels']))
@@ -229,7 +228,7 @@ def run(estimators, exp_params, temp_folder=None):
     else:
         estimators_data = [None] * len(exp_estimators)
     full_dict_list = Parallel(n_jobs=exp_params.n_jobs)(
-        delayed(single_run)(index, estimator, dataset, output_dir,
+        delayed(run_single)(index, estimator, dataset, output_dir,
                             reference, this_slice,
                             data=data)
         for this_slice in slices
@@ -262,16 +261,15 @@ def gather_results(output_dir):
         for filename in fnmatch.filter(filenames, 'results.json'):
             with open(join(dirpath, filename), 'r') as f:
                 full_dict_list.append(json.load(f))
-    results = pd.DataFrame(full_dict_list, columns=['estimator_type',
-                                                    'compression_type',
+    results = pd.DataFrame(full_dict_list, columns=['compression_type',
                                                     'reduction_ratio',
-                                                    'alpha',
+                                                    'components',
+                                                    'subject_limits',
                                                     'random_state',
-                                                    'math_time', 'io_time',
-                                                    'load_math_time',
-                                                    'load_io_time',
-                                                    'reference',
-                                                    'components'])
+                                                    'math_time',
+                                                    'io_time',
+                                                    'n_samples',
+                                                    'n_voxels'])
 
     results.sort_index(by=['estimator_type',
                            'compression_type',
@@ -281,7 +279,7 @@ def gather_results(output_dir):
     results.to_csv(join(output_dir, 'results.csv'))
 
 
-def single_drop_memmap(exp_params, temp_folder, index, dataset,
+def drop_memmap_single(exp_params, temp_folder, index, dataset,
                        masker, compression_type, reduction_ratio):
     filename = 'experiment_%i' % index
     mask_reducer = MaskReducer(masker,
@@ -298,11 +296,10 @@ def single_drop_memmap(exp_params, temp_folder, index, dataset,
     subject_limits_filename = join(temp_folder, filename + '_limits.npy')
     np.save(subject_limits_filename,
             mask_reducer.subject_limits_)
-    subject_limits_filename = ""
     single_run_dict = {'compression_type': compression_type,
                        'reduction_ratio':
                            reduction_ratio,
-                       'filename': join(temp_folder, filename),
+                       'components': join(temp_folder, filename),
                        'subject_limits': subject_limits_filename,
                        'random_state': 0,
                        'math_time': mask_reducer.time_[0],
@@ -332,14 +329,14 @@ def drop_memmmap(estimators, exp_params):
                                estimator.reduction_ratio)
                               for estimator in estimators])
     full_dict_list = Parallel(n_jobs=exp_params.n_jobs)(
-        delayed(single_drop_memmap)(exp_params, temp_folder, index, dataset,
+        delayed(drop_memmap_single)(exp_params, temp_folder, index, dataset,
                                     masker, compression_type,
                                     reduction_ratio)
         for index, (compression_type, reduction_ratio) in
         enumerate(loading_parameters))
     data = pd.DataFrame(full_dict_list, columns=['compression_type',
                                                  'reduction_ratio',
-                                                 'filename',
+                                                 'components',
                                                  'subject_limits',
                                                  'random_state',
                                                  'math_time',
@@ -352,8 +349,8 @@ def drop_memmmap(estimators, exp_params):
     return temp_folder
 
 
-def align_single(masker, stack_base, results_dir, num, index,
-                 random_state_df, limit):
+def analyse_single(masker, stack_base, results_dir, num, index,
+                   random_state_df, limit):
     stack_target = np.concatenate(
         masker.transform(random_state_df['components'][:limit]))
     aligned = _align_one_to_one_flat(stack_base, stack_target)
@@ -368,13 +365,12 @@ def analyse(output_dir, n_jobs=1, limit=10):
     if not exists(results_dir):
         os.mkdir(results_dir)
     results = pd.read_csv(join(output_dir, 'results.csv'), index_col=0)
-    results.reset_index(inplace=True)
     results.set_index(['reference', 'estimator_type', 'compression_type',
                        'reduction_ratio',
                        'alpha', 'random_state'], inplace=True)
-
+    results.sortlevel(inplace=True)
     results['score'] = pd.Series(np.zeros(len(results)), results.index)
-    results['aligned_filename'] = pd.Series("", index=results.index)
+    results['aligned'] = pd.Series("", index=results.index)
 
     mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
     masker = MultiNiftiMasker(mask_img=mask).fit()
@@ -383,20 +379,20 @@ def analyse(output_dir, n_jobs=1, limit=10):
           ' and computing correlation score')
 
     stack_base = np.concatenate(
-        masker.transform(results.loc[True, 'components'][:limit]))
+        masker.transform(results.loc[True]['components'][:limit]))
     masker.inverse_transform(stack_base).to_filename(
         join(results_dir, 'base.nii.gz'))
 
     res = Parallel(n_jobs=n_jobs, verbose=3)(
-        delayed(align_single)(masker, stack_base, results_dir, num,
-                              index, random_state_df, limit)
+        delayed(analyse_single)(masker, stack_base, results_dir, num,
+                                index, random_state_df, limit)
         for num, (index, random_state_df) in enumerate(results.groupby(
             level=['reference', 'estimator_type', 'compression_type',
                    'reduction_ratio',
                    'alpha'])))
     for index, score, aligned_filename in res:
         results.loc[index, 'score'] = score
-        results.loc[index, 'aligned_filename'] = aligned_filename
+        results.loc[index, 'aligned'] = aligned_filename
 
     scores = results.drop('components', axis='columns')
     scores.reset_index(level='random_state', drop=True, inplace=True)
@@ -408,7 +404,7 @@ def analyse(output_dir, n_jobs=1, limit=10):
                                     'reduction_ratio']).apply(
         lambda x: x['score'].idxmax())
 
-    scores = scores.loc[indices]
+    scores = scores.loc[indices.values]
     scores.reset_index(level='alpha', drop=False, inplace=True)
     # Mean over random_state
     scores = scores.groupby(level=['reference',
@@ -417,18 +413,17 @@ def analyse(output_dir, n_jobs=1, limit=10):
                                    'reduction_ratio']).agg(
         {'math_time': [np.mean, np.std],
          'io_time': [np.mean, np.std],
-         'loading_math_time': 'last',
-         'loading_io_time': 'last',
+         'load_math_time': 'last',
+         'load_io_time': 'last',
          'alpha': 'last',
-         'reference': 'last',
-         'aligned_filename': 'last',
+         'aligned': 'last',
          'score': 'last'})
 
     scores.to_csv(join(results_dir, 'scores.csv'))
 
 
-def align_incr_single(masker, base_list, this_slice, n_exp, index,
-                      random_state_df):
+def align_num_exp_single(masker, base_list, this_slice, n_exp, index,
+                         random_state_df):
     target_list = masker.transform(random_state_df['components'][this_slice])
     base = np.concatenate(base_list[:(n_exp + 1)])
     target = np.concatenate(target_list[:(n_exp + 1)])
@@ -440,10 +435,10 @@ def align_incr_single(masker, base_list, this_slice, n_exp, index,
 def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1):
     results_dir = join(output_dir, 'stability')
     results = pd.read_csv(join(output_dir, 'results.csv'), index_col=0)
-    results.reset_index(inplace=True)
     results.set_index(['reference', 'estimator_type', 'compression_type',
                        'reduction_ratio',
-                       'alpha', 'random_state'], inplace=True)
+                       'alpha'], inplace=True)
+    results.sortlevel(inplace=True)
 
     scores = pd.read_csv(join(results_dir, 'scores.csv'),
                          index_col=range(4), header=[0, 1])
@@ -453,33 +448,37 @@ def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1):
          'reduction_ratio',
          ('alpha', 'last')], inplace=True)
     scores.index = scores.index.set_names('alpha', level=4)
+    scores.sortlevel(inplace=True)
 
     results_score = results.join(scores, how='inner', rsuffix='_mean')
     results_score.reset_index('alpha', drop=False, inplace=True)
     # alpha is now a column of joinded results
+    results_score.sortlevel(0)
 
     mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
     masker = MultiNiftiMasker(mask_img=mask).fit()
     # Number of experiment = number of reference experiment
-    n_exp = results.loc[True].count()
+    n_exp = results.loc[True]['random_state'].count()
 
-    slices = gen_even_slices(n_exp, n_run_var)
+    slices = gen_even_slices(n_exp, 1)
+
     score_num_exp = []
+
     for this_slice in slices:
         base_list = masker.transform(
-            results.loc[True, 'components'][this_slice])
+            results.loc[True]['components'][this_slice])
 
         this_stability = pd.DataFrame(columns=np.arange(len(base_list)),
                                       index=results_score.index)
-        res = Parallel(n_jobs=n_jobs, verbose=3)(
-            delayed(align_incr_single)(masker, base_list, this_slice,
-                                       n_exp, index, random_state_df)
+        res = Parallel(n_jobs=16, verbose=3)(
+            delayed(align_num_exp_single)(masker, base_list, this_slice,
+                                          i, index, random_state_df)
             for index, random_state_df in
             results_score.groupby(level=['reference',
                                          'estimator_type',
                                          'compression_type',
                                          'reduction_ratio'])
-            for n_exp in range(len(base_list)))
+            for i in range(n_exp))
         for index, n_exp, score in res:
             this_stability.loc[index, n_exp] = score
 
@@ -501,74 +500,37 @@ def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1):
                                                  'compression_type',
                                                  'reduction_ratio']).agg(
         [np.mean, np.std])
-    score_num_exp.to_csv(join(results_dir, 'score_num_exp.csv'))
+    score_num_exp.to_csv(join(results_dir, 'scores_num_exp.csv'))
     scores.reset_index(level='alpha', inplace=True)
-    full = pd.concat([scores, score_num_exp], axis=1)
+    scores_extended = pd.concat([scores, score_num_exp], axis=1)
 
-    full.to_csv(join(results_dir, 'full.csv'))
-
-
-def plot_incr(output_dir, reduction_ratio=0.1):
-    results_dir = join(output_dir, 'stability')
-    figures_dir = join(output_dir, 'figures')
-    if not exists(figures_dir):
-        os.mkdir(figures_dir)
-
-    time_v_corr = pd.read_csv(join(results_dir, 'full.csv'),
-                              index_col=range(3), header=[0, 1])
-    time_v_corr.rename(columns=convert_litteral_int_to_int, inplace=True)
-    n_exp = time_v_corr.columns.get_level_values(0)[-1]
-    time_v_corr = pd.concat((time_v_corr.loc[idx[:, ['subsample',
-                                                     'range_finder'],
-                                             reduction_ratio], :],
-                             time_v_corr.loc[idx[:, 'subsample', 1.],
-                             :]))
-    plt.figure()
-    for index, sub_df in time_v_corr.groupby(level=['estimator_type',
-                                                    'compression_type']):
-        mean_score = sub_df[[(i, 'mean') for i in np.arange(n_exp + 1)]]
-        std_score = sub_df[[(i, 'std') for i in np.arange(n_exp + 1)]]
-        label = '%s %s' % (mean_score.index.get_level_values(1)[0],
-                           mean_score.index.get_level_values(2)[0])
-        plot_with_error(np.arange(mean_score.shape[1]),
-                        mean_score.values[0],
-                        yerr=std_score.values[0], label=label)
-    plt.legend(loc='lower right')
-    plt.xlabel('Number of experiments')
-    plt.ylabel('Baseline reproduction')
-    plt.savefig(join(figures_dir, 'incr_stability.pgf'))
-    plt.savefig(join(figures_dir, 'incr_stability.pdf'))
-
-
-def plot_with_error(x, y, yerr=0, **kwargs):
-    plot = plt.plot(x, y, **kwargs)
-    plt.fill_between(x, (y + yerr),
-                     (y - yerr), alpha=0.3,
-                     color=plot[0].get_color())
+    scores_extended.to_csv(join(results_dir, 'scores_extended.csv'))
 
 
 def analyse_median_maps(output_dir, reduction_ratio=0.1):
-    mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
-    masker = MultiNiftiMasker(mask_img=mask).fit()
     results_dir = join(output_dir, 'stability')
+
     median_dir = join(results_dir, 'median')
 
     if not exists(median_dir):
         os.mkdir(median_dir)
-    figures_dir = join(output_dir, 'figures')
 
-    if not exists(figures_dir):
-        os.mkdir(figures_dir)
-    time_v_corr = pd.read_csv(join(results_dir, 'full.csv'),
-                              index_col=range(3), header=[0, 1])
-    time_v_corr.rename(columns=convert_litteral_int_to_int, inplace=True)
+    scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
+                                  index_col=range(4), header=[0, 1])
+    scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
+    n_exp = scores_extended.columns.get_level_values(0)[-1]
 
-    base_components = join(results_dir, 'base.nii.gz')
-    target_components = pd.concat((time_v_corr.loc[idx[:, ['subsample',
-                                                           'range_finder'],
-                                                   reduction_ratio], :],
-                                   time_v_corr.loc[idx[:, 'subsample', 1.],
-                                   :]))[('aligned_filename', 'last')]
+    mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
+    masker = MultiNiftiMasker(mask_img=mask).fit()
+
+    base_components = scores_extended.loc[True]['aligned', 'last'][0]
+    target_components = pd.concat((scores_extended.loc[idx[False, :,
+                                                       ['subsample',
+                                                        'range_finder'],
+                                                       reduction_ratio], :],
+                                   scores_extended.loc[
+                                   idx[False, :, 'subsample', 1.],
+                                   :]))[('aligned', 'last')]
 
     aligned_target_components = align_many_to_one_nii(masker, base_components,
                                                       target_components)
@@ -592,56 +554,117 @@ def analyse_median_maps(output_dir, reduction_ratio=0.1):
     median_series.to_csv(join(median_dir, 'median.csv'))
 
 
+def plot_num_exp(output_dir, reduction_ratio=0.1):
+    results_dir = join(output_dir, 'stability')
+    figures_dir = join(output_dir, 'figures')
+    if not exists(figures_dir):
+        os.mkdir(figures_dir)
+
+    scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
+                                  index_col=range(4), header=[0, 1])
+    scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
+    n_exp = scores_extended.columns.get_level_values(0)[-1]
+
+    scores_extended = pd.concat((scores_extended.loc[idx[False, :,
+                                                     ['subsample',
+                                                      'range_finder'],
+                                                     reduction_ratio], :],
+                                 scores_extended.loc[
+                                 idx[False, :, 'subsample', 1.],
+                                 :]))
+    # scores_extended.fillna(0, inplace=True)
+    labels = ['Range finder', 'Subsampling', 'Baseline']
+    plt.figure()
+    for j, (index, exp_df) in enumerate(scores_extended.iterrows()):
+        mean_score = exp_df[[(i, 'mean') for i in np.arange(n_exp + 1)]].values.astype('float')
+        std_score = exp_df[[(i, 'std') for i in np.arange(n_exp + 1)]].values.astype('float')
+        plot_with_error(np.arange(len(mean_score)),
+                        mean_score,
+                        yerr=std_score, label=labels[j], marker='o')
+    plt.legend(loc='lower right', ncol=2)
+    plt.xlabel('Number of experiments')
+    plt.ylabel('Baseline reproduction')
+    plt.savefig(join(figures_dir, 'incr_stability.pgf'))
+    plt.savefig(join(figures_dir, 'incr_stability.pdf'))
+
+
+def plot_with_error(x, y, yerr=0, **kwargs):
+    plot = plt.plot(x, y, **kwargs)
+    plt.fill_between(x, (y + yerr),
+                     (y - yerr), alpha=0.3,
+                     color=plot[0].get_color())
+
+
 def plot_full(output_dir):
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
     if not exists(figures_dir):
         os.mkdir(figures_dir)
-    time_v_corr = pd.read_csv(join(results_dir, 'full.csv'),
-                              index_col=range(3), header=[0, 1])
-    time_v_corr.rename(columns=convert_litteral_int_to_int, inplace=True)
-    n_exp = time_v_corr.columns.get_level_values(0)[-1]
 
-    ref_time = time_v_corr.loc[('DictLearning', 'subsample', 1.),
-                               ('math_time', 'mean')]
-    ref_reproduction = time_v_corr.loc[
-        ('DictLearning', 'subsample', 1.), (n_exp, 'mean')]
-    ref_std = time_v_corr.loc[
-        ('DictLearning', 'subsample', 1.), (n_exp, 'std')]
+    scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
+                                  index_col=range(4), header=[0, 1])
+    scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
+    n_exp = scores_extended.columns.get_level_values(0)[-1]
+
+    ref_time = scores_extended.loc[
+        idx[False, 'DictLearning', 'subsample', 1], ('math_time', 'mean')]
+    ref_time += scores_extended.loc[
+        idx[False, 'DictLearning', 'subsample', 1], ('load_math_time', 'last')]
+
+    ref_reproduction = scores_extended.loc[
+        idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
+    ref_std = scores_extended.loc[
+        idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'std')]
+
+    scores_extended = scores_extended.loc[idx[False, :,
+                                          ['subsample',
+                                           'range_finder'],
+                                          ], :]
     fig = []
     for i in range(3):
         fig.append(plt.figure())
-    for index, sub_df in time_v_corr[time_v_corr[('reference',
-                                                  'last')] == False].groupby(
-        level=['estimator_type',
-               'compression_type']):
-        plt.figure(fig[0].number, axis='square')
-        plt.errorbar(sub_df[('math_time', 'mean')] / ref_time,
-                     sub_df[(n_exp, 'mean')],
-                     yerr=sub_df[(n_exp, 'std')],
-                     xerr=sub_df[('math_time', 'std')] / ref_time,
+    name_index = {'range_finder': 'Range finder',
+                  'subsample': 'Subsample'}
+    plt.figure(fig[0].number)
+    plot_with_error(np.linspace(0, 1, 10),
+                    ref_reproduction * np.ones(10),
+                    yerr=ref_std,
+                    label='Baseline')
+    for index, exp_df in scores_extended.groupby(level=['estimator_type',
+                                                        'compression_type']):
+        plt.figure(fig[0].number)
+        score = exp_df[n_exp]
+        total_time = pd.DataFrame(exp_df['math_time'])
+        total_time.loc[:, 'mean'] += exp_df['load_math_time', 'last']
+        total_time /= ref_time
+        reduction_ratio = exp_df.index.get_level_values(3).values
+        compression_type = index[1]
+        label = name_index[compression_type]
+
+        plt.errorbar(total_time['mean'],
+                     score['mean'].values,
+                     xerr=total_time['std'],
+                     yerr=score['std'].values,
+                     label=label,
                      marker='o')
         plt.xlim([0.1, 1])
         plt.ylim([0., 1])
 
         plt.figure(fig[1].number)
 
-        plot_with_error(sub_df.index.get_level_values(2),
-                        sub_df[(n_exp, 'mean')],
-                        yerr=sub_df[(n_exp, 'std')],
-                        label=sub_df.index.get_level_values(1)[0], marker='o')
+        plot_with_error(reduction_ratio,
+                        score['mean'].values,
+                        yerr=score['std'].values,
+                        label=label, marker='o')
         plt.figure(fig[2].number)
 
-        plot_with_error(sub_df.index.get_level_values(2),
-                        sub_df[('math_time', 'mean')],
-                        yerr=sub_df[('math_time', 'std')],
-                        label=sub_df.index.get_level_values(1)[0], marker='o')
+        plot_with_error(reduction_ratio,
+                        score['mean'].values,
+                        yerr=score['std'].values,
+                        label=label, marker='o')
     plt.figure(fig[0].number)
-    plot_with_error(np.linspace(0, 1, 10),
-                    ref_reproduction * np.ones(10),
-                    yerr=ref_std * np.ones(10),
-                    color='red')
-    plt.legend(['Range finder', 'Subsample', 'No reduction'], loc='lower left')
+
+    plt.legend(loc='lower left')
     plt.ylabel('Mean overlap')
     plt.xlabel('Time (relative to baseline)')
     plt.savefig(join(figures_dir, 'time_v_corr.pdf'))

@@ -3,7 +3,7 @@ import numpy as np
 
 from nilearn.decomposition import DictLearning
 from nilearn.decomposition.isbi_utils import run, \
-    analyse, analyse_incr, plot_incr, plot_full, \
+    analyse, analyse_num_exp, plot_num_exp, plot_full, \
     drop_memmmap, Experiment, convert_nii_to_pdf, \
     clean_memory, gather_results, analyse_median_maps
 
@@ -77,16 +77,18 @@ def adhd_20():
                             n_runs=1)
 
     # temp_folder = drop_memmmap(estimators, experiment)
-    temp_folder = '/volatile/arthur/temp/2015-10-12_16-29-09'
+    # temp_folder = '/volatile/arthur/temp/2015-10-12_16-29-09'
     # output_dir = run(estimators, experiment, temp_folder=temp_folder)
-    output_dir = '/volatile/arthur/drago_output/2015-10-14_21-02-57'
+    output_dir = expanduser('~/output/2015-10-14_23-46-52')
     # output_dir = expanduser('/volatile/arthur/work/output/test/2015-10-06_13-04-14')
     # gather_results(output_dir=output_dir)
-    # analyse(output_dir, n_jobs=12, limit=10)
-    # analyse_incr(output_dir, n_jobs=12, n_run_var=1)
+    analyse(output_dir, n_jobs=28, limit=12)
+    analyse_num_exp(output_dir, n_jobs=28, n_run_var=4)
+    plot_num_exp(output_dir)
     plot_full(output_dir)
-    plot_incr(output_dir, 0.1)
     analyse_median_maps(output_dir)
+    # plot_num_exp(output_dir, 0.1)
+    # analyse_median_maps(output_dir)
     # convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
 
 
@@ -132,7 +134,7 @@ def hcp_70():
     output_dir = expanduser('~/output/2015-10-14_23-46-52')
     gather_results(output_dir)
     analyse(output_dir, n_jobs=4, limit=1)
-    analyse_incr(output_dir, n_jobs=4,
+    analyse_num_exp(output_dir, n_jobs=4,
                  n_run_var=1)
 
 adhd_20()
