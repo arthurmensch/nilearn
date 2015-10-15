@@ -365,7 +365,7 @@ def analyse(output_dir, n_jobs=1):
     results.set_index(['estimator_type', 'compression_type', 'reduction_ratio',
                        'alpha', 'random_state'], inplace=True)
     print(
-    '[Experiment] Performing Hungarian alg. and computing correlation score')
+        '[Experiment] Performing Hungarian alg. and computing correlation score')
 
     stack_base = np.concatenate(
         masker.transform(results.loc[results['reference'], 'components']))
@@ -465,10 +465,10 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
                    'reduction_ratio']).last()
         incr_stability.append(this_incr_stability)
 
-    cat_stability = pd.concat(incr_stability, keys=np.arange(3), names=['run',
-                                                                        'estimator_type',
-                                                                        'compression_type',
-                                                                        'reduction_ratio'],
+    cat_stability = pd.concat(incr_stability, keys=np.arange(3),
+                              names=['run', 'estimator_type',
+                                     'compression_type',
+                                     'reduction_ratio'],
                               join='inner')
 
     agg_incr_stability = cat_stability.groupby(level=['estimator_type',
@@ -483,24 +483,24 @@ def analyse_incr(output_dir, n_jobs=1, n_run_var=1):
 
 
 def plot_incr(output_dir, reduction_ratio=0.1):
+    idx = pd.IndexSlice
+
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
     if not exists(figures_dir):
         os.mkdir(figures_dir)
+
     time_v_corr = pd.read_csv(join(results_dir, 'full.csv'),
                               index_col=range(3), header=[0, 1])
-
-    n_exp = int(time_v_corr.columns.get_level_values(0)[-1])
-    idx = pd.IndexSlice
-    time_v_corr = pd.concat([time_v_corr.loc[idx[:, :, reduction_ratio], :],
-                             time_v_corr.loc[idx[:, 'subsample', 1], :]],
-                            axis=0)
-    plt.figure(figsize=figsize(1))
-    # Ultra ugly
-    for index, sub_df in time_v_corr.groupby(
-            level=['estimator_type', 'compression_type', 'reduction_ratio']):
-        mean_score = sub_df[[(str(i), 'mean') for i in np.arange(n_exp + 1)]]
-        std_score = sub_df[[(str(i), 'std') for i in np.arange(n_exp + 1)]]
+    time_v_corr.rename(columns=convert_litteral_int_to_int, inplace=True)
+    n_exp = time_v_corr.columns.get_level_values(0)[-1]
+    time_v_corr = time_v_corr.loc[(idx[:, ['subsample', 'range_finder'],
+                                   reduction_ratio],
+                                   idx[:, 'subsample', 1]), :]
+    plt.figure()
+    for index, row in time_v_corr.iterrows():
+        mean_score = row[[(i, 'mean') for i in np.arange(n_exp + 1)]]
+        std_score = row[[(i, 'std') for i in np.arange(n_exp + 1)]]
         label = '%s %s' % (mean_score.index.get_level_values(1)[0],
                            mean_score.index.get_level_values(2)[0])
         plot_with_error(plt, np.arange(mean_score.shape[1]),
@@ -509,8 +509,8 @@ def plot_incr(output_dir, reduction_ratio=0.1):
     plt.legend(loc='lower right')
     plt.xlabel('Number of experiments')
     plt.ylabel('Baseline reproduction')
-    plt.savefig(join(figures_dir, 'incr_stability.pdf'))
     plt.savefig(join(figures_dir, 'incr_stability.pgf'))
+    plt.savefig(join(figures_dir, 'incr_stability.pdf'))
 
 
 def plot_with_error(plt, x, y, yerr=0, **kwargs):
@@ -521,7 +521,6 @@ def plot_with_error(plt, x, y, yerr=0, **kwargs):
 
 
 def plot_median_maps(output_dir, reduction_ratio=0.1):
-    from mpl_utils import plt, figsize
     mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
     masker = MultiNiftiMasker(mask_img=mask).fit()
     results_dir = join(output_dir, 'stability')
@@ -582,7 +581,7 @@ def plot_full(output_dir):
     for i in range(3):
         fig.append(plt.figure(figsize=figsize(1)))
     for index, sub_df in time_v_corr[time_v_corr[('reference',
-                                                      'last')] == False].groupby(
+                                                  'last')] == False].groupby(
         level=['estimator_type',
                'compression_type']):
         plt.figure(fig[0].number, axis='square')
@@ -640,8 +639,6 @@ def convert_litteral_int_to_int(x):
 
 
 def convert_nii_to_pdf(output_dir, n_jobs=1):
-    import matplotlib as mpl
-    mpl.use('PDF')
     from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
     list_nii = glob.glob(join(output_dir, "*.nii.gz"))
     print(list_nii)
