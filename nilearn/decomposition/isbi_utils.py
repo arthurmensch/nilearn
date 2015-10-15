@@ -339,8 +339,8 @@ def drop_memmmap(estimators, exp_params):
 
 
 def align_single(masker, stack_base, results_dir, exp_int_index, index,
-                 sub_df):
-    stack_target = np.concatenate(masker.transform(sub_df['components']))
+                 sub_df, limit):
+    stack_target = np.concatenate(masker.transform(sub_df['components'][:limit]))
     aligned = _align_one_to_one_flat(stack_base, stack_target)
     filename = join(results_dir, 'aligned_%i.nii.gz' % exp_int_index)
     masker.inverse_transform(aligned).to_filename(filename)
@@ -348,7 +348,7 @@ def align_single(masker, stack_base, results_dir, exp_int_index, index,
     return index, np.mean(corr.diagonal()), filename
 
 
-def analyse(output_dir, n_jobs=1):
+def analyse(output_dir, n_jobs=1, limit=10):
     results_dir = join(output_dir, 'stability')
     if not exists(results_dir):
         os.mkdir(results_dir)
@@ -367,7 +367,8 @@ def analyse(output_dir, n_jobs=1):
         '[Experiment] Performing Hungarian alg. and computing correlation score')
 
     stack_base = np.concatenate(
-        masker.transform(results.loc[results['reference'], 'components']))
+        masker.transform(results.loc[results['reference'],
+                                     'components'][:limit]))
     masker.inverse_transform(stack_base).to_filename(
         join(results_dir, 'base.nii.gz'))
     res_list = Parallel(n_jobs=n_jobs, verbose=3)(
