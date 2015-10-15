@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from pandas import IndexSlice as idx
 
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, Memory
 
 from sklearn.utils import gen_even_slices
 from sklearn.base import clone
@@ -135,10 +135,10 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
             yield estimator, reference
 
 
-def run_single(index, estimator, dataset, output_dir, reference,
+def run_single(index, slice_index, estimator, dataset, output_dir, reference,
                this_slice,
                data=None):
-    exp_output = join(output_dir, "experiment_%i" % index)
+    exp_output = join(output_dir, "experiment_%i_%i" % (index, slice_index))
     os.mkdir(exp_output)
     if type(estimator).__name__:
         debug_folder = join(exp_output, 'debug')
@@ -155,7 +155,7 @@ def run_single(index, estimator, dataset, output_dir, reference,
             # For out-of-core computation
             estimator.set_params(in_memory=False)
             subject_limits = np.load(data['subject_limits'])
-            estimator._raw_fit(memmap_data[subject_limits[this_slice.start],
+            estimator._raw_fit(memmap_data[subject_limits[this_slice.start]:
                                            subject_limits[this_slice.stop]])
             del memmap_data
         else:
@@ -177,7 +177,7 @@ def run_single(index, estimator, dataset, output_dir, reference,
                            estimator.reduction_ratio,
                        'alpha': estimator.alpha,
                        'random_state': estimator.random_state,
-                       'slice': this_slice,
+                       'slice': this_slice.indices(10000),
                        # Columns
                        'components': components_filename,
                        'math_time': math_time,
@@ -228,10 +228,10 @@ def run(estimators, exp_params, temp_folder=None):
     else:
         estimators_data = [None] * len(exp_estimators)
     full_dict_list = Parallel(n_jobs=exp_params.n_jobs)(
-        delayed(run_single)(index, estimator, dataset, output_dir,
+        delayed(run_single)(index, slice_index, estimator, dataset, output_dir,
                             reference, this_slice,
                             data=data)
-        for this_slice in slices
+        for slice_index, this_slice in enumerate(slices)
         for index, ((estimator, reference), data) in
         enumerate(zip(exp_estimators, estimators_data)))
     results = pd.DataFrame(full_dict_list, columns=['estimator_type',
@@ -250,6 +250,7 @@ def run(estimators, exp_params, temp_folder=None):
                            'compression_type',
                            'reduction_ratio',
                            'alpha',
+                           'slice',
                            'random_state'], inplace=True)
     results.to_csv(join(output_dir, 'results.csv'))
     return output_dir
@@ -261,20 +262,23 @@ def gather_results(output_dir):
         for filename in fnmatch.filter(filenames, 'results.json'):
             with open(join(dirpath, filename), 'r') as f:
                 full_dict_list.append(json.load(f))
-    results = pd.DataFrame(full_dict_list, columns=['compression_type',
+    results = pd.DataFrame(full_dict_list, columns=['estimator_type',
+                                                    'compression_type',
                                                     'reduction_ratio',
-                                                    'components',
-                                                    'subject_limits',
+                                                    'alpha',
+                                                    'slice',
                                                     'random_state',
-                                                    'math_time',
-                                                    'io_time',
-                                                    'n_samples',
-                                                    'n_voxels'])
+                                                    'math_time', 'io_time',
+                                                    'load_math_time',
+                                                    'load_io_time',
+                                                    'reference',
+                                                    'components'])
 
     results.sort_index(by=['estimator_type',
                            'compression_type',
                            'reduction_ratio',
                            'alpha',
+                           'slice',
                            'random_state'], inplace=True)
     results.to_csv(join(output_dir, 'results.csv'))
 
@@ -350,18 +354,19 @@ def drop_memmmap(estimators, exp_params):
 
 
 def analyse_single(masker, stack_base, results_dir, num, index,
-                   random_state_df, limit):
+                   random_state_df, limit, cache_dir):
     stack_target = np.concatenate(
         masker.transform(random_state_df['components'][:limit]))
-    aligned = _align_one_to_one_flat(stack_base, stack_target)
+    aligned = _align_one_to_one_flat(stack_base, stack_target, mem=Memory(cache_dir=cache_dir))
     filename = join(results_dir, 'aligned_%i.nii.gz' % num)
     masker.inverse_transform(aligned).to_filename(filename)
     corr = _spatial_correlation_flat(aligned, stack_base)
     return index, np.mean(corr.diagonal()), filename
 
 
-def analyse(output_dir, n_jobs=1, limit=10):
+def analyse(exp_params, output_dir, n_jobs=1, limit=10):
     results_dir = join(output_dir, 'stability')
+    cache_dir = exp_params.cache_dir
     if not exists(results_dir):
         os.mkdir(results_dir)
     results = pd.read_csv(join(output_dir, 'results.csv'), index_col=0)
@@ -385,7 +390,7 @@ def analyse(output_dir, n_jobs=1, limit=10):
 
     res = Parallel(n_jobs=n_jobs, verbose=3)(
         delayed(analyse_single)(masker, stack_base, results_dir, num,
-                                index, random_state_df, limit)
+                                index, random_state_df, limit, cache_dir)
         for num, (index, random_state_df) in enumerate(results.groupby(
             level=['reference', 'estimator_type', 'compression_type',
                    'reduction_ratio',

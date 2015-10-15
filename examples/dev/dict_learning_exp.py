@@ -63,28 +63,28 @@ def adhd_20():
                                                reduction_ratio=
                                                reduction_ratio))
     experiment = Experiment('adhd',
-                            n_subjects=40,
+                            n_subjects=4,
                             smoothing_fwhm=6,
                             dict_init=expanduser('~/ica/canica_resting_state'
                                                  '_20.nii.gz'),
                             output_dir=expanduser('~/output'),
                             cache_dir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
-                            n_slices=1,
+                            n_slices=2,
                             n_jobs=12,
                             n_epochs=1,
                             temp_folder=expanduser('~/temp'),
                             n_runs=1)
 
     # temp_folder = drop_memmmap(estimators, experiment)
-    # temp_folder = '/volatile/arthur/temp/2015-10-12_16-29-09'
-    # output_dir = run(estimators, experiment, temp_folder=temp_folder)
-    output_dir = expanduser('~/output/2015-10-14_23-46-52')
+    temp_folder = '/volatile/arthur/temp/2015-10-15_17-38-44'
+    output_dir = run(estimators, experiment, temp_folder=temp_folder)
+    # output_dir = expanduser('~/output/2015-10-14_23-46-52')
     # output_dir = expanduser('/volatile/arthur/work/output/test/2015-10-06_13-04-14')
-    # gather_results(output_dir=output_dir)
-    analyse(output_dir, n_jobs=28, limit=12)
-    analyse_num_exp(output_dir, n_jobs=28, n_run_var=4)
-    analyse_median_maps(output_dir)
+    gather_results(output_dir=output_dir)
+    # analyse(output_dir, n_jobs=28, limit=12)
+    # analyse_num_exp(output_dir, n_jobs=28, n_run_var=4)
+    # analyse_median_maps(output_dir)
     # plot_num_exp(output_dir)
     # plot_full(output_dir)
     # plot_num_exp(output_dir, 0.1)
@@ -133,8 +133,8 @@ def hcp_70():
     # output_dir = run(estimators, experiment, temp_folder=temp_folder)
     output_dir = expanduser('~/output/2015-10-14_23-46-52')
     gather_results(output_dir)
-    analyse(output_dir, n_jobs=4, limit=1)
-    analyse_num_exp(output_dir, n_jobs=4,
+    analyse(output_dir, n_jobs=10, limit=1)
+    analyse_num_exp(output_dir, n_jobs=10,
                  n_run_var=1)
 
 adhd_20()
