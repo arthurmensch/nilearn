@@ -157,7 +157,6 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                  n_jobs=1, in_memory=True, temp_folder=None, verbose=0,
                  debug_folder=None,
                  batch_size=10,
-                 parity=None,
                  ):
         DecompositionEstimator.__init__(self, n_components=n_components,
                                         random_state=random_state,
@@ -177,8 +176,7 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                                         memory_level=memory_level,
                                         n_jobs=n_jobs,
                                         in_memory=in_memory,
-                                        verbose=verbose,
-                                        parity=parity)
+                                        verbose=verbose)
         self.n_epochs = n_epochs
         self.alpha = alpha
         self.dict_init = dict_init
@@ -262,13 +260,12 @@ class DictLearning(DecompositionEstimator, TransformerMixin, CacheMixin):
                                    n_components=self.n_components,
                                    compression_type=self.compression_type,
                                    power_iter=self.power_iter,
-                                   random_state=0,  # self.random_state,
+                                   random_state=self.random_state,
                                    memory_level=max(0, self.memory_level - 1),
                                    temp_folder=self.temp_folder,
                                    n_jobs=self.n_jobs,
                                    memory=self.memory,
-                                   in_memory=self.in_memory,
-                                   parity=self.parity)
+                                   in_memory=self.in_memory)
         mask_reducer.fit(imgs, confounds)
         self.time_ = mask_reducer.time_
         self._raw_fit(mask_reducer.data_)

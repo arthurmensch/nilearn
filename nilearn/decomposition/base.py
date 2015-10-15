@@ -10,7 +10,6 @@ from math import ceil
 from os.path import join
 from tempfile import mkstemp, mkdtemp
 import warnings
-import h5py
 import numpy as np
 from scipy import linalg
 from sklearn.externals.joblib import Memory, Parallel, delayed
@@ -76,7 +75,6 @@ class mask_and_reduce(object):
     """
 
     def __init__(self, masker, imgs, confounds=None,
-                 # shuffle_features=False,
                  reduction_ratio='auto',
                  compression_type=None,
                  n_components=None, random_state=None,
@@ -85,8 +83,7 @@ class mask_and_reduce(object):
                  mock=False,
                  in_memory=True,
                  temp_folder=None,
-                 n_jobs=1, power_iter=3,
-                 parity=None):
+                 n_jobs=1, power_iter=3):
         self.masker = masker
         self.imgs = imgs
         self.confounds = confounds
@@ -101,8 +98,6 @@ class mask_and_reduce(object):
         self.n_jobs = n_jobs
         self.power_iter = power_iter
         self.temp_folder = temp_folder
-        # self.shuffle_features = shuffle_features
-        self.parity = parity
 
     def __enter__(self):
         self.mask_reducer_ = MaskReducer(self.masker,
@@ -115,8 +110,7 @@ class mask_and_reduce(object):
                                          mock=self.mock,
                                          in_memory=self.in_memory,
                                          temp_folder=self.temp_folder,
-                                         n_jobs=1, power_iter=self.power_iter,
-                                         parity=self.parity)
+                                         n_jobs=1, power_iter=self.power_iter)
         self.mask_reducer_.fit(self.imgs, confounds=self.confounds)
         if hasattr(self.mask_reducer_.mask_reducer, 'file_'):
             self.filename_ = self.mask_reducer_.filename_
@@ -179,8 +173,6 @@ class MaskReducer(BaseEstimator):
 
     def __init__(self, masker,
                  reduction_ratio='auto',
-                 # feature_compression=1,
-                 # shuffle_features=False,
                  compression_type=None,
                  n_components=None, random_state=None,
                  memory_level=0,
@@ -189,8 +181,7 @@ class MaskReducer(BaseEstimator):
                  in_memory=True,
                  temp_folder=None,
                  filename=None,
-                 n_jobs=1, power_iter=3,
-                 parity=None):
+                 n_jobs=1, power_iter=3):
         self.masker = masker
         self.reduction_ratio = reduction_ratio
         self.compression_type = compression_type
@@ -204,9 +195,6 @@ class MaskReducer(BaseEstimator):
         self.n_jobs = n_jobs
         self.power_iter = power_iter
         self.temp_folder = temp_folder
-        # self.feature_compression = feature_compression
-        self.parity = parity
-        # self.shuffle_features = shuffle_features
 
     def fit(self, imgs, confounds=None):
         return_mmap = not self.in_memory
@@ -251,8 +239,6 @@ class MaskReducer(BaseEstimator):
         subject_n_samples = np.zeros(len(imgs), dtype='int')
         for i, img in enumerate(imgs):
             this_n_samples = check_niimg_4d(img).shape[3]
-            if self.parity is not None:
-                this_n_samples //= 2
             if reduction_ratio == 'auto':
                 subject_n_samples[i] = min(self.n_components,
                                            this_n_samples)
@@ -305,7 +291,6 @@ class MaskReducer(BaseEstimator):
                 self.memory_level,
                 self.random_state,
                 i, self.power_iter,
-                self.parity,
             ) for i, (img, confound) in enumerate(zip(imgs, confounds)))
 
         if not mock:
@@ -341,22 +326,13 @@ def _load_single_subject(masker, data, subject_limits, subject_n_samples,
                          memory,
                          memory_level,
                          random_state,
-                         i, power_iter,
-                         parity):
+                         i, power_iter):
     """Utility function for multiprocessing from mask_and_reduce"""
     timings = np.zeros(2)
     t0 = time.time()
     this_data = masker.transform(img, confound)
 
     timings[1] = time.time() - t0
-    if parity == 0:
-        if this_data.shape[0] % 2 == 1:
-            this_data = this_data[::2]
-            this_data = this_data[:-1]
-        else:
-            this_data = this_data[::2]
-    elif parity == 1:
-        this_data = this_data[1::2]
 
     random_state = check_random_state(random_state)
 
@@ -506,7 +482,6 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
 
     def __init__(self, n_components=20,
                  random_state=None,
-                 # feature_compression=1,
                  mask=None, smoothing_fwhm=None,
                  standardize=True, detrend=True,
                  low_pass=None, high_pass=None, t_r=None,
@@ -514,13 +489,9 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, in_memory=True,
-                 verbose=0,
-                 parity=None):
+                 verbose=0):
         self.n_components = n_components
         self.random_state = random_state
-
-        # self.feature_compression = feature_compression
-
         self.mask = mask
 
         self.smoothing_fwhm = smoothing_fwhm
@@ -538,7 +509,6 @@ class DecompositionEstimator(BaseEstimator, CacheMixin):
         self.n_jobs = n_jobs
         self.in_memory = in_memory
         self.verbose = verbose
-        self.parity = parity
 
     def fit(self, imgs, y=None, confounds=None):
         """Base fit for decomposition estimators : compute the embedded masker
