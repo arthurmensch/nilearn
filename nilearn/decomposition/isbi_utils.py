@@ -661,8 +661,8 @@ def plot_full(output_dir):
                      fmt='o--')
         for (x, y, l) in zip(total_time['mean'].values, score['mean'].values,
                              reduction_ratio):
-            if l in [0.1, 0.2, 0.3, 0.4] and compression_type == 'subsample' \
-                    or l in [0.1, 0.2,
+            if l in [0.025, 0.2, 0.3, 0.4] and compression_type == 'subsample' \
+                    or l in [0.025, 0.1, 0.2,
                              0.05] and compression_type == 'range_finder':
                 plt.annotate(l, xy=(x, y), xytext=(10, 5), textcoords='offset points',
                              arrowprops=dict(arrowstyle="->"))
