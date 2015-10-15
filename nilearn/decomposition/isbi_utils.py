@@ -462,12 +462,11 @@ def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1):
 
     mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
     masker = MultiNiftiMasker(mask_img=mask).fit()
-    n_exp = results.loc[True]['random_state'].count() / n_run_var
+    # Number of experiment = number of reference experiment
+    n_exp = results.loc[True]['random_state'].count()
 
     slices = gen_even_slices(n_exp, n_run_var)
     n_exp /= n_run_var
-    # Number of experiment = number of reference experiment
-
     score_num_exp = []
 
     for this_slice in slices:
@@ -483,7 +482,8 @@ def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1):
             results_score.groupby(level=['reference',
                                          'estimator_type',
                                          'compression_type',
-                                         'reduction_ratio']))
+                                         'reduction_ratio'])
+            for i in range(n_exp))
         for index, n_exp, score in res:
             this_stability.loc[index, n_exp] = score
 
