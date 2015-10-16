@@ -29,6 +29,7 @@ from .base import MaskReducer, DecompositionEstimator
 from .._utils import check_niimg
 from ..input_data import MultiNiftiMasker
 from nilearn.image import index_img
+from nilearn.plotting import plot_stat_map
 
 Experiment = collections.namedtuple('Experiment',
                                     ['dataset_name',
@@ -598,6 +599,15 @@ def plot_with_error(x, y, yerr=0, **kwargs):
     plt.fill_between(x, (y + yerr),
                      (y - yerr), alpha=0.3,
                      color=plot[0].get_color())
+
+
+def plot_median(output_dir):
+    results_dir = join(output_dir, 'stability')
+    median_dir = join(results_dir, 'median')
+    median_series = pd.from_csv('median.csv')
+    fig, axes = plt.subplots(2, 2)
+    for i, ax in enumerate(axes):
+        plot_stat_map(ax=ax)
 
 
 def plot_full(output_dir):

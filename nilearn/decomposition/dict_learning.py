@@ -35,11 +35,11 @@ def _compute_loadings(components, data, in_memory=False):
     if in_memory:
         in_core_batch_size = n_samples
     else:
-        in_core_batch_size = min(n_samples, 400)
+        in_core_batch_size = min(n_samples, 1000)
     batches = gen_batches(n_samples, in_core_batch_size)
     loadings = np.empty((n_components, n_samples), dtype='float64')
     for batch in batches:
-        ridge.fit(components.T, np.asarray(data[batch].T))
+        ridge.fit(components.T, np.asarray(data[batch].T, copy=True))
         loadings[:, batch] = ridge.coef_.T
 
     S = np.sqrt(np.sum(loadings ** 2, axis=0))
