@@ -207,8 +207,8 @@ def hcp_rf_70():
     output_dir = run(estimators, experiment, temp_folder=temp_folder)
     # output_dir = expanduser('~/output/2015-10-14_23-46-52')
     gather_results(output_dir)
-    # analyse(experiment, output_dir, n_jobs=20, limit=1)
-    # analyse_num_exp(output_dir, n_jobs=20,
-    #                 n_run_var=1)
+    analyse(experiment, output_dir, n_jobs=20, limit=3)
+    analyse_num_exp(output_dir, n_jobs=20,
+                    n_run_var=1, limits=3)
 
-adhd_20()
+hcp_70()
