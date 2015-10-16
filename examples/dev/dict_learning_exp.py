@@ -209,6 +209,6 @@ def hcp_rf_70():
     gather_results(output_dir)
     analyse(experiment, output_dir, n_jobs=20, limit=3)
     analyse_num_exp(output_dir, n_jobs=20,
-                    n_run_var=1, limits=3)
+                    n_run_var=1, limit=3)
 
 hcp_70()
