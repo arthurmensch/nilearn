@@ -585,7 +585,7 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1]):
                              idx[False, :, 'subsample', 1.],
                              :]))
         # scores_extended.fillna(0, inplace=True)
-        labels = ['Range finder', 'Subsampling', 'Baseline']
+        labels = ['Range-finder', 'Subsampling', 'Non reduced']
         for j, (index, exp_df) in enumerate(incr_df.iterrows()):
             mean_score = exp_df[
                 [(i, 'mean') for i in np.arange(n_exp + 1)]].values.astype(
@@ -599,7 +599,7 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1]):
                             yerr=std_score, label=labels[j], marker='o',
                             markersize=2)
         ax.set_xlim([1, 10])
-        ax.set_ylim([0.6, 0.85])
+        ax.set_ylim([0.65, 0.85])
         ax.annotate('red. ratio: %.2f' % reduction_ratio, xy=(0.5, 0.15),
                     size=7, va="center", ha="center",
                     bbox=dict(boxstyle="square,pad=0.2", fc="w"),
@@ -607,10 +607,11 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1]):
         ax.grid('on')
         ax.set_yticks([0.60, 0.70, 0.80])
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.text(0.0, 0.5, 'Baseline recovery', va='center', rotation='vertical')
+    fig.text(0.0, 0.5, 'Correspondance with reference', va='center',
+             rotation='vertical')
     fig.legend(handles, labels, bbox_to_anchor=(1.1, 0.6), loc='center right',
                ncol=1)
-    axes[-1].set_xlabel('\# experiments')
+    axes[-1].set_xlabel('Number of concatenated result sets')
     plt.savefig(join(figures_dir, 'incr_stability.pgf'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'incr_stability.svg'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'incr_stability.pdf'), bbox_inches="tight")
@@ -628,11 +629,38 @@ def plot_median(output_dir):
     median_dir = join(results_dir, 'median')
     figures_dir = join(output_dir, 'figures')
     median_series = pd.read_csv(join(median_dir, 'median.csv'),
-                                index_col=range(4))
+                                index_col=range(4),
+                                header=None)
     fig, axes = plt.subplots(2, 2)
-    for i, ax in enumerate(axes):
-        plot_stat_map(median_series.iloc[i], display_mode='x', ax=ax)
-    plt.savefig(join(figures_dir, 'median.pdf'))
+    axes = axes.reshape(-1)
+    labels = ['Non reduced', 'Range-finder', 'Subsampling']
+    for i, (ax, (index, img)) in enumerate(zip(axes[1:], median_series.iterrows())):
+        plot_stat_map(img.values[0], display_mode='x',
+                      cut_coords=1,
+                      figure=fig,
+                      axes=ax, colorbar=False,
+                      annotate=False)
+        ax.annotate(labels[i], xy=(0.5, 0.), xytext=(0, -5),
+                    xycoords="axes fraction",
+                    textcoords='offset points',
+                    va='center', ha="center")
+        # ax.hlines(1, 0, 1, clip_on=False, transform=ax.transAxes)
+        # ax.hlines(0, 0, 1, clip_on=False, transform=ax.transAxes)
+        # ax.vlines(0, 0, 1, clip_on=False, transform=ax.transAxes)
+        # ax.vlines(1, 0, 1, clip_on=False, transform=ax.transAxes)
+    plot_stat_map(join(median_dir, 'base.nii.gz'), display_mode='x',
+                  cut_coords=1,
+                  axes=axes[0], colorbar=False, annotate=False)
+    axes[0].annotate('Reference', xy=(0.5, 0.), xytext=(0, -5),
+                    xycoords="axes fraction",
+                    textcoords='offset points',
+                    va='center', ha="center")
+    # axes[0].hlines(1, 0, 1, clip_on=False, transform=ax.transAxes)
+    # axes[0].hlines(0, 0, 1, clip_on=False, transform=ax.transAxes)
+    # axes[0].vlines(0, 0, 1, clip_on=False, transform=ax.transAxes)
+    # axes[0].vlines(1, 0, 1, clip_on=False, transform=ax.transAxes)
+    plt.savefig(join(figures_dir, 'median.pgf'), bbox_inches="tight")
+    plt.savefig(join(figures_dir, 'median.pdf'), bbox_inches="tight")
 
 
 def plot_full(output_dir):
@@ -663,13 +691,13 @@ def plot_full(output_dir):
     fig = []
     for i in range(3):
         fig.append(plt.figure())
-    name_index = {'range_finder': 'Range finder',
+    name_index = {'range_finder': 'Range-finder',
                   'subsample': 'Subsample'}
     plt.figure(fig[0].number)
     plot_with_error(np.linspace(0, 1.2, 10),
                     ref_reproduction * np.ones(10),
                     yerr=ref_std,
-                    label='Baseline', color='red', zorder=1)
+                    label='Non reduced', color='red', zorder=1)
     for index, exp_df in scores_extended.groupby(level=['estimator_type',
                                                         'compression_type']):
         plt.figure(fig[0].number)
@@ -733,14 +761,14 @@ def plot_full(output_dir):
         return p
 
     arrow_patch = mpatches.Arrow(0, 0, 0.05, 0.05, color='black',
-                                      label='Reduction ratio')
+                                 label='Reduction ratio')
     plt.legend(
         handles=fig[0].axes[0].get_legend_handles_labels()[0] + [arrow_patch],
         loc='lower right',
         handler_map={
             mpatches.Arrow: HandlerPatch(patch_func=make_legend_arrow)})
-    plt.ylabel('Baseline recovery')
-    plt.xlabel('Time (relative to baseline)')
+    plt.ylabel('Correspondance with reference')
+    plt.xlabel('Time (relative to non reduced DL)')
     plt.savefig(join(figures_dir, 'time_v_corr.pdf'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'time_v_corr.svg'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'time_v_corr.pgf'), bbox_inches="tight")
