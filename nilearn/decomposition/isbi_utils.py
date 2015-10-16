@@ -1,5 +1,7 @@
 import fnmatch
+import matplotlib
 
+matplotlib.rcParams['svg.fonttype'] = 'none'
 import matplotlib.pyplot as plt
 
 import collections
@@ -563,7 +565,7 @@ def analyse_median_maps(output_dir, reduction_ratio=0.1):
     median_series.to_csv(join(median_dir, 'median.csv'))
 
 
-def plot_num_exp(output_dir, reduction_ratio=0.1):
+def plot_num_exp(output_dir, reduction_ratio_list=[0.1]):
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
     if not exists(figures_dir):
@@ -572,49 +574,65 @@ def plot_num_exp(output_dir, reduction_ratio=0.1):
     scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
                                   index_col=range(4), header=[0, 1])
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
-    n_exp = 10  # scores_extended.columns.get_level_values(0)[-1]
+    n_exp = 9  # scores_extended.columns.get_level_values(0)[-1]
+    fig, axes = plt.subplots(len(reduction_ratio_list), 1, sharex=True)
+    for reduction_ratio, ax in zip(reduction_ratio_list, axes):
+        incr_df = pd.concat((scores_extended.loc[idx[False, :,
+                                                 ['subsample',
+                                                  'range_finder'],
+                                                 reduction_ratio], :],
+                             scores_extended.loc[
+                             idx[False, :, 'subsample', 1.],
+                             :]))
+        # scores_extended.fillna(0, inplace=True)
+        labels = ['Range finder', 'Subsampling', 'Baseline']
+        for j, (index, exp_df) in enumerate(incr_df.iterrows()):
+            mean_score = exp_df[
+                [(i, 'mean') for i in np.arange(n_exp + 1)]].values.astype(
+                'float')
+            std_score = exp_df[
+                [(i, 'std') for i in np.arange(n_exp + 1)]].values.astype(
+                'float')
+            plot_with_error(np.arange(len(mean_score)) + 1,
+                            mean_score,
+                            ax=ax,
+                            yerr=std_score, label=labels[j], marker='o',
+                            markersize=2)
+        ax.set_xlim([1, 10])
+        ax.set_ylim([0.6, 0.85])
+        ax.annotate('red. ratio: %.2f' % reduction_ratio, xy=(0.5, 0.15),
+                    size=7, va="center", ha="center",
+                    bbox=dict(boxstyle="square,pad=0.2", fc="w"),
+                    xycoords="axes fraction")
+        ax.grid('on')
+        ax.set_yticks([0.60, 0.70, 0.80])
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.text(0.0, 0.5, 'Baseline recovery', va='center', rotation='vertical')
+    fig.legend(handles, labels, bbox_to_anchor=(1.1, 0.6), loc='center right',
+               ncol=1)
+    axes[-1].set_xlabel('\# experiments')
+    plt.savefig(join(figures_dir, 'incr_stability.pgf'), bbox_inches="tight")
+    plt.savefig(join(figures_dir, 'incr_stability.svg'), bbox_inches="tight")
+    plt.savefig(join(figures_dir, 'incr_stability.pdf'), bbox_inches="tight")
 
-    scores_extended = pd.concat((scores_extended.loc[idx[False, :,
-                                                     ['subsample',
-                                                      'range_finder'],
-                                                     reduction_ratio], :],
-                                 scores_extended.loc[
-                                 idx[False, :, 'subsample', 1.],
-                                 :]))
-    # scores_extended.fillna(0, inplace=True)
-    labels = ['Range finder', 'Subsampling', 'Baseline']
-    plt.figure()
-    for j, (index, exp_df) in enumerate(scores_extended.iterrows()):
-        mean_score = exp_df[
-            [(i, 'mean') for i in np.arange(n_exp + 1)]].values.astype('float')
-        std_score = exp_df[
-            [(i, 'std') for i in np.arange(n_exp + 1)]].values.astype('float')
-        plot_with_error(np.arange(len(mean_score)) + 1,
-                        mean_score,
-                        yerr=std_score, label=labels[j], marker='o')
-    plt.legend(loc='lower right', ncol=2)
-    plt.xlim([1, 11])
-    plt.ylim([0.4, 0.9])
-    plt.xlabel('Number of experiments')
-    plt.ylabel('Baseline reproduction')
-    # plt.savefig(join(figures_dir, 'incr_stability.pgf'))
-    plt.savefig(join(figures_dir, 'incr_stability_%f.pdf' % reduction_ratio))
 
-
-def plot_with_error(x, y, yerr=0, **kwargs):
-    plot = plt.plot(x, y, **kwargs)
-    plt.fill_between(x, (y + yerr),
-                     (y - yerr), alpha=0.3,
-                     color=plot[0].get_color())
+def plot_with_error(x, y, yerr=0, ax=plt, **kwargs):
+    plot = ax.plot(x, y, **kwargs)
+    ax.fill_between(x, (y + yerr),
+                    (y - yerr), alpha=0.3,
+                    color=plot[0].get_color())
 
 
 def plot_median(output_dir):
     results_dir = join(output_dir, 'stability')
     median_dir = join(results_dir, 'median')
-    median_series = pd.from_csv('median.csv')
+    figures_dir = join(output_dir, 'figures')
+    median_series = pd.read_csv(join(median_dir, 'median.csv'),
+                                index_col=range(4))
     fig, axes = plt.subplots(2, 2)
     for i, ax in enumerate(axes):
-        plot_stat_map(ax=ax)
+        plot_stat_map(median_series.iloc[i], display_mode='x', ax=ax)
+    plt.savefig(join(figures_dir, 'median.pdf'))
 
 
 def plot_full(output_dir):
@@ -651,7 +669,7 @@ def plot_full(output_dir):
     plot_with_error(np.linspace(0, 1.2, 10),
                     ref_reproduction * np.ones(10),
                     yerr=ref_std,
-                    label='Baseline', color='red')
+                    label='Baseline', color='red', zorder=1)
     for index, exp_df in scores_extended.groupby(level=['estimator_type',
                                                         'compression_type']):
         plt.figure(fig[0].number)
@@ -665,54 +683,82 @@ def plot_full(output_dir):
 
         # order = np.argsort(total_time['mean'].values)
 
-        plt.errorbar(total_time['mean'].values,
-                     score['mean'].values,
-                     xerr=total_time['std'].values,
-                     yerr=score['std'].values,
-                     label=label,
-                     fmt='o--')
+        eb = plt.errorbar(total_time['mean'].values,
+                          score['mean'].values,
+                          xerr=total_time['std'].values,
+                          yerr=score['std'].values,
+                          label=label,
+                          fmt='-',
+                          marker='o',
+                          markersize=3,
+                          capsize=1, zorder=2)
+        eb[-1][0].set_linewidth(0.3)
+        eb[-1][1].set_linewidth(0.3)
         for (x, y, l) in zip(total_time['mean'].values, score['mean'].values,
                              reduction_ratio):
-            if l in [0.025, 0.2, 0.3, 0.4] and compression_type == 'subsample' \
-                    or l in [0.025, 0.1, 0.2,
-                             0.05] and compression_type == 'range_finder':
-                plt.annotate(l, xy=(x, y), xytext=(10, 5), textcoords='offset points',
-                             arrowprops=dict(arrowstyle="->"))
+            if l in [0.05, 0.2] and compression_type == 'subsample' \
+                    or l in [0.05, 0.2] and compression_type == 'range_finder':
+                plt.annotate(l, xy=(x, y), xytext=(10, -10),
+                             textcoords='offset points',
+                             size=7,
+                             arrowprops=dict(arrowstyle="->"),
+                             zorder=4)
         plt.xlim([0.05, 1.2])
         plt.ylim([0.65, 0.85])
+        plt.yticks([0.65, 0.75, 0.85])
+        fig[0].axes[0].xaxis.grid(True)
 
-        plt.figure(fig[1].number)
-
-        plot_with_error(reduction_ratio,
-                        score['mean'].values,
-                        yerr=score['std'].values,
-                        label=label, marker='o')
-        plt.figure(fig[2].number)
-
-        plot_with_error(reduction_ratio,
-                        total_time['mean'].values,
-                        yerr=total_time['std'].values,
-                        label=label, marker='o')
+        # plt.figure(fig[1].number)
+        #
+        # plot_with_error(reduction_ratio,
+        #                 score['mean'].values,
+        #                 yerr=score['std'].values,
+        #                 label=label, marker='o')
+        # plt.figure(fig[2].number)
+        #
+        # plot_with_error(reduction_ratio,
+        #                 total_time['mean'].values,
+        #                 yerr=total_time['std'].values,
+        #                 label=label, marker='o')
     plt.figure(fig[0].number)
 
-    plt.legend(loc='lower right')
-    plt.ylabel('Recovery metric')
+    import matplotlib.patches as mpatches
+    from matplotlib.legend_handler import HandlerPatch
+
+    def make_legend_arrow(legend, orig_handle,
+                          xdescent, ydescent,
+                          width, height, fontsize):
+        p = mpatches.FancyArrowPatch((0, 0.5 * height), (width, 0.5 * height),
+                                     arrowstyle='->,head_length=7,head_width=7')
+        return p
+
+    arrow_patch = mpatches.Arrow(0, 0, 0.05, 0.05, color='black',
+                                      label='Reduction ratio')
+    plt.legend(
+        handles=fig[0].axes[0].get_legend_handles_labels()[0] + [arrow_patch],
+        loc='lower right',
+        handler_map={
+            mpatches.Arrow: HandlerPatch(patch_func=make_legend_arrow)})
+    plt.ylabel('Baseline recovery')
     plt.xlabel('Time (relative to baseline)')
-    plt.savefig(join(figures_dir, 'time_v_corr.pdf'))
-    # plt.savefig(join(figures_dir, 'time_v_corr.pgf'))
-
-    plt.figure(fig[1].number)
-    plt.legend(loc='lower right')
-    plt.ylabel('Baseline reproduction')
-    plt.xlabel('Reduction ratio')
-    plt.savefig(join(figures_dir, 'corr.pdf'))
+    plt.savefig(join(figures_dir, 'time_v_corr.pdf'), bbox_inches="tight")
+    plt.savefig(join(figures_dir, 'time_v_corr.svg'), bbox_inches="tight")
+    plt.savefig(join(figures_dir, 'time_v_corr.pgf'), bbox_inches="tight")
+    #
+    # plt.figure(fig[1].number)
+    # plt.legend(loc='lower right')
+    # plt.ylabel('Baseline recovery')
+    # plt.xlabel('Reduction ratio')
+    # plt.savefig(join(figures_dir, 'corr.pdf'))
+    # plt.savefig(join(figures_dir, 'corr.svg'))
     # plt.savefig(join(figures_dir, 'corr.pgf'))
-
-    plt.figure(fig[2].number)
-    plt.legend(loc='lower right')
-    plt.ylabel('Time')
-    plt.xlabel('Reduction ratio')
-    plt.savefig(join(figures_dir, 'time.pdf'))
+    #
+    # plt.figure(fig[2].number)
+    # plt.legend(loc='lower right')
+    # plt.ylabel('Time')
+    # plt.xlabel('Reduction ratio')
+    # plt.savefig(join(figures_dir, 'time.pdf'))
+    # plt.savefig(join(figures_dir, 'time.svg'))
     # plt.savefig(join(figures_dir, 'time.pgf'))
 
 
