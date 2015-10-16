@@ -28,7 +28,7 @@ from .._utils.cache_mixin import CacheMixin
 from .base import DecompositionEstimator, MaskReducer
 
 
-def _compute_loadings(components, data, in_memory=False):
+def _compute_loadings(components, data, in_memory=False, verbose=True):
     n_samples, n_features = data.shape
     n_components, n_features = components.shape
     ridge = Ridge(fit_intercept=None, alpha=0.)
@@ -37,9 +37,12 @@ def _compute_loadings(components, data, in_memory=False):
     else:
         in_core_batch_size = min(n_samples, 1000)
     batches = gen_batches(n_samples, in_core_batch_size)
+    n_batches = n_samples / in_core_batch_size + 1
     loadings = np.empty((n_components, n_samples), dtype='float64')
-    for batch in batches:
-        ridge.fit(components.T, np.asarray(data[batch].T, copy=True))
+    for i, batch in enumerate(batches):
+        if verbose:
+            print("%i-th batch / %i" % (i, n_batches))
+        ridge.fit(components.T, np.asarray(data[batch].T))
         loadings[:, batch] = ridge.coef_.T
 
     S = np.sqrt(np.sum(loadings ** 2, axis=0))

@@ -163,7 +163,7 @@ def hcp_full_70():
                             temp_folder=expanduser('~/temp'),
                             # Stability specific
                             n_runs=1)
-    temp_folder = expanduser('#/temp/2015-10-15_23-45-45')
+    temp_folder = expanduser('~/temp/2015-10-15_23-45-45')
     # temp_folder = drop_memmmap(estimators, experiment)
     output_dir = run(estimators, experiment, temp_folder=temp_folder)
     # output_dir = expanduser('~/output/2015-10-14_23-46-52')
