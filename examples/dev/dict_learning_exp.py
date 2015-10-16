@@ -135,8 +135,8 @@ def hcp_70():
     # output_dir = run(estimators, experiment, temp_folder=temp_folder)
     output_dir = expanduser('~/output/2015-10-14_23-46-52')
     gather_results(output_dir)
-    analyse(experiment, output_dir, n_jobs=20, limit=2)
-    analyse_num_exp(output_dir, n_jobs=20,
+    analyse(experiment, output_dir, n_jobs=10, limit=2)
+    analyse_num_exp(output_dir, n_jobs=10,
                     n_run_var=1, limit=2)
 
 
