@@ -211,4 +211,4 @@ def hcp_rf_70():
     # analyse_num_exp(output_dir, n_jobs=20,
     #                 n_run_var=1)
 
-hcp_full_70()
+hcp_70()
