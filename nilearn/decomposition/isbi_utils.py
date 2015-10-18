@@ -607,11 +607,11 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1]):
         ax.grid('on')
         ax.set_yticks([0.60, 0.70, 0.80])
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.text(0.0, 0.5, 'Correspondance with reference', va='center',
-             rotation='vertical')
+    fig.text(0.0, 0.5, 'Correspence with ref. $d_p (\\mathbf X, \\mathbf Y)$', va='center',
+         rotation='vertical')
     fig.legend(handles, labels, bbox_to_anchor=(1, 0.65), loc='center right',
                ncol=1)
-    axes[-1].set_xlabel('$p$: Number of concatenated result sets')
+    axes[-1].set_xlabel('Number of concatenated result sets in $\\mathcal V_p(\\mathbf Y)$')
     plt.savefig(join(figures_dir, 'incr_stability.pgf'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'incr_stability.svg'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'incr_stability.pdf'), bbox_inches="tight")
@@ -767,8 +767,8 @@ def plot_full(output_dir):
         loc='lower right',
         handler_map={
             mpatches.Arrow: HandlerPatch(patch_func=make_legend_arrow)})
-    plt.ylabel('Correspondance with reference')
-    plt.xlabel('Time (relative to non reduced DL)')
+    plt.ylabel('Correspence with ref. $d_p (\\mathbf X, \\mathbf Y)$')
+    plt.xlabel('CPU Time (relative to non-reduced $\\mathrm{DL}(\\mathbf X)$)')
     plt.savefig(join(figures_dir, 'time_v_corr.pdf'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'time_v_corr.svg'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'time_v_corr.pgf'), bbox_inches="tight")
