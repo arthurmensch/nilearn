@@ -359,7 +359,7 @@ def drop_memmmap(estimators, exp_params):
 def analyse_single(masker, stack_base, results_dir, num, index,
                    random_state_df, limit, cache_dir):
     stack_target = np.concatenate(
-        masker.transform(random_state_df['components'][:limit]))
+        masker.transform(random_state_df['components'][1:limit]))
     aligned = _align_one_to_one_flat(stack_base, stack_target,
                                      mem=Memory(cachedir=cache_dir))
     filename = join(results_dir, 'aligned_%i.nii.gz' % num)
@@ -388,7 +388,7 @@ def analyse(exp_params, output_dir, n_jobs=1, limit=10):
           ' and computing correlation score')
 
     stack_base = np.concatenate(
-        masker.transform(results.loc[True]['components'][:limit]))
+        masker.transform(results.loc[True]['components'][1:limit]))
     masker.inverse_transform(stack_base).to_filename(
         join(results_dir, 'base.nii.gz'))
 
@@ -599,8 +599,8 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1]):
                             yerr=std_score, label=labels[j], marker='o',
                             markersize=2)
         ax.set_xlim([1, 10])
-        ax.set_ylim([0.65, 0.85])
-        ax.annotate('red. ratio: %.2f' % reduction_ratio, xy=(0.5, 0.15),
+        ax.set_ylim([0.65, 0.9])
+        ax.annotate('reduction ratio: %.2f' % reduction_ratio, xy=(0.45, 0.15),
                     size=7, va="center", ha="center",
                     bbox=dict(boxstyle="square,pad=0.2", fc="w"),
                     xycoords="axes fraction")
@@ -609,9 +609,9 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1]):
     handles, labels = axes[0].get_legend_handles_labels()
     fig.text(0.0, 0.5, 'Correspondance with reference', va='center',
              rotation='vertical')
-    fig.legend(handles, labels, bbox_to_anchor=(1.1, 0.6), loc='center right',
+    fig.legend(handles, labels, bbox_to_anchor=(1, 0.65), loc='center right',
                ncol=1)
-    axes[-1].set_xlabel('Number of concatenated result sets')
+    axes[-1].set_xlabel('$p$: Number of concatenated result sets')
     plt.savefig(join(figures_dir, 'incr_stability.pgf'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'incr_stability.svg'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'incr_stability.pdf'), bbox_inches="tight")
