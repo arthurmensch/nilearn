@@ -362,10 +362,12 @@ def analyse_single(masker, stack_base, results_dir, num, index,
         masker.transform(random_state_df['components'][1:limit]))
     aligned = _align_one_to_one_flat(stack_base, stack_target,
                                      mem=Memory(cachedir=cache_dir))
+    mutual_zeros = np.sum(np.logical_not(np.logical_or(np.any(aligned, axis=1),
+                                                np.any(stack_base, axis=1))))
     filename = join(results_dir, 'aligned_%i.nii.gz' % num)
     masker.inverse_transform(aligned).to_filename(filename)
     corr = _spatial_correlation_flat(aligned, stack_base)
-    return index, np.mean(corr.diagonal()), filename
+    return index, np.trace(corr) / (len(corr) - mutual_zeros), filename
 
 
 def analyse(exp_params, output_dir, n_jobs=1, limit=10):
@@ -437,8 +439,10 @@ def align_num_exp_single(masker, base_list, this_slice, n_exp, index,
     base = np.concatenate(base_list[:(n_exp + 1)])
     target = np.concatenate(target_list[:(n_exp + 1)])
     aligned = _align_one_to_one_flat(base, target)
+    mutual_zeros = np.sum(np.logical_not(np.logical_or(np.any(aligned, axis=1),
+                                                np.any(base, axis=1))))
     return index, n_exp, np.trace(
-        _spatial_correlation_flat(aligned, base)) / len(base)
+        _spatial_correlation_flat(aligned, base)) / (len(base) - mutual_zeros)
 
 
 def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1, limit=1000):
@@ -565,7 +569,7 @@ def analyse_median_maps(output_dir, reduction_ratio=0.1):
     median_series.to_csv(join(median_dir, 'median.csv'))
 
 
-def plot_num_exp(output_dir, reduction_ratio_list=[0.1]):
+def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
     if not exists(figures_dir):
@@ -574,7 +578,7 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1]):
     scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
                                   index_col=range(4), header=[0, 1])
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
-    n_exp = 9  # scores_extended.columns.get_level_values(0)[-1]
+    n_exp = n_exp  # scores_extended.columns.get_level_values(0)[-1]
     fig, axes = plt.subplots(len(reduction_ratio_list), 1, sharex=True)
     for reduction_ratio, ax in zip(reduction_ratio_list, axes):
         incr_df = pd.concat((scores_extended.loc[idx[False, :,
@@ -599,13 +603,14 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1]):
                             yerr=std_score, label=labels[j], marker='o',
                             markersize=2)
         ax.set_xlim([1, 10])
-        ax.set_ylim([0.65, 0.9])
+        # ax.set_ylim([0.65, 0.9])
+        ax.set_ylim([0.3, 0.5])
         ax.annotate('reduction ratio: %.2f' % reduction_ratio, xy=(0.45, 0.15),
                     size=7, va="center", ha="center",
                     bbox=dict(boxstyle="square,pad=0.2", fc="w"),
                     xycoords="axes fraction")
         ax.grid('on')
-        ax.set_yticks([0.60, 0.70, 0.80])
+        # ax.set_yticks([0.60, 0.70, 0.80])
     handles, labels = axes[0].get_legend_handles_labels()
     fig.text(0.0, 0.5, 'Correspence with ref. $d_p (\\mathbf X, \\mathbf Y)$', va='center',
          rotation='vertical')
@@ -663,7 +668,7 @@ def plot_median(output_dir):
     plt.savefig(join(figures_dir, 'median.pdf'), bbox_inches="tight")
 
 
-def plot_full(output_dir):
+def plot_full(output_dir, n_exp=9):
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
     if not exists(figures_dir):
@@ -672,7 +677,7 @@ def plot_full(output_dir):
     scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
                                   index_col=range(4), header=[0, 1])
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
-    n_exp = 9
+    n_exp = n_exp
 
     ref_time = scores_extended.loc[
         idx[False, 'DictLearning', 'subsample', 1], ('math_time', 'mean')]
@@ -732,8 +737,9 @@ def plot_full(output_dir):
                              arrowprops=dict(arrowstyle="->"),
                              zorder=4)
         plt.xlim([0.05, 1.2])
-        plt.ylim([0.65, 0.85])
-        plt.yticks([0.65, 0.75, 0.85])
+        # plt.ylim([0.65, 0.85])
+        plt.ylim([0.3, 0.5])
+        # plt.yticks([0.65, 0.75, 0.85])
         fig[0].axes[0].xaxis.grid(True)
 
         # plt.figure(fig[1].number)
