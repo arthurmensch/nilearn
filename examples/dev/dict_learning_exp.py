@@ -33,7 +33,7 @@ from nilearn.decomposition.isbi_utils import run, \
 #                         smoothing_fwhm=6,
 #                         dict_init='rsn20',
 #                         output_dir=expanduser('~/output'),
-#                         cache_dir=expanduser('~/nilearn_cache'),
+#                         cachedir=expanduser('~/nilearn_cache'),
 #                         data_dir=expanduser('~/data'),
 #                         n_slices=1,
 #                         n_jobs=5,
@@ -68,7 +68,7 @@ def adhd_20():
                             dict_init=expanduser('~/ica/canica_resting_state'
                                                  '_20.nii.gz'),
                             output_dir=expanduser('~/output'),
-                            cache_dir=expanduser('~/nilearn_cache'),
+                            cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
                             n_slices=2,
                             n_jobs=12,
@@ -125,7 +125,7 @@ def hcp_70():
                             smoothing_fwhm=6,
                             dict_init='rsn70',
                             output_dir=expanduser('~/output'),
-                            cache_dir=expanduser('~/nilearn_cache'),
+                            cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
                             n_slices=1,
                             n_jobs=16,
@@ -138,9 +138,9 @@ def hcp_70():
     # output_dir = run(estimators, experiment, temp_folder=temp_folder)
     output_dir = expanduser('~/output/2015-10-14_23-46-52')
     # gather_results(output_dir)
-    # analyse(experiment, output_dir, n_jobs=20, limit=6)
-    # analyse_num_exp(output_dir, n_jobs=20,
-    #                 n_run_var=1, limit=6)
+    analyse(experiment, output_dir, n_jobs=20, limit=6)
+    analyse_num_exp(output_dir, n_jobs=20,
+                    n_run_var=1, limit=6)
     plot_full(output_dir, n_exp=5)
     plot_num_exp(output_dir, reduction_ratio_list=[0.1, 0.2], n_exp=5)
     # plot_full(output_dir)
@@ -160,7 +160,7 @@ def hcp_full_70():
                             smoothing_fwhm=6,
                             dict_init='rsn70',
                             output_dir=expanduser('~/output'),
-                            cache_dir=expanduser('~/nilearn_cache'),
+                            cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
                             n_slices=1,
                             n_jobs=10,
@@ -199,7 +199,7 @@ def hcp_rf_70():
                             smoothing_fwhm=6,
                             dict_init='rsn70',
                             output_dir=expanduser('~/output'),
-                            cache_dir=expanduser('~/nilearn_cache'),
+                            cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
                             n_slices=1,
                             n_jobs=10,

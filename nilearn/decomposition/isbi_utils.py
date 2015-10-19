@@ -362,12 +362,13 @@ def analyse_single(masker, stack_base, results_dir, num, index,
         masker.transform(random_state_df['components'][1:limit]))
     aligned = _align_one_to_one_flat(stack_base, stack_target,
                                      mem=Memory(cachedir=cachedir))
-    mutual_zeros = np.sum(np.logical_not(np.logical_or(np.any(aligned, axis=1),
-                                                np.any(stack_base, axis=1))))
+    non_zero_len = np.sum(np.logical_or(np.any(aligned, axis=1),
+                                                       np.any(stack_base,
+                                                              axis=1)))
     filename = join(results_dir, 'aligned_%i.nii.gz' % num)
     masker.inverse_transform(aligned).to_filename(filename)
     corr = _spatial_correlation_flat(aligned, stack_base)
-    return index, np.trace(corr) / (len(corr) - mutual_zeros), filename
+    return index, np.trace(corr) / non_zero_len, filename
 
 
 def analyse(exp_params, output_dir, n_jobs=1, limit=10):
@@ -439,10 +440,11 @@ def align_num_exp_single(masker, base_list, this_slice, n_exp, index,
     base = np.concatenate(base_list[:(n_exp + 1)])
     target = np.concatenate(target_list[:(n_exp + 1)])
     aligned = _align_one_to_one_flat(base, target, mem=Memory(cachedir=cachedir))
-    mutual_zeros = np.sum(np.logical_not(np.logical_or(np.any(aligned, axis=1),
-                                                np.any(base, axis=1))))
+    non_zero_len = np.sum(np.logical_and(np.any(aligned, axis=1),
+                                                       np.any(target,
+                                                              axis=1)))
     return index, n_exp, np.trace(
-        _spatial_correlation_flat(aligned, base)) / (len(base) - mutual_zeros)
+        _spatial_correlation_flat(aligned, base)) / non_zero_len
 
 
 def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1, limit=1000):
