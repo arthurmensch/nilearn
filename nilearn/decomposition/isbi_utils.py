@@ -447,7 +447,7 @@ def align_num_exp_single(masker, base_list, this_slice, n_exp, index,
         _spatial_correlation_flat(aligned, base)) / non_zero_len
 
 
-def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1, limit=1000):
+def analyse_num_exp(exp_params, output_dir, n_jobs=1, n_run_var=1, limit=1000):
     results_dir = join(output_dir, 'stability')
     results = pd.read_csv(join(output_dir, 'results.csv'), index_col=0)
     results.set_index(['reference', 'estimator_type', 'compression_type',
@@ -490,7 +490,7 @@ def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1, limit=1000):
         res = Parallel(n_jobs=n_jobs, verbose=3)(
             delayed(align_num_exp_single)(masker, base_list, this_slice,
                                           i, index, random_state_df,
-                                          cachedir='nilearn_cache')
+                                          cachedir=exp_params.cachedir)
             for index, random_state_df in
             results_score.groupby(level=['reference',
                                          'estimator_type',
