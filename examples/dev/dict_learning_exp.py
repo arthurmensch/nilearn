@@ -132,7 +132,7 @@ def hcp_70():
                             # Out of core dictionary learning specifics
                             temp_folder=expanduser('~/temp'),
                             # Stability specific
-                            n_runs=10)
+                            n_runs=20)
     # temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
     output_dir = run(estimators, experiment)
     # output_dir = expanduser('~/output/2015-10-14_23-46-52')
