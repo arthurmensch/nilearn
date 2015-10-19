@@ -65,8 +65,7 @@ def adhd_20():
     experiment = Experiment('adhd',
                             n_subjects=4,
                             smoothing_fwhm=6,
-                            dict_init=expanduser('~/ica/canica_resting_state'
-                                                 '_20.nii.gz'),
+                            dict_init=expanduser('rsn20'),
                             output_dir=expanduser('~/output'),
                             cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
@@ -97,8 +96,8 @@ def adhd_20():
 def hcp_70():
     # HCP RSN70 explorative experiment
     estimators = []
-    alpha_list = np.array([[5, 6, 5, 5, 4, 4, 4, 4, 4, 4],
-                           [2, 3, 3, 3, 4, 3, 3, 4, 4, 4]])
+    # alpha_list = np.array([[5, 6, 5, 5, 4, 4, 4, 4, 4, 4],
+    #                        [2, 3, 3, 3, 4, 3, 3, 4, 4, 4]])
 
     # estimators.append(DictLearning(alpha=4, batch_size=20,
     #                                compression_type='subsample',
@@ -107,8 +106,7 @@ def hcp_70():
     #                                reduction_ratio=1))
     for compression_type in ['range_finder', 'subsample']:
         for reduction_ratio in [0.01, 0.025, 0.05, 0.075]:
-            for alpha in np.concatenate((np.array([0.025, 0.5]),
-                                        np.linspace(1, 7, 7))):
+            for alpha in [0.25, 0.5, 1, 2, 3]:
                 estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                                compression_type=compression_type,
                                                random_state=0,
@@ -136,12 +134,12 @@ def hcp_70():
                             # Stability specific
                             n_runs=10)
     # temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
-    # output_dir = run(estimators, experiment, temp_folder=temp_folder)
+    output_dir = run(estimators, experiment)
     output_dir = expanduser('~/output/2015-10-14_23-46-52')
     # gather_results(output_dir)
-    analyse(experiment, output_dir, n_jobs=20, limit=6)
-    analyse_num_exp(experiment, output_dir, n_jobs=20,
-                    n_run_var=1, limit=6)
+    # analyse(experiment, output_dir, n_jobs=20, limit=6)
+    # analyse_num_exp(experiment, output_dir, n_jobs=20,
+    #                 n_run_var=1, limit=6)
     # plot_full(output_dir, n_exp=5)
     # plot_num_exp(output_dir, reduction_ratio_list=[0.1, 0.2], n_exp=5)
     # plot_full(output_dir)

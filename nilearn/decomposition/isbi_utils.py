@@ -601,8 +601,8 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                             yerr=std_score, label=labels[j], marker='o',
                             markersize=2)
         ax.set_xlim([1, 10])
-        # ax.set_ylim([0.65, 0.9])
-        ax.set_ylim([0.3, 0.5])
+        ax.set_ylim([0.4, 0.7])
+        # ax.set_ylim([0.3, 0.5])
         ax.annotate('reduction ratio: %.2f' % reduction_ratio, xy=(0.45, 0.15),
                     size=7, va="center", ha="center",
                     bbox=dict(boxstyle="square,pad=0.2", fc="w"),
@@ -736,7 +736,7 @@ def plot_full(output_dir, n_exp=9):
                              zorder=4)
         plt.xlim([0.05, 1.2])
         # plt.ylim([0.65, 0.85])
-        plt.ylim([0.3, 0.5])
+        plt.ylim([0.3, 0.7])
         # plt.yticks([0.65, 0.75, 0.85])
         fig[0].axes[0].xaxis.grid(True)
 
