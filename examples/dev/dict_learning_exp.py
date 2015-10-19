@@ -97,6 +97,9 @@ def adhd_20():
 def hcp_70():
     # HCP RSN70 explorative experiment
     estimators = []
+    alpha_list = np.array([[5, 6, 5, 5, 4, 4, 4, 4, 4, 4],
+                           [2, 3, 3, 3, 4, 3, 3, 4, 4, 4]])
+
     estimators.append(DictLearning(alpha=4, batch_size=20,
                                    compression_type='subsample',
                                    random_state=0,
@@ -135,11 +138,11 @@ def hcp_70():
     # output_dir = run(estimators, experiment, temp_folder=temp_folder)
     output_dir = expanduser('~/output/2015-10-14_23-46-52')
     # gather_results(output_dir)
-    analyse(experiment, output_dir, n_jobs=20, limit=6)
-    analyse_num_exp(output_dir, n_jobs=20,
-                    n_run_var=1, limit=6)
-    # plot_full(output_dir, n_exp=5)
-    # plot_num_exp(output_dir, reduction_ratio_list=[0.1, 0.2], n_exp=5)
+    # analyse(experiment, output_dir, n_jobs=20, limit=6)
+    # analyse_num_exp(output_dir, n_jobs=20,
+    #                 n_run_var=1, limit=6)
+    plot_full(output_dir, n_exp=5)
+    plot_num_exp(output_dir, reduction_ratio_list=[0.1, 0.2], n_exp=5)
     # plot_full(output_dir)
 
 
@@ -166,7 +169,7 @@ def hcp_full_70():
                             temp_folder=expanduser('~/temp'),
                             # Stability specific
                             n_runs=1)
-    temp_folder = expanduser('~/temp/2015-10-15_23-45-45')
+    # temp_folder = expanduser('~/temp/2015-10-15_23-45-45')
     # temp_folder = drop_memmmap(estimators, experiment)
     output_dir = run(estimators, experiment, temp_folder=temp_folder)
     # output_dir = expanduser('~/output/2015-10-14_23-46-52')

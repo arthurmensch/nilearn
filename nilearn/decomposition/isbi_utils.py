@@ -39,7 +39,7 @@ Experiment = collections.namedtuple('Experiment',
                                      'smoothing_fwhm',
                                      'dict_init',
                                      'output_dir',
-                                     'cache_dir',
+                                     'cachedir',
                                      'data_dir',
                                      'n_slices',
                                      'n_jobs',
@@ -72,12 +72,12 @@ def load_dataset(exp_params, output_dir=None, warmup=True):
 
     print('[Experiment] Computing global mask')
     smoothing_fwhm = exp_params.smoothing_fwhm
-    cache_dir = exp_params.cache_dir
+    cachedir = exp_params.cachedir
     n_jobs = exp_params.n_jobs
 
     decomposition_estimator = DecompositionEstimator(smoothing_fwhm=
                                                      smoothing_fwhm,
-                                                     memory=cache_dir,
+                                                     memory=cachedir,
                                                      mask=mask,
                                                      memory_level=2,
                                                      verbose=10,
@@ -91,7 +91,7 @@ def load_dataset(exp_params, output_dir=None, warmup=True):
         print("[Experiment] Warming up cache")
         mask_reducer = MaskReducer(masker,
                                    memory_level=2,
-                                   memory=cache_dir,
+                                   memory=cachedir,
                                    n_jobs=n_jobs,
                                    mock=True,
                                    in_memory=True
@@ -120,7 +120,7 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
     smoothing_fwhm = exp_params.smoothing_fwhm
     n_epochs = exp_params.n_epochs
     n_runs = exp_params.n_runs
-    cache_dir = exp_params.cache_dir
+    cachedir = exp_params.cachedir
     for random_state in np.arange(n_runs):
         for i, estimator in enumerate(estimators):
             reference = (i == 0)
@@ -132,7 +132,7 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
                                  n_jobs=1,
                                  dict_init=dict_init,
                                  n_components=n_components,
-                                 memory_level=2, memory=cache_dir,
+                                 memory_level=2, memory=cachedir,
                                  verbose=3,
                                  random_state=random_state + offset)
             yield estimator, reference
@@ -291,7 +291,7 @@ def drop_memmap_single(exp_params, temp_folder, index, dataset,
     filename = 'experiment_%i' % index
     mask_reducer = MaskReducer(masker,
                                memory_level=2,
-                               memory=exp_params.cache_dir,
+                               memory=exp_params.cachedir,
                                n_jobs=1,
                                temp_folder=temp_folder,
                                filename=filename,
@@ -357,11 +357,11 @@ def drop_memmmap(estimators, exp_params):
 
 
 def analyse_single(masker, stack_base, results_dir, num, index,
-                   random_state_df, limit, cache_dir):
+                   random_state_df, limit, cachedir):
     stack_target = np.concatenate(
         masker.transform(random_state_df['components'][1:limit]))
     aligned = _align_one_to_one_flat(stack_base, stack_target,
-                                     mem=Memory(cachedir=cache_dir))
+                                     mem=Memory(cachedir=cachedir))
     mutual_zeros = np.sum(np.logical_not(np.logical_or(np.any(aligned, axis=1),
                                                 np.any(stack_base, axis=1))))
     filename = join(results_dir, 'aligned_%i.nii.gz' % num)
@@ -372,7 +372,7 @@ def analyse_single(masker, stack_base, results_dir, num, index,
 
 def analyse(exp_params, output_dir, n_jobs=1, limit=10):
     results_dir = join(output_dir, 'stability')
-    cache_dir = exp_params.cache_dir
+    cachedir = exp_params.cachedir
     if not exists(results_dir):
         os.mkdir(results_dir)
     results = pd.read_csv(join(output_dir, 'results.csv'), index_col=0)
@@ -396,7 +396,7 @@ def analyse(exp_params, output_dir, n_jobs=1, limit=10):
 
     res = Parallel(n_jobs=n_jobs, verbose=3)(
         delayed(analyse_single)(masker, stack_base, results_dir, num,
-                                index, random_state_df, limit, cache_dir)
+                                index, random_state_df, limit, cachedir)
         for num, (index, random_state_df) in enumerate(results.groupby(
             level=['reference', 'estimator_type', 'compression_type',
                    'reduction_ratio',
@@ -434,11 +434,11 @@ def analyse(exp_params, output_dir, n_jobs=1, limit=10):
 
 
 def align_num_exp_single(masker, base_list, this_slice, n_exp, index,
-                         random_state_df):
+                         random_state_df, cachedir=None):
     target_list = masker.transform(random_state_df['components'][this_slice])
     base = np.concatenate(base_list[:(n_exp + 1)])
     target = np.concatenate(target_list[:(n_exp + 1)])
-    aligned = _align_one_to_one_flat(base, target)
+    aligned = _align_one_to_one_flat(base, target, mem=Memory(cachedir=cachedir))
     mutual_zeros = np.sum(np.logical_not(np.logical_or(np.any(aligned, axis=1),
                                                 np.any(base, axis=1))))
     return index, n_exp, np.trace(
@@ -487,7 +487,8 @@ def analyse_num_exp(output_dir, n_jobs=1, n_run_var=1, limit=1000):
                                       index=results_score.index)
         res = Parallel(n_jobs=n_jobs, verbose=3)(
             delayed(align_num_exp_single)(masker, base_list, this_slice,
-                                          i, index, random_state_df)
+                                          i, index, random_state_df,
+                                          cachedir='nilearn_cache')
             for index, random_state_df in
             results_score.groupby(level=['reference',
                                          'estimator_type',
@@ -588,7 +589,6 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                              scores_extended.loc[
                              idx[False, :, 'subsample', 1.],
                              :]))
-        # scores_extended.fillna(0, inplace=True)
         labels = ['Range-finder', 'Subsampling', 'Non reduced']
         for j, (index, exp_df) in enumerate(incr_df.iterrows()):
             mean_score = exp_df[
@@ -612,7 +612,7 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
         ax.grid('on')
         # ax.set_yticks([0.60, 0.70, 0.80])
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.text(0.0, 0.5, 'Correspence with ref. $d_p (\\mathbf X, \\mathbf Y)$', va='center',
+    fig.text(0.0, 0.5, 'Correspondance with ref. $d_p (\\mathbf X, \\mathbf Y)$', va='center',
          rotation='vertical')
     fig.legend(handles, labels, bbox_to_anchor=(1, 0.65), loc='center right',
                ncol=1)
@@ -742,18 +742,18 @@ def plot_full(output_dir, n_exp=9):
         # plt.yticks([0.65, 0.75, 0.85])
         fig[0].axes[0].xaxis.grid(True)
 
-        # plt.figure(fig[1].number)
-        #
-        # plot_with_error(reduction_ratio,
-        #                 score['mean'].values,
-        #                 yerr=score['std'].values,
-        #                 label=label, marker='o')
-        # plt.figure(fig[2].number)
-        #
-        # plot_with_error(reduction_ratio,
-        #                 total_time['mean'].values,
-        #                 yerr=total_time['std'].values,
-        #                 label=label, marker='o')
+        plt.figure(fig[1].number)
+
+        plot_with_error(reduction_ratio,
+                        score['mean'].values,
+                        yerr=score['std'].values,
+                        label=label, marker='o')
+        plt.figure(fig[2].number)
+
+        plot_with_error(reduction_ratio,
+                        total_time['mean'].values,
+                        yerr=total_time['std'].values,
+                        label=label, marker='o')
     plt.figure(fig[0].number)
 
     import matplotlib.patches as mpatches
@@ -773,27 +773,27 @@ def plot_full(output_dir, n_exp=9):
         loc='lower right',
         handler_map={
             mpatches.Arrow: HandlerPatch(patch_func=make_legend_arrow)})
-    plt.ylabel('Correspence with ref. $d_p (\\mathbf X, \\mathbf Y)$')
+    plt.ylabel('Correspondence with ref. $d_p (\\mathbf X, \\mathbf Y)$')
     plt.xlabel('CPU Time (relative to non-reduced $\\mathrm{DL}(\\mathbf X)$)')
     plt.savefig(join(figures_dir, 'time_v_corr.pdf'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'time_v_corr.svg'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'time_v_corr.pgf'), bbox_inches="tight")
     #
-    # plt.figure(fig[1].number)
-    # plt.legend(loc='lower right')
-    # plt.ylabel('Baseline recovery')
-    # plt.xlabel('Reduction ratio')
-    # plt.savefig(join(figures_dir, 'corr.pdf'))
-    # plt.savefig(join(figures_dir, 'corr.svg'))
-    # plt.savefig(join(figures_dir, 'corr.pgf'))
-    #
-    # plt.figure(fig[2].number)
-    # plt.legend(loc='lower right')
-    # plt.ylabel('Time')
-    # plt.xlabel('Reduction ratio')
-    # plt.savefig(join(figures_dir, 'time.pdf'))
-    # plt.savefig(join(figures_dir, 'time.svg'))
-    # plt.savefig(join(figures_dir, 'time.pgf'))
+    plt.figure(fig[1].number)
+    plt.legend(loc='lower right')
+    plt.ylabel('Baseline recovery')
+    plt.xlabel('Reduction ratio')
+    plt.savefig(join(figures_dir, 'corr.pdf'))
+    plt.savefig(join(figures_dir, 'corr.svg'))
+    plt.savefig(join(figures_dir, 'corr.pgf'))
+
+    plt.figure(fig[2].number)
+    plt.legend(loc='lower right')
+    plt.ylabel('Time')
+    plt.xlabel('Reduction ratio')
+    plt.savefig(join(figures_dir, 'time.pdf'))
+    plt.savefig(join(figures_dir, 'time.svg'))
+    plt.savefig(join(figures_dir, 'time.pgf'))
 
 
 def convert_litteral_int_to_int(x):
