@@ -47,21 +47,21 @@ def adhd_20():
     # ADHD RSN20 intensive experiment
     estimators = []
 
-    estimators.append(DictLearning(alpha=4, batch_size=20,
+    estimators.append(DictLearning(alpha=1, batch_size=20,
                                    compression_type='subsample',
                                    random_state=0,
                                    forget_rate=1,
                                    reduction_ratio=1))
-    for compression_type in ['range_finder', 'subsample']:
-        for reduction_ratio in np.linspace(0.1, 1, 10):
-            for alpha in np.linspace(2, 8, 4):
-                estimators.append(DictLearning(alpha=alpha, batch_size=20,
-                                               compression_type=
-                                               compression_type,
-                                               random_state=0,
-                                               forget_rate=1,
-                                               reduction_ratio=
-                                               reduction_ratio))
+    # for compression_type in ['range_finder', 'subsample']:
+    #     for reduction_ratio in np.linspace(0.1, 1, 10):
+    #         for alpha in np.linspace(2, 8, 4):
+    #             estimators.append(DictLearning(alpha=alpha, batch_size=20,
+    #                                            compression_type=
+    #                                            compression_type,
+    #                                            random_state=0,
+    #                                            forget_rate=1,
+    #                                            reduction_ratio=
+    #                                            reduction_ratio))
     experiment = Experiment('adhd',
                             n_subjects=4,
                             smoothing_fwhm=6,
@@ -78,18 +78,18 @@ def adhd_20():
 
     # temp_folder = drop_memmmap(estimators, experiment)
     # temp_folder = '/volatile/arthur/temp/2015-10-15_17-38-44'
-    # output_dir = run(estimators, experiment, temp_folder=temp_folder)
-    output_dir = expanduser('~/output/2015-10-14_21-02-57')
+    output_dir = run(estimators, experiment)
+    # output_dir = expanduser('~/output/2015-10-14_21-02-57')
     # analyse_median_maps(output_dir)
-    # gather_results(output_dir=output_dir)
+    gather_results(output_dir=output_dir)
     # analyse(output_dir, n_jobs=28, limit=12)
     # analyse_num_exp(output_dir, n_jobs=20, n_run_var=4)
     # analyse_median_maps(output_dir)
     # plot_num_exp(output_dir)
     # plot_full(output_dir)
-    plot_num_exp(output_dir, reduction_ratio_list=[0.05, 0.2])
-    plot_full(output_dir)
-    plot_median(output_dir)
+    # plot_num_exp(output_dir, reduction_ratio_list=[0.05, 0.2])
+    # plot_full(output_dir)
+    # plot_median(output_dir)
     # plot_num_exp(output_dir, 0.1)
     # convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
 
@@ -107,8 +107,8 @@ def hcp_70():
     #                                reduction_ratio=1))
     for compression_type in ['range_finder', 'subsample']:
         for reduction_ratio in [0.01, 0.025, 0.05, 0.075]:
-            for alpha in np.concatenate(np.array([0.025, 0.5]),
-                                        np.linspace(1, 7, 7)):
+            for alpha in np.concatenate((np.array([0.025, 0.5]),
+                                        np.linspace(1, 7, 7))):
                 estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                                compression_type=compression_type,
                                                random_state=0,
@@ -138,10 +138,10 @@ def hcp_70():
     # temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
     # output_dir = run(estimators, experiment, temp_folder=temp_folder)
     output_dir = expanduser('~/output/2015-10-14_23-46-52')
-    gather_results(output_dir)
-    # analyse(experiment, output_dir, n_jobs=20, limit=6)
-    # analyse_num_exp(experiment, output_dir, n_jobs=20,
-    #                 n_run_var=1, limit=6)
+    # gather_results(output_dir)
+    analyse(experiment, output_dir, n_jobs=20, limit=6)
+    analyse_num_exp(experiment, output_dir, n_jobs=20,
+                    n_run_var=1, limit=6)
     # plot_full(output_dir, n_exp=5)
     # plot_num_exp(output_dir, reduction_ratio_list=[0.1, 0.2], n_exp=5)
     # plot_full(output_dir)
