@@ -135,8 +135,8 @@ def hcp_70():
                             n_runs=10)
     # temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
     output_dir = run(estimators, experiment)
-    output_dir = expanduser('~/output/2015-10-14_23-46-52')
-    # gather_results(output_dir)
+    # output_dir = expanduser('~/output/2015-10-14_23-46-52')
+    gather_results(output_dir)
     # analyse(experiment, output_dir, n_jobs=20, limit=6)
     # analyse_num_exp(experiment, output_dir, n_jobs=20,
     #                 n_run_var=1, limit=6)
