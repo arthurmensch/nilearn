@@ -127,12 +127,12 @@ def hcp_70():
                             cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
                             n_slices=1,
-                            n_jobs=16,
+                            n_jobs=10,
                             n_epochs=1,
                             # Out of core dictionary learning specifics
                             temp_folder=expanduser('~/temp'),
                             # Stability specific
-                            n_runs=20)
+                            n_runs=10)
     # temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
     # temp_folder = drop_memmmap(estimators, experiment)
     # output_dir = run(estimators, experiment, temp_folder=temp_folder)
@@ -149,7 +149,7 @@ def hcp_70():
 def hcp_full_70():
     # HCP RSN70 explorative experiment
     estimators = []
-    for alpha in np.linspace(1, 20, 20):
+    for alpha in np.linspace(1, 16, 16):
         estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                        compression_type='range_finder',
                                        random_state=0,
@@ -163,7 +163,7 @@ def hcp_full_70():
                             cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
                             n_slices=1,
-                            n_jobs=20,
+                            n_jobs=16,
                             n_epochs=1,
                             # Out of core dictionary learning specifics
                             temp_folder=expanduser('~/temp'),
