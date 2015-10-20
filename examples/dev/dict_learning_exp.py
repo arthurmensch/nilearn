@@ -119,8 +119,8 @@ def hcp_70():
     #                                    random_state=0,
     #                                    forget_rate=1,
     #                                    reduction_ratio=1))
-    experiment = Experiment('hcp',
-                            n_subjects=40,
+    experiment = Experiment('hcp_reduced',
+                            n_subjects=75,
                             smoothing_fwhm=6,
                             dict_init='rsn70',
                             output_dir=expanduser('~/output'),
