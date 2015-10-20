@@ -149,7 +149,7 @@ def hcp_70():
 def hcp_full_70():
     # HCP RSN70 explorative experiment
     estimators = []
-    for alpha in np.linspace(1, 10, 10):
+    for alpha in np.linspace(1, 20, 20):
         estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                        compression_type='range_finder',
                                        random_state=0,
@@ -163,7 +163,7 @@ def hcp_full_70():
                             cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
                             n_slices=1,
-                            n_jobs=10,
+                            n_jobs=20,
                             n_epochs=1,
                             # Out of core dictionary learning specifics
                             temp_folder=expanduser('~/temp'),
