@@ -805,9 +805,11 @@ def convert_nii_to_pdf(output_dir, n_jobs=1):
     from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
     list_nii = []
     for dirpath, dirname, filenames in os.walk(output_dir):
-        for filename in fnmatch.filter(filenames, '*.nii.gz'):
-            if len(check_niimg(os.path.join(dirname, filename)).shape) == 4:
-                list_nii.append(os.path.join(dirname, filename))
+        for filename in fnmatch.filter(filenames, 'components.nii.gz'):
+            print(dirpath)
+            print(filename)
+            if len(check_niimg(os.path.join(dirpath, filename)).shape) == 4:
+                list_nii.append(os.path.join(dirpath, filename))
     print(list_nii)
     list_pdf = []
     for this_nii in list_nii:
