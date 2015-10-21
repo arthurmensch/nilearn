@@ -364,7 +364,7 @@ def drop_memmmap(estimators, exp_params):
 def analyse_single(masker, stack_base, results_dir, num, index,
                    random_state_df, limit, cachedir):
     stack_target = np.concatenate(
-        masker.transform(random_state_df['components'][1:limit]))
+        masker.transform(random_state_df['components'][:limit]))
     aligned = _align_one_to_one_flat(stack_base, stack_target,
                                      mem=Memory(cachedir=cachedir))
     non_zero_len = np.sum(np.any(stack_base, axis=1))
@@ -374,7 +374,7 @@ def analyse_single(masker, stack_base, results_dir, num, index,
     return index, np.trace(corr) / non_zero_len, filename
 
 
-def analyse(exp_params, output_dir, n_jobs=1, limit=10):
+def analyse(exp_params, output_dir, n_jobs=1, limit=1000):
     results_dir = join(output_dir, 'stability')
     cachedir = exp_params.cachedir
     if not exists(results_dir):
