@@ -269,7 +269,7 @@ def gather_results(output_dir):
                     and exp_dict['random_state'] != 0) or (
                             exp_dict['reference']
                         and exp_dict['random_state'] != 100):
-                    full_dict_list.append(json.load(f))
+                    full_dict_list.append(exp_dict)
     results = pd.DataFrame(full_dict_list, columns=['estimator_type',
                                                     'compression_type',
                                                     'reduction_ratio',
