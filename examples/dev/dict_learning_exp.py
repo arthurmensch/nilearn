@@ -219,4 +219,4 @@ def hcp_rf_70():
                     n_run_var=1, limit=3)
 
 # adhd_20()
-hcp_70()
+hcp_full_70()
