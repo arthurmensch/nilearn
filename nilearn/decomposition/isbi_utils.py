@@ -28,7 +28,7 @@ from nilearn_sandbox._utils.map_alignment import _align_one_to_one_flat, \
 
 from .. import datasets
 from .base import MaskReducer, DecompositionEstimator
-from .._utils import check_niimg
+from .._utils import check_niimg, check_niimg_4d
 from ..input_data import MultiNiftiMasker
 from nilearn.image import index_img
 from nilearn.plotting import plot_stat_map
@@ -803,7 +803,11 @@ def convert_litteral_int_to_int(x):
 
 def convert_nii_to_pdf(output_dir, n_jobs=1):
     from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
-    list_nii = glob.glob(join(output_dir, "*.nii.gz"))
+    list_nii = []
+    for dirpath, dirname, filenames in os.walk(output_dir):
+        for filename in fnmatch.filter(filenames, '*.nii.gz'):
+            if len(check_niimg(filename).shape) == 4:
+                list_nii.append(os.path.join(dirname, filename))
     print(list_nii)
     list_pdf = []
     for this_nii in list_nii:
