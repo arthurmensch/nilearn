@@ -264,7 +264,12 @@ def gather_results(output_dir):
     for dirpath, dirname, filenames in os.walk(output_dir):
         for filename in fnmatch.filter(filenames, 'results.json'):
             with open(join(dirpath, filename), 'r') as f:
-                full_dict_list.append(json.load(f))
+                exp_dict = json.load(f)
+                if (not exp_dict['reference']
+                    and exp_dict['random_state'] != 0) or (
+                            exp_dict['reference']
+                        and exp_dict['random_state'] != 100):
+                    full_dict_list.append(json.load(f))
     results = pd.DataFrame(full_dict_list, columns=['estimator_type',
                                                     'compression_type',
                                                     'reduction_ratio',
@@ -381,7 +386,6 @@ def analyse(exp_params, output_dir, n_jobs=1, limit=10):
     results.sortlevel(inplace=True)
     results['score'] = pd.Series(np.zeros(len(results)), results.index)
     results['aligned'] = pd.Series("", index=results.index)
-
     mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
     masker = MultiNiftiMasker(mask_img=mask).fit()
 
@@ -389,7 +393,7 @@ def analyse(exp_params, output_dir, n_jobs=1, limit=10):
           ' and computing correlation score')
 
     stack_base = np.concatenate(
-        masker.transform(results.loc[True]['components'][1:limit]))
+        masker.transform(results.loc[True]['components'][:limit]))
     masker.inverse_transform(stack_base).to_filename(
         join(results_dir, 'base.nii.gz'))
 
@@ -437,7 +441,8 @@ def align_num_exp_single(masker, base_list, this_slice, n_exp, index,
     target_list = masker.transform(random_state_df['components'][this_slice])
     base = np.concatenate(base_list[:(n_exp + 1)])
     target = np.concatenate(target_list[:(n_exp + 1)])
-    aligned = _align_one_to_one_flat(base, target, mem=Memory(cachedir=cachedir))
+    aligned = _align_one_to_one_flat(base, target,
+                                     mem=Memory(cachedir=cachedir))
     non_zero_len = np.sum(np.any(base, axis=1))
     corr = _spatial_correlation_flat(aligned, base)
     return index, n_exp, np.trace(corr) / non_zero_len
@@ -469,12 +474,10 @@ def analyse_num_exp(exp_params, output_dir, n_jobs=1, n_run_var=1, limit=1000):
     mask = check_niimg(join(output_dir, 'mask_img.nii.gz'))
     masker = MultiNiftiMasker(mask_img=mask).fit()
     # Number of experiment = number of reference experiment
-    n_exp = min(limit, results.loc[True]['random_state'].count())
+    total_n_exp = min(limit, results.loc[True]['random_state'].count())
 
-    slices = gen_even_slices(n_exp, n_run_var)
-    n_exp += 1
-    n_exp /= n_run_var
-    n_exp -= 1
+    slices = gen_even_slices(total_n_exp, n_run_var)
+    total_n_exp = total_n_exp / n_run_var
     score_num_exp = []
 
     for this_slice in slices:
@@ -492,7 +495,7 @@ def analyse_num_exp(exp_params, output_dir, n_jobs=1, n_run_var=1, limit=1000):
                                          'estimator_type',
                                          'compression_type',
                                          'reduction_ratio'])
-            for i in range(n_exp))
+            for i in range(0, total_n_exp))
         for index, n_exp, score in res:
             this_stability.loc[index, n_exp] = score
 
@@ -610,11 +613,14 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
         ax.grid('on')
         # ax.set_yticks([0.60, 0.70, 0.80])
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.text(0.0, 0.5, 'Correspondance with ref. $d_p (\\mathbf X, \\mathbf Y)$', va='center',
-         rotation='vertical')
+    fig.text(0.0, 0.5,
+             'Correspondance with ref. $d_p (\\mathbf X, \\mathbf Y)$',
+             va='center',
+             rotation='vertical')
     fig.legend(handles, labels, bbox_to_anchor=(1, 0.65), loc='center right',
                ncol=1)
-    axes[-1].set_xlabel('Number of concatenated result sets in $\\mathcal V_p(\\mathbf Y)$')
+    axes[-1].set_xlabel(
+        'Number of concatenated result sets in $\\mathcal V_p(\\mathbf Y)$')
     plt.savefig(join(figures_dir, 'incr_stability.pgf'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'incr_stability.svg'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'incr_stability.pdf'), bbox_inches="tight")
@@ -637,7 +643,8 @@ def plot_median(output_dir):
     fig, axes = plt.subplots(2, 2)
     axes = axes.reshape(-1)
     labels = ['Non reduced', 'Range-finder', 'Subsampling']
-    for i, (ax, (index, img)) in enumerate(zip(axes[1:], median_series.iterrows())):
+    for i, (ax, (index, img)) in enumerate(
+            zip(axes[1:], median_series.iterrows())):
         plot_stat_map(img.values[0], display_mode='x',
                       cut_coords=1,
                       figure=fig,
@@ -655,9 +662,9 @@ def plot_median(output_dir):
                   cut_coords=1,
                   axes=axes[0], colorbar=False, annotate=False)
     axes[0].annotate('Reference', xy=(0.5, 0.), xytext=(0, -5),
-                    xycoords="axes fraction",
-                    textcoords='offset points',
-                    va='center', ha="center")
+                     xycoords="axes fraction",
+                     textcoords='offset points',
+                     va='center', ha="center")
     # axes[0].hlines(1, 0, 1, clip_on=False, transform=ax.transAxes)
     # axes[0].hlines(0, 0, 1, clip_on=False, transform=ax.transAxes)
     # axes[0].vlines(0, 0, 1, clip_on=False, transform=ax.transAxes)
