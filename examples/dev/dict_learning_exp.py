@@ -149,7 +149,7 @@ def hcp_70():
 def hcp_full_70():
     # HCP RSN70 explorative experiment
     estimators = []
-    for alpha in np.linspace(1, 16, 16):
+    for alpha in np.linspace(16, 32, 16):
         estimators.append(DictLearning(alpha=alpha, batch_size=20,
                                        compression_type='range_finder',
                                        random_state=0,
@@ -170,7 +170,8 @@ def hcp_full_70():
                             # Stability specific
                             n_runs=1)
     # temp_folder = expanduser('~/temp/2015-10-15_23-45-45')
-    temp_folder = drop_memmmap(estimators, experiment)
+    # temp_folder = drop_memmmap(estimators, experiment)
+    temp_folder = expanduser('~/temp/2015-10-20_23-54-30')
     output_dir = run(estimators, experiment, temp_folder=temp_folder)
     # output_dir = expanduser('~/output/2015-10-14_23-46-52')
     gather_results(output_dir)
