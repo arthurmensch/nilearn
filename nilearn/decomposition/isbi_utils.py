@@ -45,6 +45,7 @@ Experiment = collections.namedtuple('Experiment',
                                      'n_jobs',
                                      'n_epochs',
                                      'temp_folder',
+                                     'reference',
                                      'n_runs'])
 
 
@@ -123,8 +124,8 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
     cachedir = exp_params.cachedir
     for random_state in np.arange(n_runs):
         for i, estimator in enumerate(estimators):
-            reference = False  # (i == 0)
-            offset = 100 if reference else 0
+            reference = (i == 0) and exp_params.reference
+            offset = 120 if reference else 20
             estimator = clone(estimator)
             estimator.set_params(mask=masker,
                                  smoothing_fwhm=smoothing_fwhm,

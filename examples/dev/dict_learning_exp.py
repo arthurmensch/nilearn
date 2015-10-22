@@ -147,6 +147,86 @@ def hcp_70():
     # plot_full(output_dir)
 
 
+def hcp_intensive():
+    # HCP RSN70 explorative experiment
+    estimators = []
+    alpha_list = np.array([[6, 6, 5, 6],
+                           [2, 2, 2, 2]])
+    experiment = Experiment('hcp_reduced',
+                            n_subjects=75,
+                            smoothing_fwhm=6,
+                            dict_init='rsn70',
+                            output_dir=expanduser('~/output'),
+                            cachedir=expanduser('~/nilearn_cache'),
+                            data_dir=expanduser('~/data'),
+                            n_slices=1,
+                            n_jobs=32,
+                            n_epochs=1,
+                            reference=False,
+                            # Out of core dictionary learning specifics
+                            temp_folder=expanduser('~/temp'),
+                            # Stability specific
+                            n_runs=20)
+    for i, compression_type in enumerate(['range_finder', 'subsample']):
+        for reduction_ratio, alpha in zip([0.01, 0.025, 0.05, 0.075, 0.1, 0.2,
+                                           0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
+                                           1.0],
+                                          alpha_list[i]):
+            estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                                           compression_type=compression_type,
+                                           random_state=0,
+                                           forget_rate=1,
+                                           reduction_ratio=reduction_ratio))
+    # temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
+    temp_folder = '/home/parietal/amensch/temp/2015-10-20_08-19-37'
+    # temp_folder = drop_memmmap(estimators, experiment)
+    output_dir = run(estimators, experiment, temp_folder=temp_folder)
+
+    alpha_list = [[7, 6, 6, 5, 6, 6, 7, 7, 6, 6],
+                  [2, 4, 4, 3, 4, 4, 4, 6, 6, 6]]
+    experiment = Experiment('hcp_reduced',
+                            n_subjects=75,
+                            smoothing_fwhm=6,
+                            dict_init='rsn70',
+                            output_dir=expanduser('~/output'),
+                            cachedir=expanduser('~/nilearn_cache'),
+                            data_dir=expanduser('~/data'),
+                            n_slices=1,
+                            n_jobs=32,
+                            n_epochs=1,
+                            reference=True,
+                            # Out of core dictionary learning specifics
+                            temp_folder=expanduser('~/temp'),
+                            # Stability specific
+                            n_runs=20)
+
+    estimators.append(DictLearning(alpha=6, batch_size=20,
+                                   compression_type='subsample',
+                                   random_state=0,
+                                   forget_rate=1,
+                                   reduction_ratio=1))
+
+    for i, compression_type in enumerate(['range_finder', 'subsample']):
+        for reduction_ratio, alpha in zip(np.linspace(0.1, 1, 10),
+                                          alpha_list[i]):
+            estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                                           compression_type=compression_type,
+                                           random_state=0,
+                                           forget_rate=1,
+                                           reduction_ratio=reduction_ratio))
+
+    temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
+    output_dir = run(estimators, experiment, temp_folder=temp_folder)
+    # output_dir = expanduser('~/output/2015-10-14_23-46-52')
+    # gather_results(output_dir)
+    # analyse(experiment, output_dir, n_jobs=32, limit=9)
+    # analyse_num_exp(experiment, output_dir, n_jobs=32, limit=9,
+    #                 n_run_var=3)
+    # plot_full(output_dir, n_exp=2)
+    # plot_num_exp(output_dir, reduction_ratio_list=[0.025, 0.2], n_exp=2)
+    # plot_full(output_dir)
+
+
 def hcp_full_70():
     # HCP RSN70 explorative experiment
     estimators = []
@@ -179,6 +259,7 @@ def hcp_full_70():
     analyse(experiment, output_dir, n_jobs=20, limit=1)
     # analyse_num_exp(output_dir, n_jobs=20,
     #                 n_run_var=1)
+
 
 def hcp_rf_70():
     # HCP RSN70 explorative experiment
@@ -219,6 +300,7 @@ def hcp_rf_70():
     analyse_num_exp(output_dir, n_jobs=20,
                     n_run_var=1, limit=3)
 
+
 # adhd_20()
-hcp_70()
+hcp_intensive()
 # hcp_full_70()
