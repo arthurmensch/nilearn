@@ -596,6 +596,7 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                              idx[False, :, 'subsample', 1.],
                              :]))
         labels = ['Range-finder', 'Subsampling', 'Non reduced']
+        ax.set_ylim([0.3, 0.9])
         for j, (index, exp_df) in enumerate(incr_df.iterrows()):
             mean_score = exp_df[
                 [(i, 'mean') for i in np.arange(n_exp + 1)]].values.astype(
@@ -610,7 +611,6 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                             marker='o',
                             markersize=2)
         ax.set_xlim([1, 3])
-        ax.set_ylim([0.3, 1])
         # ax.set_ylim([0.3, 0.5])
         ax.annotate('reduction ratio: %.2f' % reduction_ratio, xy=(0.45, 0.15),
                     size=7, va="center", ha="center",
@@ -632,10 +632,11 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
     plt.savefig(join(figures_dir, 'incr_stability.pdf'), bbox_inches="tight")
 
 
-def plot_with_error(x, y, yerr=0, ax=plt, **kwargs):
+def plot_with_error(x, y, yerr=0, ax=None, **kwargs):
+    ylim = ax.get_ylim()
     plot = ax.plot(x, y, **kwargs)
-    ax.fill_between(x, (y + yerr),
-                    (y - yerr), alpha=0.3,
+    ax.fill_between(x, np.minimum(y + yerr, ylim[1]),
+                    np.maximum(y - yerr, ylim[0]), alpha=0.3,
                     color=plot[0].get_color())
 
 
@@ -716,6 +717,7 @@ def plot_full(output_dir, n_exp=9):
     plot_with_error(np.linspace(0, 1.2, 10),
                     ref_reproduction * np.ones(10) / non_zero_maps,
                     yerr=ref_std / non_zero_maps,
+                    ax=plt.gca(),
                     label='Non reduced', color='red', zorder=1)
     for index, exp_df in scores_extended.groupby(level=['estimator_type',
                                                         'compression_type']):
@@ -754,7 +756,7 @@ def plot_full(output_dir, n_exp=9):
         plt.xlim([0.0, 1.2])
         # plt.ylim([0.65, 0.85])
         plt.ylim([0.5, 0.9])
-        # plt.yticks([0.65, 0.75, 0.85])
+        plt.yticks([0.55, 0.70, 0.85])
         fig[0].axes[0].xaxis.grid(True)
 
         plt.figure(fig[1].number)
@@ -762,12 +764,14 @@ def plot_full(output_dir, n_exp=9):
         plot_with_error(reduction_ratio,
                         score['mean'].values,
                         yerr=score['std'].values,
+                        ax=plt.gca(),
                         label=label, marker='o')
         plt.figure(fig[2].number)
 
         plot_with_error(reduction_ratio,
                         total_time['mean'].values,
                         yerr=total_time['std'].values,
+                        ax=plt.gca(),
                         label=label, marker='o')
     plt.figure(fig[0].number)
 
