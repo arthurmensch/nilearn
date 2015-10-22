@@ -129,6 +129,7 @@ def hcp_70():
                             n_slices=1,
                             n_jobs=32,
                             n_epochs=1,
+                            reference=False,
                             # Out of core dictionary learning specifics
                             temp_folder=expanduser('~/temp'),
                             # Stability specific

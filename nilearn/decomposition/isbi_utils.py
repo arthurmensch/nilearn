@@ -371,9 +371,9 @@ def analyse_single(masker, stack_base, results_dir, num, index,
     filename = join(results_dir, 'aligned_%i.nii.gz' % num)
     masker.inverse_transform(aligned).to_filename(filename)
     corr = _spatial_correlation_flat(aligned, stack_base)
-    double_zero = len(corr) - np.sum(np.logical_or(np.any(stack_base, axis=1),
-                                                   np.any(aligned, axis=1)))
-    return index, (np.trace(corr) + double_zero) / len(corr), filename
+    # double_zero = len(corr) - np.sum(np.logical_or(np.any(stack_base, axis=1),
+    #                                                np.any(aligned, axis=1)))
+    return index, np.trace(corr) / len(corr), filename
 
 
 def analyse(exp_params, output_dir, n_jobs=1, limit=1000):
@@ -446,9 +446,9 @@ def align_num_exp_single(masker, base_list, this_slice, n_exp, index,
     aligned = _align_one_to_one_flat(base, target,
                                      mem=Memory(cachedir=cachedir))
     corr = _spatial_correlation_flat(aligned, base)
-    double_zero = len(corr) - np.sum(np.logical_or(np.any(base, axis=1),
-                                                   np.any(aligned, axis=1)))
-    return index, n_exp, (np.trace(corr) + double_zero) / len(corr)
+    # double_zero = len(corr) - np.sum(np.logical_or(np.any(base, axis=1),
+    #                                                np.any(aligned, axis=1)))
+    return index, n_exp, (np.trace(corr)) / len(corr)
 
 
 def analyse_num_exp(exp_params, output_dir, n_jobs=1, n_run_var=1, limit=1000):
