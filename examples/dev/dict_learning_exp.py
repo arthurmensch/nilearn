@@ -141,7 +141,7 @@ def hcp_70():
     # gather_results(output_dir)
     analyse(experiment, output_dir, n_jobs=32, limit=9)
     analyse_num_exp(experiment, output_dir, n_jobs=32, limit=9,
-                    n_run_var=9)
+                    n_run_var=3)
     # plot_full(output_dir, n_exp=2)
     # plot_num_exp(output_dir, reduction_ratio_list=[0.025, 0.2], n_exp=2)
     # plot_full(output_dir)

@@ -370,7 +370,9 @@ def analyse_single(masker, stack_base, results_dir, num, index,
     filename = join(results_dir, 'aligned_%i.nii.gz' % num)
     masker.inverse_transform(aligned).to_filename(filename)
     corr = _spatial_correlation_flat(aligned, stack_base)
-    return index, np.trace(corr) / len(corr), filename
+    double_zero = len(corr) - np.sum(np.logical_or(np.any(stack_base, axis=1),
+                                                   np.any(aligned, axis=1)))
+    return index, (np.trace(corr) + double_zero) / len(corr), filename
 
 
 def analyse(exp_params, output_dir, n_jobs=1, limit=1000):
@@ -442,9 +444,10 @@ def align_num_exp_single(masker, base_list, this_slice, n_exp, index,
     target = np.concatenate(target_list[:(n_exp + 1)])
     aligned = _align_one_to_one_flat(base, target,
                                      mem=Memory(cachedir=cachedir))
-    non_zero_len = np.sum(np.any(base, axis=1))
     corr = _spatial_correlation_flat(aligned, base)
-    return index, n_exp, np.trace(corr) / len(corr)
+    double_zero = len(corr) - np.sum(np.logical_or(np.any(base, axis=1),
+                                                   np.any(aligned, axis=1)))
+    return index, n_exp, (np.trace(corr) + double_zero) / len(corr)
 
 
 def analyse_num_exp(exp_params, output_dir, n_jobs=1, n_run_var=1, limit=1000):
@@ -580,7 +583,8 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                                   index_col=range(4), header=[0, 1])
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
     n_exp = n_exp  # scores_extended.columns.get_level_values(0)[-1]
-    non_zero_maps = scores_extended.loc[idx[True, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
+    non_zero_maps = scores_extended.loc[
+        idx[True, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
 
     fig, axes = plt.subplots(len(reduction_ratio_list), 1, sharex=True)
     for reduction_ratio, ax in zip(reduction_ratio_list, axes):
@@ -602,7 +606,8 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
             plot_with_error(np.arange(len(mean_score)) + 1,
                             mean_score / non_zero_maps,
                             ax=ax,
-                            yerr=std_score / non_zero_maps, label=labels[j], marker='o',
+                            yerr=std_score / non_zero_maps, label=labels[j],
+                            marker='o',
                             markersize=2)
         ax.set_xlim([1, 3])
         ax.set_ylim([0.3, 1])
@@ -685,7 +690,8 @@ def plot_full(output_dir, n_exp=9):
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
     n_exp = n_exp
 
-    non_zero_maps = scores_extended.loc[idx[True, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
+    non_zero_maps = scores_extended.loc[
+        idx[True, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
 
     ref_time = scores_extended.loc[
         idx[False, 'DictLearning', 'subsample', 1], ('math_time', 'mean')]
@@ -735,7 +741,8 @@ def plot_full(output_dir, n_exp=9):
                           capsize=1, zorder=2)
         eb[-1][0].set_linewidth(0.3)
         eb[-1][1].set_linewidth(0.3)
-        for (x, y, l) in zip(total_time['mean'].values, score['mean'].values / non_zero_maps,
+        for (x, y, l) in zip(total_time['mean'].values,
+                             score['mean'].values / non_zero_maps,
                              reduction_ratio):
             if l in [0.05, 0.2] and compression_type == 'subsample' \
                     or l in [0.05, 0.2] and compression_type == 'range_finder':
