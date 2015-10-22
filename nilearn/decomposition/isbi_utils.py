@@ -157,9 +157,10 @@ def run_single(index, slice_index, estimator, dataset, output_dir, reference,
                                         data['n_samples'], data['n_voxels']))
             # For out-of-core computation
             estimator.set_params(in_memory=False)
-            subject_limits = np.load(data['subject_limits'])
-            estimator._raw_fit(memmap_data[subject_limits[this_slice.start]:
-            subject_limits[this_slice.stop]])
+            # subject_limits = np.load(data['subject_limits'])
+            estimator._raw_fit(memmap_data)
+            # [subject_limits[this_slice.start]:
+            # subject_limits[this_slice.stop]])
             del memmap_data
         else:
             estimator.fit(dataset[this_slice])
