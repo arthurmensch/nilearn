@@ -123,7 +123,7 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
     cachedir = exp_params.cachedir
     for random_state in np.arange(n_runs):
         for i, estimator in enumerate(estimators):
-            reference = (i == 0)
+            reference = False  # (i == 0)
             offset = 100 if reference else 0
             estimator = clone(estimator)
             estimator.set_params(mask=masker,

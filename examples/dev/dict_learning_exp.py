@@ -99,19 +99,19 @@ def hcp_70():
     # alpha_list = np.array([[5, 6, 5, 5, 4, 4, 4, 4, 4, 4],
     #                        [2, 3, 3, 3, 4, 3, 3, 4, 4, 4]])
 
-    estimators.append(DictLearning(alpha=6, batch_size=20,
-                                   compression_type='subsample',
-                                   random_state=0,
-                                   forget_rate=1,
-                                   reduction_ratio=1))
-    # for compression_type in ['range_finder', 'subsample']:
-    #     for reduction_ratio in [0.01, 0.025, 0.05, 0.075]:
-    #         for alpha in [4, 5, 6, 7]:
-    #             estimators.append(DictLearning(alpha=alpha, batch_size=20,
-    #                                            compression_type=compression_type,
-    #                                            random_state=0,
-    #                                            forget_rate=1,
-    #                                            reduction_ratio=reduction_ratio))
+    # estimators.append(DictLearning(alpha=6, batch_size=20,
+    #                                compression_type='subsample',
+    #                                random_state=0,
+    #                                forget_rate=1,
+    #                                reduction_ratio=1))
+    for compression_type in ['range_finder', 'subsample']:
+        for reduction_ratio in [0.01, 0.025, 0.05, 0.075]:
+            for alpha in [4, 5, 6, 7]:
+                estimators.append(DictLearning(alpha=alpha, batch_size=20,
+                                               compression_type=compression_type,
+                                               random_state=0,
+                                               forget_rate=1,
+                                               reduction_ratio=reduction_ratio))
     # estimators = []
     # for alpha in np.linspace(1, 10, 10):
     #     estimators.append(DictLearning(alpha=alpha, batch_size=20,
@@ -127,18 +127,19 @@ def hcp_70():
                             cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
                             n_slices=1,
-                            n_jobs=10,
+                            n_jobs=32,
                             n_epochs=1,
                             # Out of core dictionary learning specifics
                             temp_folder=expanduser('~/temp'),
                             # Stability specific
                             n_runs=10)
     # temp_folder = '/home/parietal/amensch/temp/2015-10-12_17-06-34'
+    temp_folder = '/home/parietal/amensch/temp/2015-10-20_08-19-37'
     # temp_folder = drop_memmmap(estimators, experiment)
-    # output_dir = run(estimators, experiment, temp_folder=temp_folder)
-    output_dir = expanduser('~/output/2015-10-14_23-46-52')
+    output_dir = run(estimators, experiment, temp_folder=temp_folder)
+    # output_dir = expanduser('~/output/2015-10-14_23-46-52')
     # gather_results(output_dir)
-    analyse(experiment, output_dir, n_jobs=20, limit=9)
+    # analyse(experiment, output_dir, n_jobs=20, limit=9)
     # analyse_num_exp(experiment, output_dir, n_jobs=20, limit=9,
     #                 n_run_var=3)
     # plot_full(output_dir, n_exp=2)
