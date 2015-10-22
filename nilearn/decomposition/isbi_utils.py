@@ -266,10 +266,8 @@ def gather_results(output_dir):
         for filename in fnmatch.filter(filenames, 'results.json'):
             with open(join(dirpath, filename), 'r') as f:
                 exp_dict = json.load(f)
-                if (not exp_dict['reference']
-                    and exp_dict['random_state'] != 0) or (
-                            exp_dict['reference']
-                        and exp_dict['random_state'] != 100):
+                red_rs = exp_dict['random_state'] % 100
+                if 10 > red_rs > 0:
                     full_dict_list.append(exp_dict)
     results = pd.DataFrame(full_dict_list, columns=['estimator_type',
                                                     'compression_type',
