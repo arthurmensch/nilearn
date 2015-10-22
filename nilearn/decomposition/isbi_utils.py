@@ -370,7 +370,7 @@ def analyse_single(masker, stack_base, results_dir, num, index,
     filename = join(results_dir, 'aligned_%i.nii.gz' % num)
     masker.inverse_transform(aligned).to_filename(filename)
     corr = _spatial_correlation_flat(aligned, stack_base)
-    return index, np.trace(corr) / non_zero_len, filename
+    return index, np.trace(corr) / len(corr), filename
 
 
 def analyse(exp_params, output_dir, n_jobs=1, limit=1000):
@@ -444,7 +444,7 @@ def align_num_exp_single(masker, base_list, this_slice, n_exp, index,
                                      mem=Memory(cachedir=cachedir))
     non_zero_len = np.sum(np.any(base, axis=1))
     corr = _spatial_correlation_flat(aligned, base)
-    return index, n_exp, np.trace(corr) / non_zero_len
+    return index, n_exp, np.trace(corr) / len(corr)
 
 
 def analyse_num_exp(exp_params, output_dir, n_jobs=1, n_run_var=1, limit=1000):
@@ -603,7 +603,7 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                             yerr=std_score, label=labels[j], marker='o',
                             markersize=2)
         ax.set_xlim([1, 3])
-        ax.set_ylim([0.5, 0.8])
+        ax.set_ylim([0.2, 0.8])
         # ax.set_ylim([0.3, 0.5])
         ax.annotate('reduction ratio: %.2f' % reduction_ratio, xy=(0.45, 0.15),
                     size=7, va="center", ha="center",
@@ -742,7 +742,7 @@ def plot_full(output_dir, n_exp=9):
                              zorder=4)
         plt.xlim([0.05, 1.2])
         # plt.ylim([0.65, 0.85])
-        plt.ylim([0.5, 0.8])
+        plt.ylim([0.2, 0.8])
         # plt.yticks([0.65, 0.75, 0.85])
         fig[0].axes[0].xaxis.grid(True)
 
