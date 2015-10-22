@@ -151,7 +151,7 @@ def run_single(index, slice_index, estimator, dataset, output_dir, reference,
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         if data is not None:
-            memmap_data = np.memmap(data['components'], dtype='float64',
+            memmap_data = np.memmap(data['filename'], dtype='float64',
                                     order='F', mode='r',
                                     shape=(
                                         data['n_samples'], data['n_voxels']))
