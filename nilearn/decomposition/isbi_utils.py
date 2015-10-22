@@ -580,6 +580,8 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                                   index_col=range(4), header=[0, 1])
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
     n_exp = n_exp  # scores_extended.columns.get_level_values(0)[-1]
+    non_zero_maps = scores_extended.loc[idx[True, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
+
     fig, axes = plt.subplots(len(reduction_ratio_list), 1, sharex=True)
     for reduction_ratio, ax in zip(reduction_ratio_list, axes):
         incr_df = pd.concat((scores_extended.loc[idx[False, :,
@@ -598,12 +600,12 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                 [(i, 'std') for i in np.arange(n_exp + 1)]].values.astype(
                 'float')
             plot_with_error(np.arange(len(mean_score)) + 1,
-                            mean_score,
+                            mean_score / non_zero_maps,
                             ax=ax,
-                            yerr=std_score, label=labels[j], marker='o',
+                            yerr=std_score / non_zero_maps, label=labels[j], marker='o',
                             markersize=2)
         ax.set_xlim([1, 3])
-        ax.set_ylim([0.2, 0.8])
+        ax.set_ylim([0.3, 1])
         # ax.set_ylim([0.3, 0.5])
         ax.annotate('reduction ratio: %.2f' % reduction_ratio, xy=(0.45, 0.15),
                     size=7, va="center", ha="center",
@@ -683,6 +685,8 @@ def plot_full(output_dir, n_exp=9):
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
     n_exp = n_exp
 
+    non_zero_maps = scores_extended.loc[idx[True, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
+
     ref_time = scores_extended.loc[
         idx[False, 'DictLearning', 'subsample', 1], ('math_time', 'mean')]
     ref_time += scores_extended.loc[
@@ -704,8 +708,8 @@ def plot_full(output_dir, n_exp=9):
                   'subsample': 'Subsample'}
     plt.figure(fig[0].number)
     plot_with_error(np.linspace(0, 1.2, 10),
-                    ref_reproduction * np.ones(10),
-                    yerr=ref_std,
+                    ref_reproduction * np.ones(10) / non_zero_maps,
+                    yerr=ref_std / non_zero_maps,
                     label='Non reduced', color='red', zorder=1)
     for index, exp_df in scores_extended.groupby(level=['estimator_type',
                                                         'compression_type']):
@@ -721,9 +725,9 @@ def plot_full(output_dir, n_exp=9):
         # order = np.argsort(total_time['mean'].values)
 
         eb = plt.errorbar(total_time['mean'].values,
-                          score['mean'].values,
+                          score['mean'].values / non_zero_maps,
                           xerr=total_time['std'].values,
-                          yerr=score['std'].values,
+                          yerr=score['std'].values / non_zero_maps,
                           label=label,
                           fmt='-',
                           marker='o',
@@ -731,7 +735,7 @@ def plot_full(output_dir, n_exp=9):
                           capsize=1, zorder=2)
         eb[-1][0].set_linewidth(0.3)
         eb[-1][1].set_linewidth(0.3)
-        for (x, y, l) in zip(total_time['mean'].values, score['mean'].values,
+        for (x, y, l) in zip(total_time['mean'].values, score['mean'].values / non_zero_maps,
                              reduction_ratio):
             if l in [0.05, 0.2] and compression_type == 'subsample' \
                     or l in [0.05, 0.2] and compression_type == 'range_finder':
@@ -740,9 +744,9 @@ def plot_full(output_dir, n_exp=9):
                              size=7,
                              arrowprops=dict(arrowstyle="->"),
                              zorder=4)
-        plt.xlim([0.05, 1.2])
+        plt.xlim([0.0, 1.2])
         # plt.ylim([0.65, 0.85])
-        plt.ylim([0.2, 0.8])
+        plt.ylim([0.5, 0.9])
         # plt.yticks([0.65, 0.75, 0.85])
         fig[0].axes[0].xaxis.grid(True)
 
