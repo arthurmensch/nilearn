@@ -612,6 +612,7 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                             marker='o',
                             markersize=2)
         ax.set_xlim([1, 3])
+        ax.set_xticks([1, 2, 3])
         # ax.set_ylim([0.3, 0.5])
         ax.annotate('reduction ratio: %.2f' % reduction_ratio, xy=(0.45, 0.15),
                     size=7, va="center", ha="center",
