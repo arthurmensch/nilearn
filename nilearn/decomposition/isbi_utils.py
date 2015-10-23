@@ -754,7 +754,7 @@ def plot_full(output_dir, n_exp=9):
                              zorder=4)
         plt.xlim([0.0, 1.2])
         # plt.ylim([0.65, 0.85])
-        plt.ylim([0.2, 0.6])
+        plt.ylim([0.2, 0.4])
         # plt.yticks([0.55, 0.70, 0.85])
         fig[0].axes[0].xaxis.grid(True)
 
