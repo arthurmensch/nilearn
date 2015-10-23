@@ -303,6 +303,6 @@ def hcp_rf_70():
                     n_run_var=1, limit=3)
 
 
-adhd_20()
+# adhd_20()
 # hcp_intensive()
-# hcp_70()
+hcp_70()
