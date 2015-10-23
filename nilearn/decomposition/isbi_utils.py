@@ -446,9 +446,9 @@ def align_num_exp_single(masker, base_list, this_slice, n_exp, index,
     aligned = _align_one_to_one_flat(base, target,
                                      mem=Memory(cachedir=cachedir))
     corr = _spatial_correlation_flat(aligned, base)
-    # double_zero = len(corr) - np.sum(np.logical_or(np.any(base, axis=1),
-    #                                                np.any(aligned, axis=1)))
-    return index, n_exp, (np.trace(corr)) / len(corr)
+    non_zero = np.sum(np.logical_or(np.any(base, axis=1),
+                                    np.any(aligned, axis=1)))
+    return index, n_exp, (np.trace(corr)) / non_zero
 
 
 def analyse_num_exp(exp_params, output_dir, n_jobs=1, n_run_var=1, limit=1000):
@@ -717,7 +717,7 @@ def plot_full(output_dir, n_exp=9):
                   'subsample': 'Subsample'}
     plt.figure(fig[0].number)
     plot_with_error(np.linspace(0, 1.2, 10),
-                    ref_reproduction * np.ones(10) / non_zero_maps,
+                    ref_reproduction * np.ones(10) * 70,
                     # yerr=ref_std / non_zero_maps,
                     ax=plt.gca(),
                     label='Non reduced', color='red', zorder=1)
@@ -745,7 +745,7 @@ def plot_full(output_dir, n_exp=9):
                           markersize=3,
                           capsize=1, zorder=2)
         eb[-1][0].set_linewidth(0.3)
-        eb[-1][1].set_linewidth(0.3)
+        # eb[-1][1].set_linewidth(0.3)
         for (x, y, l) in zip(total_time['mean'].values,
                              score['last'].values / non_zero_maps,
                              reduction_ratio):
