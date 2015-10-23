@@ -446,9 +446,9 @@ def align_num_exp_single(masker, base_list, this_slice, n_exp, index,
     aligned = _align_one_to_one_flat(base, target,
                                      mem=Memory(cachedir=cachedir))
     corr = _spatial_correlation_flat(aligned, base)
-    non_zero = np.sum(np.logical_or(np.any(base, axis=1),
-                                    np.any(aligned, axis=1)))
-    return index, n_exp, (np.trace(corr)) / non_zero
+    # non_zero = np.sum(np.logical_or(np.any(base, axis=1),
+    #                                 np.any(aligned, axis=1)))
+    return index, n_exp, (np.trace(corr)) / len(corr)
 
 
 def analyse_num_exp(exp_params, output_dir, n_jobs=1, n_run_var=1, limit=1000):
@@ -693,16 +693,13 @@ def plot_full(output_dir, n_exp=9):
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
     n_exp = n_exp
 
-    non_zero_maps = scores_extended.loc[
-        idx[True, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
-
     ref_time = scores_extended.loc[
         idx[False, 'DictLearning', 'subsample', 1], ('math_time', 'mean')]
     ref_time += scores_extended.loc[
         idx[False, 'DictLearning', 'subsample', 1], ('load_math_time', 'last')]
 
     ref_reproduction = scores_extended.loc[
-        idx[False, 'DictLearning', 'subsample', 1], ('score', 'last')]
+        idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
     ref_std = scores_extended.loc[
         idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'std')]
 
@@ -717,15 +714,15 @@ def plot_full(output_dir, n_exp=9):
                   'subsample': 'Subsample'}
     plt.figure(fig[0].number)
     plot_with_error(np.linspace(0, 1.2, 10),
-                    ref_reproduction * np.ones(10) * 70,
-                    # yerr=ref_std / non_zero_maps,
+                    ref_reproduction * np.ones(10),
+                    yerr=ref_std,
                     ax=plt.gca(),
                     label='Non reduced', color='red', zorder=1)
 
     for index, exp_df in scores_extended.groupby(level=['estimator_type',
                                                         'compression_type']):
         plt.figure(fig[0].number)
-        score = exp_df['score']
+        score = exp_df[n_exp]
         total_time = pd.DataFrame(exp_df['math_time'])
         total_time.loc[:, 'mean'] += exp_df['load_math_time', 'last']
         total_time /= ref_time
@@ -736,18 +733,18 @@ def plot_full(output_dir, n_exp=9):
         # order = np.argsort(total_time['mean'].values)
 
         eb = plt.errorbar(total_time['mean'].values,
-                          score['last'].values / non_zero_maps,
+                          score['mean'].values,
                           xerr=total_time['std'].values,
-                          # yerr=score['std'].values / non_zero_maps,
+                          yerr=score['std'].values,
                           label=label,
                           fmt='-',
                           marker='o',
                           markersize=3,
                           capsize=1, zorder=2)
         eb[-1][0].set_linewidth(0.3)
-        # eb[-1][1].set_linewidth(0.3)
+        eb[-1][1].set_linewidth(0.3)
         for (x, y, l) in zip(total_time['mean'].values,
-                             score['last'].values / non_zero_maps,
+                             score['mean'].values,
                              reduction_ratio):
             if l in [0.05, 0.2] and compression_type == 'subsample' \
                     or l in [0.05, 0.2] and compression_type == 'range_finder':
@@ -758,15 +755,15 @@ def plot_full(output_dir, n_exp=9):
                              zorder=4)
         plt.xlim([0.0, 1.2])
         # plt.ylim([0.65, 0.85])
-        plt.ylim([0.5, 0.9])
-        plt.yticks([0.55, 0.70, 0.85])
+        plt.ylim([0.2, 0.6])
+        # plt.yticks([0.55, 0.70, 0.85])
         fig[0].axes[0].xaxis.grid(True)
 
         plt.figure(fig[1].number)
 
         plot_with_error(reduction_ratio,
-                        score['last'].values,
-                        # yerr=score['std'].values,
+                        score['mean'].values,
+                        yerr=score['std'].values,
                         ax=plt.gca(),
                         label=label, marker='o')
         plt.figure(fig[2].number)
