@@ -126,7 +126,7 @@ def hcp_70():
                             cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
                             n_slices=1,
-                            n_jobs=32,
+                            n_jobs=30,
                             n_epochs=1,
                             reference=False,
                             # Out of core dictionary learning specifics
