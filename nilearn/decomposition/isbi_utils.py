@@ -702,7 +702,7 @@ def plot_full(output_dir, n_exp=9):
         idx[False, 'DictLearning', 'subsample', 1], ('load_math_time', 'last')]
 
     ref_reproduction = scores_extended.loc[
-        idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
+        idx[False, 'DictLearning', 'subsample', 1], ('score', 'last')]
     ref_std = scores_extended.loc[
         idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'std')]
 
@@ -718,13 +718,14 @@ def plot_full(output_dir, n_exp=9):
     plt.figure(fig[0].number)
     plot_with_error(np.linspace(0, 1.2, 10),
                     ref_reproduction * np.ones(10) / non_zero_maps,
-                    yerr=ref_std / non_zero_maps,
+                    # yerr=ref_std / non_zero_maps,
                     ax=plt.gca(),
                     label='Non reduced', color='red', zorder=1)
+
     for index, exp_df in scores_extended.groupby(level=['estimator_type',
                                                         'compression_type']):
         plt.figure(fig[0].number)
-        score = exp_df[n_exp]
+        score = exp_df['score']
         total_time = pd.DataFrame(exp_df['math_time'])
         total_time.loc[:, 'mean'] += exp_df['load_math_time', 'last']
         total_time /= ref_time
@@ -735,9 +736,9 @@ def plot_full(output_dir, n_exp=9):
         # order = np.argsort(total_time['mean'].values)
 
         eb = plt.errorbar(total_time['mean'].values,
-                          score['mean'].values / non_zero_maps,
+                          score['last'].values / non_zero_maps,
                           xerr=total_time['std'].values,
-                          yerr=score['std'].values / non_zero_maps,
+                          # yerr=score['std'].values / non_zero_maps,
                           label=label,
                           fmt='-',
                           marker='o',
@@ -746,7 +747,7 @@ def plot_full(output_dir, n_exp=9):
         eb[-1][0].set_linewidth(0.3)
         eb[-1][1].set_linewidth(0.3)
         for (x, y, l) in zip(total_time['mean'].values,
-                             score['mean'].values / non_zero_maps,
+                             score['last'].values / non_zero_maps,
                              reduction_ratio):
             if l in [0.05, 0.2] and compression_type == 'subsample' \
                     or l in [0.05, 0.2] and compression_type == 'range_finder':
@@ -764,8 +765,8 @@ def plot_full(output_dir, n_exp=9):
         plt.figure(fig[1].number)
 
         plot_with_error(reduction_ratio,
-                        score['mean'].values,
-                        yerr=score['std'].values,
+                        score['last'].values,
+                        # yerr=score['std'].values,
                         ax=plt.gca(),
                         label=label, marker='o')
         plt.figure(fig[2].number)

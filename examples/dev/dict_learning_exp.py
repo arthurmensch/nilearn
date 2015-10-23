@@ -303,5 +303,5 @@ def hcp_rf_70():
 
 
 # adhd_20()
-# hcp_intensive()
-hcp_70()
+hcp_intensive()
+# hcp_70()
