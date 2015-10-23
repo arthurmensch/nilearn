@@ -3,6 +3,7 @@ import matplotlib
 
 matplotlib.rcParams['svg.fonttype'] = 'none'
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 import collections
 import glob
@@ -595,8 +596,8 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                              scores_extended.loc[
                              idx[False, :, 'subsample', 1.],
                              :]))
-        labels = ['Range-finder', 'Subsampling', 'Non reduced']
-        ax.set_ylim([0.1, 0.4])
+        labels = ['Range-finder', 'Subsampling', 'Non-reduced']
+        ax.set_ylim([0.65, 0.85])
         for j, (index, exp_df) in enumerate(incr_df.iterrows()):
             mean_score = exp_df[
                 [(i, 'mean') for i in np.arange(n_exp + 1)]].values.astype(
@@ -612,13 +613,13 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                             markersize=2)
         ax.set_xlim([1, 3])
         ax.set_xticks([1, 2, 3])
-        ax.set_ylim([0.1, 0.4])
+        ax.set_ylim([0.65, 0.85])
         ax.annotate('reduction ratio: %.2f' % reduction_ratio, xy=(0.45, 0.15),
                     size=7, va="center", ha="center",
                     bbox=dict(boxstyle="square,pad=0.2", fc="w"),
                     xycoords="axes fraction")
         ax.grid('on')
-        # ax.set_yticks([0.60, 0.70, 0.80])
+        ax.set_yticks([0.65, 0.75, 0.85])
     handles, labels = axes[0].get_legend_handles_labels()
     fig.text(0.0, 0.5,
              'Correspondance with ref. $d_p (\\mathbf X, \\mathbf Y)$',
@@ -648,17 +649,22 @@ def plot_median(output_dir):
     median_series = pd.read_csv(join(median_dir, 'median.csv'),
                                 index_col=range(4),
                                 header=None)
-    fig, axes = plt.subplots(2, 2)
+    fig, axes = plt.subplots(2, 4)
     axes = axes.reshape(-1)
-    labels = ['Non reduced', 'Range-finder', 'Subsampling']
-    for i, (ax, (index, img)) in enumerate(
-            zip(axes[1:], median_series.iterrows())):
+    labels = ['Second run', 'Range-finder $(\\mathbf X_r)_{\\mathrm{rf}}$',
+              'Subsampling $(\\mathbf X_r)_{\\mathrm{ss}}$']
+    for i, (index, img) in enumerate(median_series.iterrows()):
         plot_stat_map(img.values[0], display_mode='x',
-                      cut_coords=1,
+                      cut_coords=[-42.],
                       figure=fig,
-                      axes=ax, colorbar=False,
+                      axes=axes[2*i+2], colorbar=False,
                       annotate=False)
-        ax.annotate(labels[i], xy=(0.5, 0.), xytext=(0, -5),
+        plot_stat_map(img.values[0], display_mode='y',
+                      cut_coords=[9.],
+                      figure=fig,
+                      axes=axes[3+2*i], colorbar=False,
+                      annotate=False)
+        axes[2*i+2].annotate(labels[i], xy=(1, 0.), xytext=(0, -5),
                     xycoords="axes fraction",
                     textcoords='offset points',
                     va='center', ha="center")
@@ -667,17 +673,55 @@ def plot_median(output_dir):
         # ax.vlines(0, 0, 1, clip_on=False, transform=ax.transAxes)
         # ax.vlines(1, 0, 1, clip_on=False, transform=ax.transAxes)
     plot_stat_map(join(median_dir, 'base.nii.gz'), display_mode='x',
-                  cut_coords=1,
+                  cut_coords=[-42.],
                   axes=axes[0], colorbar=False, annotate=False)
-    axes[0].annotate('Reference', xy=(0.5, 0.), xytext=(0, -5),
+    plot_stat_map(join(median_dir, 'base.nii.gz'), display_mode='y',
+                  cut_coords=[9.],
+                  axes=axes[1], colorbar=False, annotate=False)
+
+    axes[0].annotate("Reference run", xy=(1, 0.), xytext=(0, -5),
+                xycoords="axes fraction",
+                textcoords='offset points',
+                va='center', ha="center")
+
+    axes[4].annotate('Reduced $\mathbf X_r$', xy=(0., 0.5), xytext=(-10, 0),
+                     xycoords="axes fraction",
+                     textcoords='offset points',
+                     va='center', ha="center", rotation='vertical')
+    axes[0].annotate('Non-reduced $\mathbf X$', xy=(0., 0.5), xytext=(-10, 0.),
+                 xycoords="axes fraction",
+                 textcoords='offset points',
+                 va='center', ha="center", rotation='vertical')
+
+    axes[0].annotate('$x = 42$', xy=(0.5, 1), xytext=(0, 0),
                      xycoords="axes fraction",
                      textcoords='offset points',
                      va='center', ha="center")
+    axes[1].annotate('$z = 9$', xy=(0.5, 1), xytext=(0, 0),
+                     xycoords="axes fraction",
+                     textcoords='offset points',
+                     va='center', ha="center")
+    axes[2].annotate('$x = 42$', xy=(0.5, 1), xytext=(0, 0),
+                     xycoords="axes fraction",
+                     textcoords='offset points',
+                     va='center', ha="center")
+    axes[3].annotate('$z = 9$', xy=(0.5, 1), xytext=(0, 0),
+                     xycoords="axes fraction",
+                     textcoords='offset points',
+                     va='center', ha="center")
+    # ax = fig.add_axes([0,0,1,1])
+    # ax.xaxis.set_visible(False)
+    # ax.yaxis.set_visible(False)
+    # ax.patch.set_alpha(0.)
+    # ax.patch.set_color('w')
+    # ax.set_zorder(1000)
+    # ax.add_patch(patches.Rectangle((0., 0.5,), 1., 0.5, fill=False))
     # axes[0].hlines(1, 0, 1, clip_on=False, transform=ax.transAxes)
     # axes[0].hlines(0, 0, 1, clip_on=False, transform=ax.transAxes)
     # axes[0].vlines(0, 0, 1, clip_on=False, transform=ax.transAxes)
     # axes[0].vlines(1, 0, 1, clip_on=False, transform=ax.transAxes)
     plt.savefig(join(figures_dir, 'median.pgf'), bbox_inches="tight")
+    plt.savefig(join(figures_dir, 'median.svg'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'median.pdf'), bbox_inches="tight")
 
 
@@ -716,7 +760,7 @@ def plot_full(output_dir, n_exp=9):
                     ref_reproduction * np.ones(10),
                     yerr=ref_std,
                     ax=plt.gca(),
-                    label='Non reduced', color='red', zorder=1)
+                    label='Non-reduced', color='red', zorder=1)
 
     for index, exp_df in scores_extended.groupby(level=['estimator_type',
                                                         'compression_type']):
@@ -753,9 +797,9 @@ def plot_full(output_dir, n_exp=9):
                              arrowprops=dict(arrowstyle="->"),
                              zorder=4)
         plt.xlim([0.0, 1.2])
-        # plt.ylim([0.65, 0.85])
-        plt.ylim([0.2, 0.4])
-        # plt.yticks([0.55, 0.70, 0.85])
+        plt.ylim([0.65, 0.85])
+        # plt.ylim([0.2, 0.4])
+        plt.yticks([0.55, 0.70, 0.85])
         fig[0].axes[0].xaxis.grid(True)
 
         plt.figure(fig[1].number)
