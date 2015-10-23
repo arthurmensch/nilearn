@@ -559,7 +559,8 @@ def analyse_median_maps(output_dir, reduction_ratio=0.1):
     corr = np.diagonal(
         spatial_correlation(masker, base_components,
                             aligned_target_components[-1]))
-    i = np.argsort(corr)[len(corr) / 2]
+    len_non_zero = np.sum(corr != 0.)
+    i = np.argsort(corr)[len(len_non_zero) / 2]
     median_img = index_img(base_components, i)
     median_filename = join(median_dir, 'base.nii.gz')
     median_img.to_filename(median_filename)
@@ -584,8 +585,6 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                                   index_col=range(4), header=[0, 1])
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
     n_exp = n_exp  # scores_extended.columns.get_level_values(0)[-1]
-    non_zero_maps = scores_extended.loc[
-        idx[True, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
 
     fig, axes = plt.subplots(len(reduction_ratio_list), 1, sharex=True)
     for reduction_ratio, ax in zip(reduction_ratio_list, axes):
@@ -597,7 +596,7 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                              idx[False, :, 'subsample', 1.],
                              :]))
         labels = ['Range-finder', 'Subsampling', 'Non reduced']
-        ax.set_ylim([0.3, 0.9])
+        ax.set_ylim([0.1, 0.4])
         for j, (index, exp_df) in enumerate(incr_df.iterrows()):
             mean_score = exp_df[
                 [(i, 'mean') for i in np.arange(n_exp + 1)]].values.astype(
@@ -606,14 +605,14 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                 [(i, 'std') for i in np.arange(n_exp + 1)]].values.astype(
                 'float')
             plot_with_error(np.arange(len(mean_score)) + 1,
-                            mean_score / non_zero_maps,
+                            mean_score,
                             ax=ax,
-                            yerr=std_score / non_zero_maps, label=labels[j],
+                            yerr=std_score, label=labels[j],
                             marker='o',
                             markersize=2)
         ax.set_xlim([1, 3])
         ax.set_xticks([1, 2, 3])
-        # ax.set_ylim([0.3, 0.5])
+        ax.set_ylim([0.1, 0.4])
         ax.annotate('reduction ratio: %.2f' % reduction_ratio, xy=(0.45, 0.15),
                     size=7, va="center", ha="center",
                     bbox=dict(boxstyle="square,pad=0.2", fc="w"),
