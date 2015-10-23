@@ -138,11 +138,12 @@ def hcp_70():
     # temp_folder = '/home/parietal/amensch/temp/2015-10-20_08-19-37'
     # temp_folder = drop_memmmap(estimators, experiment)
     # output_dir = run(estimators, experiment, temp_folder=temp_folder)
-    output_dir = expanduser('~/output/2015-10-14_23-46-52')
+    # output_dir = expanduser('~/output/2015-10-14_23-46-52')
+    output_dir = expanduser('~/output/2015-10-23_14-03-53')
     # gather_results(output_dir)
-    analyse(experiment, output_dir, n_jobs=40, limit=9)
+    analyse(experiment, output_dir, n_jobs=5, limit=9)
     # analyse_median_maps(output_dir, reduction_ratio=0.05)
-    analyse_num_exp(experiment, output_dir, n_jobs=40, limit=9,
+    analyse_num_exp(experiment, output_dir, n_jobs=5, limit=9,
                     n_run_var=3)
     # plot_full(output_dir, n_exp=2)
     # plot_num_exp(output_dir, reduction_ratio_list=[0.025, 0.2], n_exp=2)
