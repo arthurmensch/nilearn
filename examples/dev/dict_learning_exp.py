@@ -150,7 +150,7 @@ def hcp_70():
     # output_dir = expanduser('~/output/2015-10-23_14-03-53')
     # gather_results(output_dir)
     # analyse(experiment, output_dir, n_jobs=5, limit=9)
-    # analyse_median_maps(output_dir, reduction_ratio=0.025)
+    analyse_median_maps(output_dir, reduction_ratio=0.025)
     plot_median(output_dir)
     # analyse_num_exp(experiment, output_dir, n_jobs=5, limit=9,
     #                 n_run_var=3)
