@@ -561,7 +561,7 @@ def analyse_median_maps(output_dir, reduction_ratio=0.1):
         spatial_correlation(masker, base_components,
                             aligned_target_components[-1]))
     len_non_zero = np.sum(corr != 0.)
-    i = np.argsort(corr)[len(len_non_zero) / 2]
+    i = np.argsort(corr)[len_non_zero / 2]
     median_img = index_img(base_components, i)
     median_filename = join(median_dir, 'base.nii.gz')
     median_img.to_filename(median_filename)
