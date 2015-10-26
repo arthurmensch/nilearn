@@ -562,7 +562,7 @@ def analyse_median_maps(output_dir, reduction_ratio=0.1):
                             aligned_target_components[-1]))
     len_non_zero = np.sum(corr != 0.)
     print(len_non_zero)
-    i = np.argsort(corr)[len_non_zero / 2]
+    i = np.argsort(corr)[::-1][len_non_zero / 2]
     median_img = index_img(base_components, i)
     median_filename = join(median_dir, 'base.nii.gz')
     median_img.to_filename(median_filename)
