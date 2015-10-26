@@ -611,34 +611,34 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
                             yerr=std_score, label=labels[j],
                             marker='o',
                             markersize=2)
-        ax.set_xlim([1, 3])
-        ax.set_xticks([1, 2, 3])
-        ax.set_ylim([0.65, 0.85])
-        ax.annotate('reduction ratio: %.2f' % reduction_ratio, xy=(0.45, 0.15),
+        ax.set_xlim([1, 10])
+        ax.set_xticks(np.arange(1, 11))
+        ax.set_ylim([0.6, 0.85])
+        ax.annotate('reduction ratio: %.2f' % reduction_ratio, xy=(0.4, 0.15),
                     size=7, va="center", ha="center",
                     bbox=dict(boxstyle="square,pad=0.2", fc="w"),
                     xycoords="axes fraction")
         ax.grid('on')
-        ax.set_yticks([0.65, 0.75, 0.85])
+        ax.set_yticks([0.6, 0.7, 0.8])
     handles, labels = axes[0].get_legend_handles_labels()
     fig.text(0.0, 0.5,
-             'Correspondance with ref. $d_p (\\mathbf X, \\mathbf Y)$',
+             'Correspondence with ref. $d_l (\\mathbf X, \\mathbf Y)$',
              va='center',
              rotation='vertical')
-    fig.legend(handles, labels, bbox_to_anchor=(1, 0.65), loc='center right',
+    fig.legend(handles, labels, bbox_to_anchor=(0.93, 0.65), loc='center right',
                ncol=1)
     axes[-1].set_xlabel(
-        'Number of concatenated result sets in $\\mathcal V_p(\\mathbf Y)$')
+        'Number of concatenated result sets in $\\mathcal V_l(\\mathbf Y)$')
     plt.savefig(join(figures_dir, 'incr_stability.pgf'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'incr_stability.svg'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'incr_stability.pdf'), bbox_inches="tight")
 
 
 def plot_with_error(x, y, yerr=0, ax=None, **kwargs):
-    ylim = ax.get_ylim()
+    # ylim = ax.get_ylim()
     plot = ax.plot(x, y, **kwargs)
-    ax.fill_between(x, np.minimum(y + yerr, ylim[1]),
-                    np.maximum(y - yerr, ylim[0]), alpha=0.3,
+    ax.fill_between(x, y + yerr,
+                    y - yerr, alpha=0.3,
                     color=plot[0].get_color())
 
 
@@ -649,7 +649,7 @@ def plot_median(output_dir):
     median_series = pd.read_csv(join(median_dir, 'median.csv'),
                                 index_col=range(4),
                                 header=None)
-    fig, axes = plt.subplots(2, 4)
+    fig, axes = plt.subplots(2, 4, figsize=(3.38676401384, 1.6), gridspec_kw=dict(hspace=0.3))
     axes = axes.reshape(-1)
     labels = ['Second run', 'Range-finder $(\\mathbf X_r)_{\\mathrm{rf}}$',
               'Subsampling $(\\mathbf X_r)_{\\mathrm{ss}}$']
@@ -657,17 +657,17 @@ def plot_median(output_dir):
         plot_stat_map(img.values[0], display_mode='x',
                       cut_coords=[-42.],
                       figure=fig,
-                      axes=axes[2*i+2], colorbar=False,
+                      axes=axes[2 * i + 2], colorbar=False,
                       annotate=False)
         plot_stat_map(img.values[0], display_mode='y',
                       cut_coords=[9.],
                       figure=fig,
-                      axes=axes[3+2*i], colorbar=False,
+                      axes=axes[3 + 2 * i], colorbar=False,
                       annotate=False)
-        axes[2*i+2].annotate(labels[i], xy=(1, 0.), xytext=(0, -5),
-                    xycoords="axes fraction",
-                    textcoords='offset points',
-                    va='center', ha="center")
+        axes[2 * i + 2].annotate(labels[i], xy=(1.15, 0.), xytext=(0, -5),
+                                 xycoords="axes fraction",
+                                 textcoords='offset points',
+                                 va='center', ha="center")
         # ax.hlines(1, 0, 1, clip_on=False, transform=ax.transAxes)
         # ax.hlines(0, 0, 1, clip_on=False, transform=ax.transAxes)
         # ax.vlines(0, 0, 1, clip_on=False, transform=ax.transAxes)
@@ -679,33 +679,34 @@ def plot_median(output_dir):
                   cut_coords=[9.],
                   axes=axes[1], colorbar=False, annotate=False)
 
-    axes[0].annotate("Reference run", xy=(1, 0.), xytext=(0, -5),
-                xycoords="axes fraction",
-                textcoords='offset points',
-                va='center', ha="center")
+    axes[0].annotate("Reference run", xy=(1.15, 0.), xytext=(0, -5),
+                     xycoords="axes fraction",
+                     textcoords='offset points',
+                     va='center', ha="center")
 
-    axes[4].annotate('Reduced $\mathbf X_r$', xy=(0., 0.5), xytext=(-10, 0),
+    axes[4].annotate('Reduced $\mathbf X_r$', xy=(0., 0.3), xytext=(-10, 0),
                      xycoords="axes fraction",
                      textcoords='offset points',
                      va='center', ha="center", rotation='vertical')
-    axes[0].annotate('Non-reduced $\mathbf X$', xy=(0., 0.5), xytext=(-10, 0.),
-                 xycoords="axes fraction",
-                 textcoords='offset points',
-                 va='center', ha="center", rotation='vertical')
+    axes[0].annotate('Non-reduced $\mathbf X$', xy=(0., 0.6), xytext=(-10,
+                                                                       0.),
+                     xycoords="axes fraction",
+                     textcoords='offset points',
+                     va='center', ha="center", rotation='vertical')
 
-    axes[0].annotate('$x = 42$', xy=(0.5, 1), xytext=(0, 0),
+    axes[0].annotate('$x = 42$', xy=(0.5, 1), xytext=(0, 7),
                      xycoords="axes fraction",
                      textcoords='offset points',
                      va='center', ha="center")
-    axes[1].annotate('$z = 9$', xy=(0.5, 1), xytext=(0, 0),
+    axes[1].annotate('$z = 9$', xy=(0.5, 1), xytext=(0, 7),
                      xycoords="axes fraction",
                      textcoords='offset points',
                      va='center', ha="center")
-    axes[2].annotate('$x = 42$', xy=(0.5, 1), xytext=(0, 0),
+    axes[2].annotate('$x = 42$', xy=(0.5, 1), xytext=(0, 7),
                      xycoords="axes fraction",
                      textcoords='offset points',
                      va='center', ha="center")
-    axes[3].annotate('$z = 9$', xy=(0.5, 1), xytext=(0, 0),
+    axes[3].annotate('$z = 9$', xy=(0.5, 1), xytext=(0, 7),
                      xycoords="axes fraction",
                      textcoords='offset points',
                      va='center', ha="center")
@@ -726,6 +727,12 @@ def plot_median(output_dir):
 
 
 def plot_full(output_dir, n_exp=9):
+    fig = []
+    for i in range(3):
+        fig.append(plt.figure())
+    name_index = {'range_finder': 'Range-finder',
+                  'subsample': 'Subsample'}
+
     results_dir = join(output_dir, 'stability')
     figures_dir = join(output_dir, 'figures')
     if not exists(figures_dir):
@@ -750,11 +757,6 @@ def plot_full(output_dir, n_exp=9):
                                           ['subsample',
                                            'range_finder'],
                                           ], :]
-    fig = []
-    for i in range(3):
-        fig.append(plt.figure())
-    name_index = {'range_finder': 'Range-finder',
-                  'subsample': 'Subsample'}
     plt.figure(fig[0].number)
     plot_with_error(np.linspace(0, 1.2, 10),
                     ref_reproduction * np.ones(10),
@@ -774,7 +776,6 @@ def plot_full(output_dir, n_exp=9):
         label = name_index[compression_type]
 
         # order = np.argsort(total_time['mean'].values)
-
         eb = plt.errorbar(total_time['mean'].values,
                           score['mean'].values,
                           xerr=total_time['std'].values,
@@ -856,6 +857,142 @@ def plot_full(output_dir, n_exp=9):
     plt.savefig(join(figures_dir, 'time.pdf'))
     plt.savefig(join(figures_dir, 'time.svg'))
     plt.savefig(join(figures_dir, 'time.pgf'))
+
+
+def plot_full_multiple(output_dir_list, n_exp_list):
+    fig, axes = plt.subplots(2, 1, sharex=True, subplot_kw=dict(xscale='log'))
+    name_index = {'range_finder': 'Range-finder',
+                  'subsample': 'Subsample'}
+    figures_dir = expanduser('~/figures')
+    if not exists(figures_dir):
+        os.mkdir(figures_dir)
+    for i, (output_dir, n_exp) in enumerate(zip(output_dir_list, n_exp_list)):
+        results_dir = join(output_dir, 'stability')
+
+        scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
+                                      index_col=range(4), header=[0, 1])
+        scores_extended.rename(columns=convert_litteral_int_to_int,
+                               inplace=True)
+
+        ref_time = scores_extended.loc[
+            idx[False, 'DictLearning', 'subsample', 1],
+            ('math_time', 'mean')]
+        ref_time += scores_extended.loc[
+            idx[False, 'DictLearning', 'subsample', 1],
+            ('load_math_time', 'last')]
+
+        ref_reproduction = scores_extended.loc[
+            idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
+        ref_std = scores_extended.loc[
+            idx[False, 'DictLearning', 'subsample', 1], (n_exp, 'std')]
+        correction = scores_extended.loc[
+            idx[True, 'DictLearning', 'subsample', 1], (n_exp, 'mean')]
+        print(correction)
+
+        scores_extended = scores_extended.loc[idx[False, :,
+                                              ['subsample',
+                                               'range_finder'],
+                                              ], :]
+        plot_with_error(np.linspace(0.01, 1.2, 10),
+                        ref_reproduction * np.ones(10) / correction,
+                        yerr=ref_std / correction,
+                        ax=axes[i],
+                        label='Non-reduced', color='red', zorder=1)
+        for index, exp_df in scores_extended.groupby(level=['estimator_type',
+                                                            'compression_type']):
+            score = exp_df[n_exp]
+            total_time = pd.DataFrame(exp_df['math_time'])
+            total_time.loc[:, 'mean'] += exp_df['load_math_time', 'last']
+            total_time /= ref_time
+            reduction_ratio = exp_df.index.get_level_values(3).values
+            compression_type = index[1]
+            label = name_index[compression_type]
+
+            # order = np.argsort(total_time['mean'].values)
+            eb = axes[i].errorbar(total_time['mean'].values,
+                                  score['mean'].values / correction,
+                                  xerr=total_time['std'].values,
+                                  yerr=score['std'].values / correction,
+                                  label=label,
+                                  fmt='-',
+                                  marker='o',
+                                  markersize=3,
+                                  capsize=1, zorder=2 if compression_type == 'subsample' else 3)
+            eb[-1][0].set_linewidth(0.3)
+            eb[-1][1].set_linewidth(0.3)
+            for (x, y, l) in zip(total_time['mean'].values,
+                                 score['mean'].values / correction,
+                                 reduction_ratio):
+                if i == 0:
+                    if l in [0.2] and compression_type == 'subsample' \
+                            or l in [0.05] and compression_type == 'range_finder':
+                        axes[i].annotate(l, xy=(x, y), xytext=(0.6, 0.75 - 0.03 * (compression_type == 'subsample') ),
+                                         textcoords='data',
+                                         size=7,
+                                         arrowprops=dict(arrowstyle="->", edgecolor='blue' if compression_type == 'range_finder' else 'g'),
+                                         zorder=4)
+                if i == 1:
+                    if l in [0.05] and compression_type == 'subsample' \
+                            or l in [0.025] and compression_type == 'range_finder':
+                        axes[i].annotate(l, xy=(x, y), xytext=(0.12 + 0.07  * (compression_type == 'range_finder'), 0.55),
+                                         textcoords='data',
+                                         size=7,
+                                         arrowprops=dict(arrowstyle="->", edgecolor='blue' if compression_type == 'range_finder' else 'g',),
+                                         zorder=4)
+
+            axes[i].xaxis.grid(True)
+
+    axes[0].set_ylim([0.66, 0.85])
+    # plt.ylim([0.2, 0.4])
+    axes[0].set_yticks([0.7, 0.75, 0.8])
+    axes[0].set_yticklabels(["$.7$", "$.75$","$.8$"])
+    axes[1].set_xlim([0.03, 1.2])
+    axes[1].set_xticks([0.05, 0.1, 0.5, 1])
+    axes[1].set_xticklabels([0.05, 0.1, 0.5, 1])
+    axes[1].set_ylim([0.50, 0.9])
+    # plt.ylim([0.2, 0.4])
+    axes[1].set_yticks([0.6, 0.7, 0.8])
+    axes[1].set_yticklabels(["$.6$", "$.7$", "$.8$"])
+    import matplotlib.patches as mpatches
+    from matplotlib.legend_handler import HandlerPatch
+
+    def make_legend_arrow(legend, orig_handle,
+                          xdescent, ydescent,
+                          width, height, fontsize):
+        p = mpatches.FancyArrowPatch((0, 0.5 * height), (width, 0.5 * height),
+                                     arrowstyle='->,head_length=2,head_width=2')
+        return p
+
+    arrow_patch = mpatches.Arrow(0, 0, 0.05, 0.05, color='black',
+                                 label='Reduction ratio')
+    fig.legend(
+        handles=axes[0].get_legend_handles_labels()[0] + [arrow_patch],
+        labels=axes[0].get_legend_handles_labels()[1] + ['Reduction ratio'],
+        ncol=2,
+        bbox_to_anchor=(0.91, .6), loc='center right',
+        handler_map={
+            mpatches.Arrow: HandlerPatch(patch_func=make_legend_arrow)})
+    fig.text(0.01, 0.5,
+             'Correspondence with ref. $d_p (\\mathbf X, \\mathbf Y)$',
+             va='center',
+             rotation='vertical')
+    axes[0].annotate('ADHD', xy=(1.0, 0.5),
+                     xytext=(4, 0),
+                     xycoords="axes fraction",
+                     textcoords='offset points',
+                     va='center',
+                     rotation='vertical')
+    axes[1].annotate('HCP', xy=(1.0, 0.5),
+                     xytext=(4, 0),
+                     xycoords="axes fraction",
+                     textcoords='offset points',
+                     va='center',
+                     rotation='vertical')
+    axes[1].set_xlabel(
+        'CPU Time (relative to non-reduced $\\mathrm{DL}(\\mathbf X)$)')
+    plt.savefig(join(figures_dir, 'time_v_corr.pdf'), bbox_inches="tight")
+    plt.savefig(join(figures_dir, 'time_v_corr.svg'), bbox_inches="tight")
+    plt.savefig(join(figures_dir, 'time_v_corr.pgf'), bbox_inches="tight")
 
 
 def convert_litteral_int_to_int(x):

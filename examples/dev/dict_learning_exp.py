@@ -5,7 +5,8 @@ from nilearn.decomposition import DictLearning
 from nilearn.decomposition.isbi_utils import run, \
     analyse, analyse_num_exp, plot_num_exp, plot_full, \
     drop_memmmap, Experiment, convert_nii_to_pdf, \
-    clean_memory, gather_results, analyse_median_maps, plot_median
+    clean_memory, gather_results, analyse_median_maps, plot_median, \
+    plot_full_multiple
 
 
 # Long experiment for stability
@@ -86,12 +87,19 @@ def adhd_20():
     # analyse_num_exp(output_dir, n_jobs=20, n_run_var=4)
     # analyse_median_maps(output_dir)
     # plot_num_exp(output_dir)
+    # plot_full(output_dir, n_exp=9)
+    plot_num_exp(output_dir, reduction_ratio_list=[0.05, 0.2], n_exp=9)
     # plot_full(output_dir)
-    # plot_num_exp(output_dir, reduction_ratio_list=[0.05, 0.2])
-    # plot_full(output_dir)
-    plot_median(output_dir)
+    # plot_median(output_dir)
     # plot_num_exp(output_dir, 0.1)
     # convert_nii_to_pdf(join(output_dir, 'stability'), n_jobs=15)
+
+def plot_full():
+    output_dir_list = expanduser('~/output/2015-10-14_21-02-57'),\
+                 expanduser('~/output/2015-10-14_23-46-52')
+    n_exp_list = 9, 2
+    plot_full_multiple(output_dir_list, n_exp_list)
+
 
 
 def hcp_70():
@@ -141,10 +149,10 @@ def hcp_70():
     # output_dir = expanduser('~/output/2015-10-14_23-46-52')
     output_dir = expanduser('~/output/2015-10-23_14-03-53')
     # gather_results(output_dir)
-    analyse(experiment, output_dir, n_jobs=5, limit=9)
-    # analyse_median_maps(output_dir, reduction_ratio=0.05)
-    analyse_num_exp(experiment, output_dir, n_jobs=5, limit=9,
-                    n_run_var=3)
+    # analyse(experiment, output_dir, n_jobs=5, limit=9)
+    analyse_median_maps(output_dir, reduction_ratio=0.05)
+    # analyse_num_exp(experiment, output_dir, n_jobs=5, limit=9,
+    #                 n_run_var=3)
     # plot_full(output_dir, n_exp=2)
     # plot_num_exp(output_dir, reduction_ratio_list=[0.025, 0.2], n_exp=2)
     # plot_full(output_dir)
@@ -307,3 +315,4 @@ def hcp_rf_70():
 # adhd_20()
 # hcp_intensive()
 hcp_70()
+# plot_full()
