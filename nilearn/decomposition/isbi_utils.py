@@ -561,6 +561,7 @@ def analyse_median_maps(output_dir, reduction_ratio=0.1):
         spatial_correlation(masker, base_components,
                             aligned_target_components[-1]))
     len_non_zero = np.sum(corr != 0.)
+    print(len_non_zero)
     i = np.argsort(corr)[len_non_zero / 2]
     median_img = index_img(base_components, i)
     median_filename = join(median_dir, 'base.nii.gz')
@@ -655,12 +656,12 @@ def plot_median(output_dir):
               'Subsampling $(\\mathbf X_r)_{\\mathrm{ss}}$']
     for i, (index, img) in enumerate(median_series.iterrows()):
         plot_stat_map(img.values[0], display_mode='x',
-                      cut_coords=[-42.],
+                      cut_coords=1,
                       figure=fig,
                       axes=axes[2 * i + 2], colorbar=False,
                       annotate=False)
         plot_stat_map(img.values[0], display_mode='y',
-                      cut_coords=[9.],
+                      cut_coords=1,
                       figure=fig,
                       axes=axes[3 + 2 * i], colorbar=False,
                       annotate=False)
@@ -673,10 +674,10 @@ def plot_median(output_dir):
         # ax.vlines(0, 0, 1, clip_on=False, transform=ax.transAxes)
         # ax.vlines(1, 0, 1, clip_on=False, transform=ax.transAxes)
     plot_stat_map(join(median_dir, 'base.nii.gz'), display_mode='x',
-                  cut_coords=[-42.],
+                  cut_coords=1,
                   axes=axes[0], colorbar=False, annotate=False)
     plot_stat_map(join(median_dir, 'base.nii.gz'), display_mode='y',
-                  cut_coords=[9.],
+                  cut_coords=1,
                   axes=axes[1], colorbar=False, annotate=False)
 
     axes[0].annotate("Reference run", xy=(1.15, 0.), xytext=(0, -5),

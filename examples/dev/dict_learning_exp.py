@@ -151,6 +151,7 @@ def hcp_70():
     # gather_results(output_dir)
     # analyse(experiment, output_dir, n_jobs=5, limit=9)
     analyse_median_maps(output_dir, reduction_ratio=0.05)
+    plot_median(output_dir)
     # analyse_num_exp(experiment, output_dir, n_jobs=5, limit=9,
     #                 n_run_var=3)
     # plot_full(output_dir, n_exp=2)
