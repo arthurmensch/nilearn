@@ -562,7 +562,7 @@ def analyse_median_maps(output_dir, reduction_ratio=0.1):
                             aligned_target_components[-1]))
     len_non_zero = np.sum(corr != 0.)
     print(len_non_zero)
-    i = np.argsort(corr)[::-1][len_non_zero / 2 + 2]
+    i = np.argsort(corr)[::-1][len_non_zero / 2 + 1]
     median_img = index_img(base_components, i)
     median_filename = join(median_dir, 'base.nii.gz')
     median_img.to_filename(median_filename)
@@ -656,12 +656,12 @@ def plot_median(output_dir):
               'Subsampling $(\\mathbf X_r)_{\\mathrm{ss}}$']
     for i, (index, img) in enumerate(median_series.iterrows()):
         plot_stat_map(img.values[0], display_mode='x',
-                      cut_coords=[-40.],
+                      cut_coords=[-18],
                       figure=fig,
                       axes=axes[2 * i + 2], colorbar=False,
                       annotate=False)
         plot_stat_map(img.values[0], display_mode='y',
-                      cut_coords=[-60],
+                      cut_coords=[-88],
                       figure=fig,
                       axes=axes[3 + 2 * i], colorbar=False,
                       annotate=False)
