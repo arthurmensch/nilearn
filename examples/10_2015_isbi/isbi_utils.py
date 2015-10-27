@@ -27,10 +27,10 @@ from sklearn.base import clone
 from nilearn_sandbox._utils.map_alignment import _align_one_to_one_flat, \
     _spatial_correlation_flat, spatial_correlation, align_many_to_one_nii
 
-from .. import datasets
-from .base import MaskReducer, DecompositionEstimator
-from .._utils import check_niimg, check_niimg_4d
-from ..input_data import MultiNiftiMasker
+from nilearn import datasets
+from nilearn.decomposition.base import MaskReducer, DecompositionEstimator
+from nilearn._utils import check_niimg, check_niimg_4d
+from nilearn.input_data import MultiNiftiMasker
 from nilearn.image import index_img
 from nilearn.plotting import plot_stat_map
 
@@ -269,8 +269,7 @@ def gather_results(output_dir):
             with open(join(dirpath, filename), 'r') as f:
                 exp_dict = json.load(f)
                 red_rs = exp_dict['random_state'] % 100
-                if 10 > red_rs > 0:
-                    full_dict_list.append(exp_dict)
+                full_dict_list.append(exp_dict)
     results = pd.DataFrame(full_dict_list, columns=['estimator_type',
                                                     'compression_type',
                                                     'reduction_ratio',
