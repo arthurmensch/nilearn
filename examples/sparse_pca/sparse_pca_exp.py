@@ -16,9 +16,10 @@ def adhd_20(n_jobs=1):
                             random_state=0,
                             # support=support,
                             feature_ratio=feature_ratio)
-                  for feature_ratio in [5, 10]]
+                  for feature_ratio in [10]]
     # for support in [True, False]]
-    estimators = [ref_estimator] + estimators
+    # estimators = [ref_estimator] + estimators
+    estimators = estimators
     experiment = Experiment('adhd',
                             n_subjects=40,
                             smoothing_fwhm=4,
@@ -30,7 +31,7 @@ def adhd_20(n_jobs=1):
                             n_jobs=n_jobs,
                             parallel_exp=True,
                             n_epochs=3,
-                            n_runs=2, )
+                            n_runs=1)
     output_dir = run(estimators, experiment)
     # output_dir = '/volatile/arthur/output/2015-11-27_13-56-35'
     # gather_results(output_dir=output_dir)
@@ -42,4 +43,4 @@ def adhd_20(n_jobs=1):
 
 
 if __name__ == '__main__':
-    adhd_20(n_jobs=16)
+    adhd_20(n_jobs=4)
