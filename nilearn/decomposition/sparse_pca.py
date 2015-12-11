@@ -111,7 +111,6 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                  forget_rate=1,
                  random_state=None,
                  batch_size=10,
-                 support=False,
                  debug_folder=None,
                  mask=None, smoothing_fwhm=None,
                  standardize=True, detrend=True,
@@ -146,7 +145,6 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
         self.batch_size = batch_size
         self.reduction_ratio = reduction_ratio
         self.reduction_method = reduction_method
-        self.support = support
         self.feature_ratio = feature_ratio
         self.debug_folder = debug_folder
 
@@ -215,16 +213,15 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
 
         incr_spca = IncrementalSparsePCA(n_components=self.n_components,
                                          random_state=random_state,
-                                         l1_ratio=1,
-                                         alpha=self.alpha / np.sqrt(self.mask_img_.shape[1]),
+                                         alpha=self.alpha,
                                          feature_ratio=self.feature_ratio,
                                          batch_size=self.batch_size,
                                          dict_init=dict_init,
                                          shuffle=True,
-                                         support=self.support,
+                                         l1_ratio=1,
                                          n_jobs=1,
                                          tol=0.,
-                                         n_iter=10000000,
+                                         n_iter=10,
                                          debug_info=True,
                                          verbose=max(0, self.verbose - 1))
         t0 = time.time()

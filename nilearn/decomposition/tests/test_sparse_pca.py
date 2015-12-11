@@ -16,7 +16,7 @@ def test_sparse_pca():
     sparse_pca = SparsePCA(n_components=4, random_state=0,
                            dict_init=dict_init,
                            mask=mask_img,
-                           smoothing_fwhm=0., n_epochs=1, alpha=0.1)
+                           smoothing_fwhm=0., n_epochs=1, alpha=0.00001)
     sparse_pca.fit(data)
     maps = sparse_pca.masker_.\
         inverse_transform(sparse_pca.components_).get_data()
@@ -32,6 +32,7 @@ def test_sparse_pca():
     maps /= S[:, np.newaxis]
 
     K = np.abs(components.dot(maps.T))
+    print(K)
     recovered_maps = np.sum(K > 0.9)
     assert_greater(recovered_maps, 2)
 

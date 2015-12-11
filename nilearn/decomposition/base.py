@@ -22,9 +22,11 @@ from ..input_data.masker_validation import check_embedded_nifti_masker
 def mask_and_reduce(masker, imgs,
                     confounds=None,
                     reduction_ratio='auto',
+                    reduction_method=None,
                     n_components=None, random_state=None,
                     memory_level=0,
                     memory=Memory(cachedir=None),
+                    as_shelved_list=False,
                     n_jobs=1):
     """Mask and reduce provided 4D images with given masker.
 
@@ -46,9 +48,11 @@ def mask_and_reduce(masker, imgs,
         This parameter is passed to signal.clean. Please see the
         corresponding documentation for details.
 
-    reduction_ratio: 'auto' or float between 0. and 1.
-        - Between 0. or 1. : controls data reduction in the temporal domain
-        , 1. means no reduction, < 1. calls for an SVD based reduction.
+    reduction_method: 'svd' | 'rf' | 'ss' | None
+
+    reduction_ratio: 'auto' or float in [0., 1.], optional
+        - Between 0. or 1. : controls compression of data, 1. means no
+        compression
         - if set to 'auto', estimator will set the number of components per
           reduced session to be n_components.
 
@@ -98,8 +102,14 @@ def mask_and_reduce(masker, imgs,
         # samples based on the reduction_ratio
         n_samples = None
 
-    data_list = Parallel(n_jobs=n_jobs)(
-        delayed(_mask_and_reduce_single)(
+    if as_shelved_list:
+        func = cache(_mask_and_reduce_single, memory=memory,
+                     memory_level=memory_level,
+                     func_memory_level=0).call_and_shelve
+    else:
+        func = _mask_and_reduce_single
+    data_list = Parallel(n_jobs=n_jobs, verbose=True)(
+        delayed(func)(
             masker,
             img, confound,
             reduction_ratio=reduction_ratio,
@@ -109,27 +119,31 @@ def mask_and_reduce(masker, imgs,
             random_state=random_state
         ) for img, confound in zip(imgs, confounds))
 
-    subject_n_samples = [subject_data.shape[0]
-                         for subject_data in data_list]
+    if as_shelved_list:
+        return data_list
+    else:
+        subject_n_samples = [subject_data.shape[0]
+                             for subject_data in data_list]
 
-    n_samples = np.sum(subject_n_samples)
-    n_voxels = np.sum(_safe_get_data(masker.mask_img_))
-    data = np.empty((n_samples, n_voxels), order='F',
-                    dtype='float64')
+        n_samples = np.sum(subject_n_samples)
+        n_voxels = np.sum(_safe_get_data(masker.mask_img_))
+        data = np.empty((n_samples, n_voxels), order='F',
+                        dtype='float64')
 
-    current_position = 0
-    for i, next_position in enumerate(np.cumsum(subject_n_samples)):
-        data[current_position:next_position] = data_list[i]
-        current_position = next_position
-        # Clear memory as fast as possible: remove the reference on
-        # the corresponding block of data
-        data_list[i] = None
-    return data
+        current_position = 0
+        for i, next_position in enumerate(np.cumsum(subject_n_samples)):
+            data[current_position:next_position] = data_list[i]
+            current_position = next_position
+            # Clear memory as fast as possible: remove the reference on
+            # the corresponding block of data
+            data_list[i] = None
+        return data
 
 
 def _mask_and_reduce_single(masker,
                             img, confound,
                             reduction_ratio=None,
+                            reduction_method='svd',
                             n_samples=None,
                             memory=None,
                             memory_level=0,
@@ -148,23 +162,37 @@ def _mask_and_reduce_single(masker,
         n_samples = min(n_samples, data_n_samples)
     else:
         n_samples = int(ceil(data_n_samples * reduction_ratio))
-
-    if n_samples <= data_n_samples // 4:
-        U, S, _ = cache(randomized_svd, memory,
-                        memory_level=memory_level,
-                        func_memory_level=3)(this_data.T,
-                                             n_samples,
-                                             transpose=True,
-                                             random_state=random_state)
-        U = U.T
+    if reduction_method == 'svd':
+        if n_samples <= data_n_samples // 4:
+            U, S, _ = cache(randomized_svd, memory,
+                            memory_level=memory_level,
+                            func_memory_level=3)(this_data.T,
+                                                 n_samples,
+                                                 transpose=True,
+                                                 random_state=random_state)
+            U = U.T
+        else:
+            U, S, _ = cache(linalg.svd, memory,
+                            memory_level=memory_level,
+                            func_memory_level=3)(this_data.T,
+                                                 full_matrices=False)
+            U = U.T[:n_samples].copy()
+            S = S[:n_samples]
+        U = U * S[:, np.newaxis]
+    elif reduction_method == 'rf':
+        Q = cache(randomized_range_finder, memory,
+                  memory_level=memory_level,
+                  func_memory_level=3)(this_data,
+                                       n_samples, n_iter=3,
+                                       random_state=random_state)
+        U = Q.T.dot(this_data)
+    elif reduction_method == 'ss':
+            indices = np.floor(np.linspace(0, this_data.shape[0] - 1,
+                                           n_samples)).astype('int')
+            U = this_data[indices]
     else:
-        U, S, _ = cache(linalg.svd, memory,
-                        memory_level=memory_level,
-                        func_memory_level=3)(this_data.T,
-                                             full_matrices=False)
-        U = U.T[:n_samples].copy()
-        S = S[:n_samples]
-    U = U * S[:, np.newaxis]
+        U = this_data
+
     return U
 
 
