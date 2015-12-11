@@ -1,23 +1,23 @@
 from os.path import expanduser
-from nilearn._utils.sparse_pca_utils import run, gather_results, display_all, \
-    analyse, analyse_median_maps, plot_median
-from nilearn.decomposition import SparsePCA
+
 from nilearn._utils.sparse_pca_utils import Experiment
+from nilearn._utils.sparse_pca_utils import run
+from nilearn.decomposition import SparsePCA
 
 
 def adhd_20(n_jobs=1):
     ref_estimator = SparsePCA(alpha=0.05, batch_size=20,
+                              reduction_method='none',
+                              random_state=0,
+                              # support=False,
+                              feature_ratio=1)
+    estimators = [SparsePCA(alpha=0.05, batch_size=20,
                             reduction_method='none',
                             random_state=0,
-                            support=False,
-                            feature_ratio=1)
-    estimators = [SparsePCA(alpha=0.05, batch_size=20,
-                                 reduction_method='none',
-                                 random_state=0,
-                                 support=support,
-                                 feature_ratio=feature_ratio)
-                       for feature_ratio in [5, 10]
-                       for support in [True, False]]
+                            # support=support,
+                            feature_ratio=feature_ratio)
+                  for feature_ratio in [5, 10]]
+    # for support in [True, False]]
     estimators = [ref_estimator] + estimators
     experiment = Experiment('adhd',
                             n_subjects=40,
