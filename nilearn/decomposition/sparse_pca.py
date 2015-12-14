@@ -6,18 +6,15 @@ component sparsity
 # Author: Arthur Mensch
 # License: BSD 3 clause
 from __future__ import division
-
 import itertools
 import os
 import time
 from os.path import join
-
 import numpy as np
 from sklearn.base import TransformerMixin
-from sklearn.decomposition.sparse_pca import IncrementalSparsePCA
+from sklearn.decomposition.dict_learning import MiniBatchDictionaryLearning
 from sklearn.externals.joblib import Memory
 from sklearn.utils import check_random_state
-
 from .base import BaseDecomposition, mask_and_reduce
 from .canica import CanICA
 from .._utils.cache_mixin import CacheMixin
@@ -211,19 +208,24 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
 
         self.time_ = np.zeros(2)
 
-        incr_spca = IncrementalSparsePCA(n_components=self.n_components,
-                                         random_state=random_state,
-                                         alpha=self.alpha,
-                                         feature_ratio=self.feature_ratio,
-                                         batch_size=self.batch_size,
-                                         dict_init=dict_init,
-                                         shuffle=True,
-                                         l1_ratio=1,
-                                         n_jobs=1,
-                                         tol=0.,
-                                         n_iter=10,
-                                         debug_info=True,
-                                         verbose=max(0, self.verbose - 1))
+        incr_spca = MiniBatchDictionaryLearning(n_components=self.n_components,
+                                                random_state=random_state,
+                                                alpha=self.alpha,
+                                                learning_rate=1,
+                                                feature_ratio=
+                                                self.feature_ratio,
+                                                fit_algorithm='ridge',
+                                                transform_algorithm='ridge',
+                                                l1_ratio=1,
+                                                batch_size=self.batch_size,
+                                                dict_init=dict_init,
+                                                shuffle=True,
+                                                n_jobs=1,
+                                                tol=0.,
+                                                n_iter=10,
+                                                debug_info=True,
+                                                verbose=max(0,
+                                                            self.verbose - 1))
         t0 = time.time()
         data_list = mask_and_reduce(self.masker_, imgs, confounds,
                                     reduction_ratio=self.reduction_ratio,
