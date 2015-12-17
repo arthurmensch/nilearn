@@ -38,7 +38,7 @@ Experiment = collections.namedtuple('Experiment',
                                      'n_slices',
                                      'n_jobs',
                                      'parallel_exp',
-                                     'n_epochs',
+                                     # 'n_epochs',
                                      'n_runs'])
 
 
@@ -102,7 +102,7 @@ def check_init(exp_params):
 
 def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
     smoothing_fwhm = exp_params.smoothing_fwhm
-    n_epochs = exp_params.n_epochs
+    # n_epochs = exp_params.n_epochs
     n_runs = exp_params.n_runs
     cachedir = exp_params.cachedir
     n_jobs = 1 if exp_params.parallel_exp else exp_params.n_jobs
@@ -117,7 +117,7 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
             estimator = clone(estimator)
             estimator.set_params(mask=masker,
                                  smoothing_fwhm=smoothing_fwhm,
-                                 n_epochs=n_epochs,
+                                 # n_epochs=n_epochs,
                                  n_jobs=n_jobs,
                                  dict_init=dict_init,
                                  n_components=n_components,

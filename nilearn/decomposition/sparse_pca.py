@@ -237,7 +237,7 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                                     as_shelved_list=True,
                                     n_jobs=self.n_jobs)
         self.time_[1] += time.time() - t0
-
+        n_record = len(data_list)
         data_list = itertools.chain(*[random_state.permutation(
             data_list) for _ in range(n_epochs)])
 
@@ -249,16 +249,22 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
             t0 = time.time()
+            if record == n_record - 1:
+                incr_spca.set_params(feature_ratio=1)
             incr_spca.partial_fit(data, deprecated=False)
+            if record == n_record - 1:
+                incr_spca.set_params(feature_ratio=self.feature_ratio)
             self.time_[0] += time.time() - t0
             self.components_ = incr_spca.components_
 
-            if self.debug_folder is not None and record % 10 == 0:
+            if self.debug_folder is not None and record % self.n_epochs * 2 == 0:
                 if probe is not None:
                     if not hasattr(self, 'score_'):
                         self.score_ = []
-                    score = self.score(probe).mean()
-                    self.score_.append(record, score)
+                    score = self.score(probe)
+                    self.score_.append([record, score])
+                    np.save(join(self.debug_folder, 'score_test'), self.score_)
+
                 components_temp = self.components_.copy()
                 for component in components_temp:
                     if np.sum(component > 0) < np.sum(component < 0):
@@ -270,12 +276,6 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                                                 'at_%i.nii.gz' % record))
                 np.save(join(self.debug_folder, 'residuals'),
                         np.array(incr_spca.debug_info_['residuals']))
-                if probe is not None:
-                    if not hasattr(self, 'score_'):
-                        self.score_ = []
-                    score = np.mean(self.score(probe))
-                    self.score_.append(score)
-                    np.save(join(self.debug_folder, 'score_test'), self.score_)
             iter_offset += n_iter
 
         S = np.sqrt(np.sum(self.components_ ** 2, axis=1))
