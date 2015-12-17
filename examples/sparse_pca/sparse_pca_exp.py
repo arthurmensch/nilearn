@@ -16,13 +16,13 @@ def adhd_20(n_jobs=1):
                             random_state=0,
                             # support=support,
                             feature_ratio=feature_ratio)
-                  for feature_ratio in [5]]
+                  for feature_ratio in [1, 2, 5, 10]]
     # for support in [True, False]]
     # estimators = [ref_estimator] + estimators
     estimators = estimators
     experiment = Experiment('adhd',
                             n_subjects=40,
-                            smoothing_fwhm=4,
+                            smoothing_fwhm=6,
                             dict_init='rsn70',
                             output_dir=expanduser('~/output/sparse_pca'),
                             cachedir=expanduser('~/nilearn_cache'),

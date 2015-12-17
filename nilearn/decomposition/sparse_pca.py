@@ -270,7 +270,12 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                                                 'at_%i.nii.gz' % record))
                 np.save(join(self.debug_folder, 'residuals'),
                         np.array(incr_spca.debug_info_['residuals']))
-
+                if probe is not None:
+                    if not hasattr(self, 'score_'):
+                        self.score_ = []
+                    score = np.mean(self.score(probe))
+                    self.score_.append(score)
+                    np.save(join(self.debug_folder, 'score_test'), self.score_)
             iter_offset += n_iter
 
         S = np.sqrt(np.sum(self.components_ ** 2, axis=1))

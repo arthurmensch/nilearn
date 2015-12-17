@@ -151,9 +151,13 @@ def run_single(index, slice_index, estimator, dataset, output_dir,
     with open(join(exp_output, 'results.json'), 'w+') as f:
         json.dump(single_run_dict, f)
     print('[Example] Learning maps')
+    cut = int(this_slice.stop * 9 / 10)
+    train = slice(0, cut)
+    test = slice(cut, this_slice.stop)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
-        estimator.fit(dataset[this_slice])
+        estimator.fit(dataset[this_slice][train],
+                      probe=dataset[this_slice][test])
     print('[Example] Dumping results')
     components_img = estimator.masker_.inverse_transform(estimator.components_)
     components_filename = join(exp_output, 'components.nii.gz')
