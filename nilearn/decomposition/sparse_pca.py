@@ -169,7 +169,7 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
             self.masker_.inverse_transform(self._dict_init).to_filename(join(
                 self.debug_folder, 'init.nii.gz'))
 
-    def fit(self, imgs, y=None, confounds=None):
+    def fit(self, imgs, y=None, confounds=None, probe=None):
         """Compute the mask and the ICA maps across subjects
 
         Parameters
@@ -254,6 +254,11 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
             self.components_ = incr_spca.components_
 
             if self.debug_folder is not None and record % 10 == 0:
+                if probe is not None:
+                    if not hasattr(self, 'score_'):
+                        self.score_ = []
+                    score = self.score(probe).mean()
+                    self.score_.append(record, score)
                 components_temp = self.components_.copy()
                 for component in components_temp:
                     if np.sum(component > 0) < np.sum(component < 0):
