@@ -10,7 +10,7 @@ import numpy as np
 from scipy import linalg
 from sklearn.base import BaseEstimator
 from sklearn.externals.joblib import Memory, Parallel, delayed
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.utils import check_random_state
 from sklearn.utils.extmath import randomized_svd
 from .._utils.cache_mixin import CacheMixin, cache
@@ -427,7 +427,7 @@ class BaseDecomposition(BaseEstimator, CacheMixin):
 
     def _raw_score(self, data, per_component=True):
         """Return explained variance over data of estimator components_"""
-        return self._cache(explained_variance)(data, self.components_,
+        return explained_variance(data, self.components_,
                                                per_component=per_component)
 
     def score(self, imgs, confounds=None):
@@ -489,9 +489,10 @@ def explained_variance(X, components, per_component=True):
             res_var[i] = np.var(res)
         return np.maximum(0., 1. - res_var / full_var)
     else:
-        lr = LinearRegression(fit_intercept=True)
+        lr = Ridge(fit_intercept=False, alpha=10e-12)
         lr.fit(components.T, X.T)
-        res_var = X - lr.coef_.dot(components)
-        res_var **= 2
-        res_var = np.sum(res_var)
+        residuals = X - lr.coef_.dot(components)
+        # res_var **= 2
+        # res_var = np.sum(res_var)
+        res_var = np.var(residuals)
         return np.maximum(0., 1. - res_var / full_var)

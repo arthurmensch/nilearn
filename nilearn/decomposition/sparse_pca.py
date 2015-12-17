@@ -270,7 +270,7 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                         self.score_ = []
                     score = np.mean(self.score(probe))
                     self.score_.append(score)
-                    np.save(join(self.debug_folder, 'score'))
+                    np.save(join(self.debug_folder, 'score_test'), self.score_)
             iter_offset += n_iter
 
         S = np.sqrt(np.sum(self.components_ ** 2, axis=1))
