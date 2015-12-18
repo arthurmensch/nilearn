@@ -4,6 +4,8 @@ from nilearn._utils.sparse_pca_utils import Experiment
 from nilearn._utils.sparse_pca_utils import run
 from nilearn.decomposition import SparsePCA
 
+import numpy as np
+
 
 def adhd_20(n_jobs=1):
     ref_estimator = SparsePCA(alpha=0.01, batch_size=20,
@@ -17,19 +19,19 @@ def adhd_20(n_jobs=1):
                             n_epochs=feature_ratio * 2,
                             feature_ratio=feature_ratio)
                   for feature_ratio in range(1, 2)
-                  for alpha in [0.001, 0.005, 0.01, 0.05]]
+                  for alpha in np.logspace(-5, -1, 5)]
     # for support in [True, False]]
     # estimators = [ref_estimator] + estimators
     estimators = estimators
     experiment = Experiment('adhd',
                             n_subjects=40,
-                            smoothing_fwhm=6,
+                            smoothing_fwhm=4,
                             dict_init='rsn70',
                             output_dir=expanduser('~/output/sparse_pca'),
                             cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
                             n_slices=1,
-                            n_jobs=4,
+                            n_jobs=5,
                             parallel_exp=True,
                             # n_epochs=5,
                             n_runs=1)
