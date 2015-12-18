@@ -13,13 +13,13 @@ def adhd_20(n_jobs=1):
                               random_state=0,
                               # support=False,
                               feature_ratio=1)
-    estimators = [SparsePCA(alpha=alpha, batch_size=20,
+    estimators = [SparsePCA(alpha=alpha * feature_ratio, batch_size=20,
                             reduction_method='none',
                             random_state=0,
                             n_epochs=feature_ratio * 2,
                             feature_ratio=feature_ratio)
-                  for feature_ratio in range(1, 2)
-                  for alpha in np.logspace(-5, -1, 5)]
+                  for feature_ratio in range(1, 11)
+                  for alpha in [0.001]] # np.logspace(-5, -1, 5)]
     # for support in [True, False]]
     # estimators = [ref_estimator] + estimators
     estimators = estimators
@@ -31,7 +31,7 @@ def adhd_20(n_jobs=1):
                             cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
                             n_slices=1,
-                            n_jobs=5,
+                            n_jobs=10,
                             parallel_exp=True,
                             # n_epochs=5,
                             n_runs=1)
