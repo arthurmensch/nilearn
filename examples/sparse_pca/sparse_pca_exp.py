@@ -19,7 +19,7 @@ def adhd_20(n_jobs=1):
                             random_state=0,
                             n_epochs=1,
                             feature_ratio=feature_ratio)
-                  for feature_ratio in np.linspace(1, 10, 4)
+                  for feature_ratio in np.linspace(1, 10, 3)
                   for alpha in np.logspace(-5, -1, 5)]
     # for support in [True, False]]
     # estimators = [ref_estimator] + estimators
@@ -47,6 +47,6 @@ def adhd_20(n_jobs=1):
 
 
 if __name__ == '__main__':
-    # adhd_20(n_jobs=15)
-    gather_results('/home/arthur/drago/output/sparse_pca/2015-12-28_15-10-17')
-    display_explained_variance('/home/arthur/drago/output/sparse_pca/2015-12-28_15-10-17')
+    adhd_20(n_jobs=15)
+    # gather_results('/home/arthur/drago/output/sparse_pca/2015-12-28_15-10-17')
+    # display_explained_variance('/home/arthur/drago/output/sparse_pca/2015-12-28_15-10-17')
