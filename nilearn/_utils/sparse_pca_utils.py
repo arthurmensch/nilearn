@@ -6,6 +6,7 @@ import os
 import warnings
 from os.path import join, exists
 
+import itertools
 import numpy as np
 import pandas as pd
 from sklearn.externals.joblib import Parallel, delayed, Memory
@@ -25,7 +26,7 @@ from nilearn.plotting import plot_prob_atlas, plot_stat_map
 from pandas import IndexSlice as idx
 
 import matplotlib.pyplot as plt
-
+# import seaborn as sns
 
 Experiment = collections.namedtuple('Experiment',
                                     ['dataset_name',
@@ -251,31 +252,48 @@ def gather_results(output_dir):
         for filename in fnmatch.filter(filenames, 'results.json'):
             with open(join(dirpath, filename), 'r') as f:
                 exp_dict = json.load(f)
-                if exp_dict['reduction_method'] is None:
-                    exp_dict['reduction_method'] = 'none'
+                # if exp_dict['reduction_method'] is None:
+                #     exp_dict['reduction_method'] = 'none'
+                exp_dict['score_test'] = join(dirpath, 'debug/score_test.npy')
                 full_dict_list.append(exp_dict)
+
     results = pd.DataFrame(full_dict_list, columns=['reference',
                                                     'estimator_type',
                                                     'reduction_method',
                                                     'reduction_ratio',
                                                     'feature_ratio',
-                                                    # 'support',
                                                     'alpha',
                                                     'slice',
                                                     'random_state',
-                                                    'math_time', 'io_time',
-                                                    'components'])
+                                                    'score_test'])
 
     results.sort_values(by=['estimator_type',
                             'reduction_method',
                             'reduction_ratio',
                             'feature_ratio',
-                            # 'support',
                             'alpha',
                             'slice',
                             'random_state'], inplace=True)
     results.to_csv(join(output_dir, 'results.csv'))
 
+
+def display_explained_variance(output_dir):
+    df = pd.read_csv(join(output_dir, 'results.csv'), index_col=list(range(1, 8)))
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    feature_ratios = df.index.get_level_values('feature_ratio').unique()
+    alphas = df.index.get_level_values('alpha').unique()
+    linestyle_cycle = itertools.cycle(["-", "--", "-.", ":"])
+    linestyle = {feature_ratio: this_linestyle for (feature_ratio,
+                                                   this_linestyle)
+                 in zip(feature_ratios, linestyle_cycle)}
+    cm = itertools.cycle(['b', 'g', 'r', 'y', 'c', 'm'])
+    color = {alpha: color for (alpha, color) in zip(alphas, cm)}
+    for index, score in df['score_test'].iteritems():
+        score = np.load(score)
+        ax.plot(score[:, 0], score[:, 1], linestyle[index[4]],
+                color=color[index[5]])
+    fig.savefig(join(output_dir, 'results.pdf'))
 
 def display_single(output_dir):
     import matplotlib.pyplot as plt

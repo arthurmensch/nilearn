@@ -1,6 +1,7 @@
 from os.path import expanduser
 
-from nilearn._utils.sparse_pca_utils import Experiment
+from nilearn._utils.sparse_pca_utils import Experiment, gather_results, \
+    display_explained_variance
 from nilearn._utils.sparse_pca_utils import run
 from nilearn.decomposition import SparsePCA
 
@@ -13,17 +14,17 @@ def adhd_20(n_jobs=1):
                               random_state=0,
                               # support=False,
                               feature_ratio=1)
-    estimators = [SparsePCA(alpha=alpha * feature_ratio, batch_size=20,
+    estimators = [SparsePCA(alpha=alpha, batch_size=20,
                             reduction_method='none',
                             random_state=0,
-                            n_epochs=feature_ratio * 2,
+                            n_epochs=1,
                             feature_ratio=feature_ratio)
-                  for feature_ratio in np.linspace(1, 10, 3)
+                  for feature_ratio in np.linspace(1, 10, 4)
                   for alpha in np.logspace(-5, -1, 5)]
     # for support in [True, False]]
     # estimators = [ref_estimator] + estimators
     estimators = estimators
-    experiment = Experiment('adhd',
+    experiment = Experiment('hcp',
                             n_subjects=40,
                             smoothing_fwhm=4,
                             dict_init='rsn70',
@@ -46,4 +47,6 @@ def adhd_20(n_jobs=1):
 
 
 if __name__ == '__main__':
-    adhd_20(n_jobs=15)
+    # adhd_20(n_jobs=15)
+    gather_results('/home/arthur/drago/output/sparse_pca/2015-12-28_15-10-17')
+    display_explained_variance('/home/arthur/drago/output/sparse_pca/2015-12-28_15-10-17')
