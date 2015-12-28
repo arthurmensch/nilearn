@@ -24,7 +24,7 @@ def adhd_20(n_jobs=1):
     # for support in [True, False]]
     # estimators = [ref_estimator] + estimators
     estimators = estimators
-    experiment = Experiment('hcp',
+    experiment = Experiment('adhd',
                             n_subjects=40,
                             smoothing_fwhm=4,
                             dict_init='rsn70',
