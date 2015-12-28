@@ -293,7 +293,7 @@ def display_explained_variance(output_dir):
                  in zip(feature_ratios, linestyle_cycle)}
     cm = itertools.cycle(['b', 'g', 'r', 'y', 'c', 'm'])
     color = {alpha: color for (alpha, color) in zip(alphas, cm)}
-    for index, score in df['score_test'].iteritems():
+    for index, score in df.ix[:, 'score_test'].iteritems():
         score = np.load(score)
         ax.plot(score[:, 0], score[:, 1], linestyle[index[4]],
                 color=color[index[5]])

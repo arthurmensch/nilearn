@@ -25,7 +25,7 @@ def adhd_20(n_jobs=1):
     # estimators = [ref_estimator] + estimators
     estimators = estimators
     experiment = Experiment('hcp',
-                            n_subjects=5,
+                            n_subjects=50,
                             smoothing_fwhm=4,
                             dict_init='rsn70',
                             output_dir=expanduser('~/output/sparse_pca'),
@@ -47,7 +47,7 @@ def adhd_20(n_jobs=1):
 
 
 if __name__ == '__main__':
-    adhd_20(n_jobs=15)
-    # output_dir = '/home/arthur/drago/output/sparse_pca/2015-12-28_23-04-09'
-    # gather_results(output_dir)
-    # display_explained_variance(output_dir)
+    # adhd_20(n_jobs=15)
+    output_dir = '/home/arthur/drago/output/sparse_pca/2015-12-28_23-45-34'
+    gather_results(output_dir)
+    display_explained_variance(output_dir)
