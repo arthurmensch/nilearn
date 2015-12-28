@@ -18,8 +18,8 @@ def adhd_20(n_jobs=1):
                             random_state=0,
                             n_epochs=feature_ratio * 2,
                             feature_ratio=feature_ratio)
-                  for feature_ratio in range(1, 11)
-                  for alpha in [0.001]] # np.logspace(-5, -1, 5)]
+                  for feature_ratio in np.linspace(1, 10, 3)
+                  for alpha in np.logspace(-5, -1, 5)]
     # for support in [True, False]]
     # estimators = [ref_estimator] + estimators
     estimators = estimators
@@ -31,7 +31,7 @@ def adhd_20(n_jobs=1):
                             cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
                             n_slices=1,
-                            n_jobs=10,
+                            n_jobs=15,
                             parallel_exp=True,
                             # n_epochs=5,
                             n_runs=1)
