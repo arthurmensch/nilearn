@@ -31,7 +31,7 @@ def adhd_20(n_jobs=1):
                             cachedir=expanduser('~/nilearn_cache'),
                             data_dir=expanduser('~/data'),
                             n_slices=1,
-                            n_jobs=15,
+                            n_jobs=n_jobs,
                             parallel_exp=True,
                             # n_epochs=5,
                             n_runs=1)
@@ -46,4 +46,4 @@ def adhd_20(n_jobs=1):
 
 
 if __name__ == '__main__':
-    adhd_20(n_jobs=4)
+    adhd_20(n_jobs=15)
