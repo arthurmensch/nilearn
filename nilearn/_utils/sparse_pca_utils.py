@@ -80,7 +80,8 @@ def load_dataset(exp_params, output_dir=None):
     masker.mask_img_.get_data()
     print('Warmup')
     mask_and_reduce(masker, dataset, reduction_method=None,
-                    as_shelved_list=True, memory=cachedir, memory_level=2)
+                    as_shelved_list=True, memory=cachedir, memory_level=2,
+                    n_jobs=n_jobs)
 
     return dataset, masker
 

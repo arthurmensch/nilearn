@@ -12,7 +12,7 @@ from sklearn.base import BaseEstimator
 from sklearn.externals.joblib import Memory, Parallel, delayed
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.utils import check_random_state
-from sklearn.utils.extmath import randomized_svd
+from sklearn.utils.extmath import randomized_svd, randomized_range_finder
 from .._utils.cache_mixin import CacheMixin, cache
 from .._utils.niimg import _safe_get_data
 from ..input_data import NiftiMapsMasker
@@ -113,6 +113,7 @@ def mask_and_reduce(masker, imgs,
             masker,
             img, confound,
             reduction_ratio=reduction_ratio,
+            reduction_method=reduction_method,
             n_samples=n_samples,
             memory=memory,
             memory_level=memory_level,
