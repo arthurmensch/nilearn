@@ -47,7 +47,7 @@ def adhd_20(n_jobs=1):
 
 
 if __name__ == '__main__':
-    # adhd_20(n_jobs=15)
-    output_dir = '/home/arthur/drago/output/sparse_pca/2015-12-28_23-04-09'
-    gather_results(output_dir)
-    display_explained_variance(output_dir)
+    adhd_20(n_jobs=15)
+    # output_dir = '/home/arthur/drago/output/sparse_pca/2015-12-28_23-04-09'
+    # gather_results(output_dir)
+    # display_explained_variance(output_dir)
