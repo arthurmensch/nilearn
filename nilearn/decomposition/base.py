@@ -144,7 +144,7 @@ def mask_and_reduce(masker, imgs,
 def _mask_and_reduce_single(masker,
                             img, confound,
                             reduction_ratio=None,
-                            reduction_method='svd',
+                            reduction_method=None,
                             n_samples=None,
                             memory=None,
                             memory_level=0,
@@ -157,14 +157,14 @@ def _mask_and_reduce_single(masker,
     del img
     random_state = check_random_state(random_state)
 
-    data_n_samples = this_data.shape[0]
+    data_n_samples, data_n_features = this_data.shape
     if reduction_ratio is None:
         assert n_samples is not None
         n_samples = min(n_samples, data_n_samples)
     else:
         n_samples = int(ceil(data_n_samples * reduction_ratio))
     if reduction_method == 'svd':
-        if n_samples <= data_n_samples // 4:
+        if n_samples <= data_n_features // 4:
             U, S, _ = cache(randomized_svd, memory,
                             memory_level=memory_level,
                             func_memory_level=3)(this_data.T,
