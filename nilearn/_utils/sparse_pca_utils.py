@@ -19,7 +19,7 @@ from sklearn.utils import gen_even_slices
 
 from nilearn import datasets
 from nilearn._utils import check_niimg
-from nilearn.decomposition.base import BaseDecomposition
+from nilearn.decomposition.base import BaseDecomposition, mask_and_reduce
 from nilearn.image import index_img
 from nilearn.input_data import MultiNiftiMasker
 from nilearn.plotting import plot_prob_atlas, plot_stat_map
@@ -78,6 +78,9 @@ def load_dataset(exp_params, output_dir=None):
 
     masker = decomposition_estimator.masker_
     masker.mask_img_.get_data()
+    print('Warmup')
+    mask_and_reduce(masker, dataset, reduction_method=None,
+                    as_shelved_list=True)
 
     return dataset, masker
 
