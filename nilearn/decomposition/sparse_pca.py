@@ -251,7 +251,6 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
             else:
                 probe_data_list = probe
         self.time_[1] += time.time() - t0
-        n_record = len(data_list)
         data_list = itertools.chain(*[random_state.permutation(
                 data_list) for _ in range(n_epochs)])
         for record, data in enumerate(data_list):

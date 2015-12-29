@@ -17,7 +17,7 @@ def adhd_20(n_jobs=1):
                             random_state=0,
                             n_epochs=1,
                             feature_ratio=feature_ratio)
-                      for feature_ratio in np.linspace(1, 10, 3)
+                      for feature_ratio in np.linspace(1, 10, 2)
                       for alpha in np.logspace(-5, -1, 5)]
     # for support in [True, False]]
     # estimators = [ref_estimator] + estimators

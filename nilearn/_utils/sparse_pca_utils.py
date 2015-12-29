@@ -123,7 +123,7 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
                                  dict_init=dict_init,
                                  n_components=n_components,
                                  memory_level=2, memory=cachedir,
-                                 verbose=3,
+                                 verbose=10,
                                  random_state=random_state)
             yield estimator
 
