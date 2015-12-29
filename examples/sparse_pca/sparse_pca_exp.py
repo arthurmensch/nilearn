@@ -11,12 +11,9 @@ import numpy as np
 
 def adhd_20(n_jobs=1):
     ref_estimator = SparsePCA(alpha=0.01, batch_size=20,
-                              reduction_method='none',
                               random_state=0,
-                              # support=False,
                               feature_ratio=1)
     estimators = [SparsePCA(alpha=alpha, batch_size=20,
-                            reduction_method='none',
                             random_state=0,
                             n_epochs=1,
                             feature_ratio=feature_ratio)
@@ -25,7 +22,7 @@ def adhd_20(n_jobs=1):
     # for support in [True, False]]
     # estimators = [ref_estimator] + estimators
     estimators = estimators
-    experiment = Experiment('adhd',
+    experiment = Experiment('hcp',
                             n_subjects=40,
                             smoothing_fwhm=4,
                             dict_init='rsn70',
