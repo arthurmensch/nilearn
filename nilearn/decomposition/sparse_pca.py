@@ -240,12 +240,13 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
         n_record = len(data_list)
         data_list = itertools.chain(*[random_state.permutation(
                 data_list) for _ in range(n_epochs)])
-        probe_data_list = mask_and_reduce(self.masker_, probe,
-                                          reduction_method=None,
-                                          as_shelved_list=True,
-                                          memory=self.memory,
-                                          memory_level=max(0,
-                                                           self.memory_level - 1))
+        if probe is not None:
+            probe_data_list = mask_and_reduce(self.masker_, probe,
+                                              reduction_method=None,
+                                              as_shelved_list=True,
+                                              memory=self.memory,
+                                              memory_level=
+                                              max(0, self.memory_level - 1))
         for record, data in enumerate(data_list):
             t0 = time.time()
             data = data.get()
@@ -262,7 +263,7 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
             self.time_[0] += time.time() - t0
             self.components_ = incr_spca.components_
 
-            if self.debug_folder is not None and record % self.n_epochs * 2 == 0:
+            if self.debug_folder is not None and record % self.n_epochs * 4 == 0:
                 if probe is not None:
                     if not hasattr(self, 'score_'):
                         self.score_ = []
