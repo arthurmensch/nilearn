@@ -267,7 +267,7 @@ def display_explained_variance(output_dir):
     color = {alpha: color for (alpha, color) in zip(alphas, cm)}
     for index, score in df.ix[:, 'score_test'].iteritems():
         score = np.load(score)
-        ax.plot(score[:, 0], score[:, 1], linestyle[index[0]],
+        ax.plot(score[:, 0] / index[0], score[:, 1], linestyle[index[0]],
                 color=color[index[1]])
     fig.savefig(join(output_dir, 'results.pdf'))
 
