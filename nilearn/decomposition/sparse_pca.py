@@ -169,7 +169,8 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
             self.masker_.inverse_transform(self._dict_init).to_filename(join(
                     self.debug_folder, 'init.nii.gz'))
 
-    def fit(self, imgs, y=None, confounds=None, probe=None):
+    def fit(self, imgs, y=None, confounds=None, probe=None,
+            from_shelved_list=False):
         """Compute the mask and the ICA maps across subjects
 
         Parameters
@@ -227,26 +228,32 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                                                 verbose=max(0,
                                                             self.verbose - 1))
         t0 = time.time()
-        data_list = mask_and_reduce(self.masker_, imgs, confounds,
-                                    reduction_ratio=self.reduction_ratio,
-                                    n_components=self.n_components,
-                                    reduction_method=self.reduction_method,
-                                    random_state=self.random_state,
-                                    memory=self.memory,
-                                    memory_level=max(0, self.memory_level - 1),
-                                    as_shelved_list=True,
-                                    n_jobs=self.n_jobs)
+        if from_shelved_list is False:
+            data_list = mask_and_reduce(self.masker_, imgs, confounds,
+                                        reduction_ratio=self.reduction_ratio,
+                                        n_components=self.n_components,
+                                        reduction_method=self.reduction_method,
+                                        random_state=self.random_state,
+                                        memory=self.memory,
+                                        memory_level=max(0, self.memory_level - 1),
+                                        as_shelved_list=True,
+                                        n_jobs=self.n_jobs)
+        else:
+            data_list = imgs
+        if probe is not None:
+            if from_shelved_list is False:
+                probe_data_list = mask_and_reduce(self.masker_, probe,
+                                                  reduction_method=None,
+                                                  as_shelved_list=True,
+                                                  memory=self.memory,
+                                                  memory_level=
+                                                  max(0, self.memory_level - 1))
+            else:
+                probe_data_list = probe
         self.time_[1] += time.time() - t0
         n_record = len(data_list)
         data_list = itertools.chain(*[random_state.permutation(
                 data_list) for _ in range(n_epochs)])
-        if probe is not None:
-            probe_data_list = mask_and_reduce(self.masker_, probe,
-                                              reduction_method=None,
-                                              as_shelved_list=True,
-                                              memory=self.memory,
-                                              memory_level=
-                                              max(0, self.memory_level - 1))
         for record, data in enumerate(data_list):
             t0 = time.time()
             data = data.get()
@@ -255,15 +262,16 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
             t0 = time.time()
-            if record == n_record - 1:
-                incr_spca.set_params(feature_ratio=1)
+            # if record == n_record - 1:
+            #     incr_spca.set_params(feature_ratio=1)
             incr_spca.partial_fit(data, deprecated=False)
-            if record == n_record - 1:
-                incr_spca.set_params(feature_ratio=self.feature_ratio)
+            # if record == n_record - 1:
+            #     incr_spca.set_params(feature_ratio=self.feature_ratio)
             self.time_[0] += time.time() - t0
             self.components_ = incr_spca.components_
 
-            if self.debug_folder is not None and record % self.n_epochs * 4 == 0:
+            if self.debug_folder is not None and \
+                    (record + 1) % (self.n_epochs * 4) == 0:
                 if probe is not None:
                     if not hasattr(self, 'score_'):
                         self.score_ = []

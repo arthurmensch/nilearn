@@ -26,6 +26,7 @@ from nilearn.plotting import plot_prob_atlas, plot_stat_map
 from pandas import IndexSlice as idx
 
 import matplotlib.pyplot as plt
+
 # import seaborn as sns
 
 Experiment = collections.namedtuple('Experiment',
@@ -43,7 +44,7 @@ Experiment = collections.namedtuple('Experiment',
                                      'n_runs'])
 
 
-def load_dataset(exp_params, output_dir=None):
+def load_dataset(exp_params, output_dir=None, as_shelved_list=False):
     n_subjects = exp_params.n_subjects
     data_dir = exp_params.data_dir
 
@@ -78,11 +79,11 @@ def load_dataset(exp_params, output_dir=None):
 
     masker = decomposition_estimator.masker_
     masker.mask_img_.get_data()
-    # print('Warmup')
-    # mask_and_reduce(masker, dataset, reduction_method=None,
-    #                 as_shelved_list=True, memory=cachedir, memory_level=2,
-    #                 n_jobs=n_jobs)
-
+    if as_shelved_list:
+        dataset = mask_and_reduce(masker, dataset, reduction_method=None,
+                                  as_shelved_list=True, memory=cachedir,
+                                  memory_level=2,
+                                  n_jobs=n_jobs)
     return dataset, masker
 
 
@@ -113,43 +114,31 @@ def yield_estimators(estimators, exp_params, masker, dict_init, n_components):
     n_jobs = 1 if exp_params.parallel_exp else exp_params.n_jobs
     for random_state in range(n_runs):
         for i, estimator in enumerate(estimators):
-            if i == 0:
-                reference = True
-                rs_offset = 1000
-            else:
-                reference = False
-                rs_offset = 0
             estimator = clone(estimator)
             estimator.set_params(mask=masker,
                                  smoothing_fwhm=smoothing_fwhm,
-                                 # n_epochs=n_epochs,
+                                 reduction_ratio=1,
+                                 reduction_method=None,
                                  n_jobs=n_jobs,
                                  dict_init=dict_init,
                                  n_components=n_components,
                                  memory_level=2, memory=cachedir,
                                  verbose=3,
-                                 random_state=random_state + rs_offset)
-            yield estimator, reference
+                                 random_state=random_state)
+            yield estimator
 
 
 def run_single(index, slice_index, estimator, dataset, output_dir,
                this_slice,
-               reference,
-               data=None):
+               from_shelved_list=False):
     exp_output = join(output_dir, "experiment_%i_%i" % (index, slice_index))
     os.mkdir(exp_output)
     if type(estimator).__name__:
         debug_folder = join(exp_output, 'debug')
         os.mkdir(debug_folder)
     estimator.set_params(debug_folder=debug_folder)
-    single_run_dict = {'reference': reference,
-                       'estimator_type': type(estimator).__name__,
-                       'reduction_method': estimator.reduction_method,
-                       'reduction_ratio':
-                           estimator.reduction_ratio,
-                       'feature_ratio': estimator.feature_ratio,
+    single_run_dict = {'feature_ratio': estimator.feature_ratio,
                        'alpha': estimator.alpha,
-                       # 'support': estimator.support,
                        'random_state': estimator.random_state,
                        'slice': str(this_slice),
                        }
@@ -162,23 +151,18 @@ def run_single(index, slice_index, estimator, dataset, output_dir,
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         estimator.fit(dataset[this_slice][train],
-                      probe=dataset[this_slice][test])
+                      probe=dataset[this_slice][test],
+                      from_shelved_list=from_shelved_list)
     print('[Example] Dumping results')
     components_img = estimator.masker_.inverse_transform(estimator.components_)
     components_filename = join(exp_output, 'components.nii.gz')
     components_img.to_filename(components_filename)
     math_time = estimator.time_[0]
     io_time = estimator.time_[1]
-    single_run_dict = {'reference': reference,
-                       'estimator_type': type(estimator).__name__,
-                       'reduction_method': estimator.reduction_method,
-                       'reduction_ratio':
-                           estimator.reduction_ratio,
-                       'feature_ratio': estimator.feature_ratio,
+    single_run_dict = {'feature_ratio': estimator.feature_ratio,
                        'alpha': estimator.alpha,
                        'random_state': estimator.random_state,
                        'slice': str(this_slice),
-                       # Columns
                        'components': components_filename,
                        'math_time': math_time,
                        'io_time': io_time,
@@ -188,7 +172,7 @@ def run_single(index, slice_index, estimator, dataset, output_dir,
     return single_run_dict
 
 
-def run(estimators, exp_params, temp_folder=None):
+def run(estimators, exp_params):
     output_dir = join(exp_params.output_dir,
                       datetime.datetime.now().strftime('%Y-%m-%d_%H'
                                                        '-%M-%S'))
@@ -196,57 +180,42 @@ def run(estimators, exp_params, temp_folder=None):
     with open(join(output_dir, 'experiment.json'), 'w+') as f:
         json.dump(exp_params.__dict__, f)
 
-    dataset, masker = load_dataset(exp_params, output_dir=output_dir)
+    as_shelved_list = True
 
-    dataset_series = pd.Series(dataset)
-    dataset_series.to_csv(join(output_dir, 'dataset.csv'))
+    dataset, masker = load_dataset(exp_params, output_dir=output_dir,
+                                   as_shelved_list=as_shelved_list)
+
+    if not as_shelved_list:
+        dataset_series = pd.Series(dataset)
+        dataset_series.to_csv(join(output_dir, 'dataset.csv'))
 
     dict_init, n_components = check_init(exp_params)
 
     if dict_init is not None:
         check_niimg(dict_init).to_filename(join(output_dir,
                                                 'dict_init.nii.gz'))
-    res = list(yield_estimators(estimators,
-                                           exp_params,
-                                           masker,
-                                           dict_init,
-                                           n_components))
-    exp_estimators, references = zip(*res)
+    exp_estimators = list(yield_estimators(estimators,
+                                exp_params,
+                                masker,
+                                dict_init,
+                                n_components))
+
     slices = list(gen_even_slices(len(dataset), exp_params.n_slices))
 
-    if temp_folder is not None:
-        estimators_data = pd.read_csv(join(temp_folder, 'data.csv'),
-                                      index_col=0)
-        estimators_data.reset_index(inplace=True)
-        estimators_data.set_index(['reduction_method', 'reduction_ratio'],
-                                  inplace=True)
-        estimators_data = [estimators_data.loc[estimator.reduction_method,
-                                               round(estimator.reduction_ratio,
-                                                     3)]
-                           for estimator, _ in exp_estimators]
-    else:
-        estimators_data = [None] * len(exp_estimators)
     if not exp_params.parallel_exp:
         for slice_index, this_slice in enumerate(slices):
-            for index, (estimator, data, reference) in enumerate(
-                    zip(exp_estimators, estimators_data, references)):
+            for index, (estimator) in enumerate(exp_estimators):
                 run_single(index, slice_index, estimator, dataset, output_dir,
                            this_slice,
-                           reference,
-                           data=data)
+                           from_shelved_list=as_shelved_list)
     else:
         print('n_jobs : %i' % exp_params.n_jobs)
         Parallel(n_jobs=exp_params.n_jobs, verbose=10)(delayed(
-            run_single)(index, slice_index, estimator, dataset, output_dir,
-                        this_slice,
-                        reference,
-                        data=data) for slice_index, this_slice in
-                                                       enumerate(slices)
-                                                       for
-                                                       index, (estimator, data,
-                                                               reference)
-                                                       in enumerate(
-            zip(exp_estimators, estimators_data, references)))
+                run_single)(index, slice_index, estimator, dataset, output_dir,
+                            this_slice,
+                            from_shelved_list=as_shelved_list)
+                            for slice_index, this_slice in enumerate(slices)
+                            for index, estimator in enumerate(exp_estimators))
     return output_dir
 
 
@@ -261,20 +230,12 @@ def gather_results(output_dir):
                 exp_dict['score_test'] = join(dirpath, 'debug/score_test.npy')
                 full_dict_list.append(exp_dict)
 
-    results = pd.DataFrame(full_dict_list, columns=['reference',
-                                                    'estimator_type',
-                                                    'reduction_method',
-                                                    'reduction_ratio',
-                                                    'feature_ratio',
-                                                    'alpha',
+    results = pd.DataFrame(full_dict_list, columns=['alpha',
                                                     'slice',
                                                     'random_state',
                                                     'score_test'])
 
-    results.sort_values(by=['estimator_type',
-                            'reduction_method',
-                            'reduction_ratio',
-                            'feature_ratio',
+    results.sort_values(by=['feature_ratio',
                             'alpha',
                             'slice',
                             'random_state'], inplace=True)
@@ -282,14 +243,15 @@ def gather_results(output_dir):
 
 
 def display_explained_variance(output_dir):
-    df = pd.read_csv(join(output_dir, 'results.csv'), index_col=list(range(1, 8)))
+    df = pd.read_csv(join(output_dir, 'results.csv'),
+                     index_col=list(range(1, 8)))
     fig = plt.figure()
     ax = fig.add_subplot(111)
     feature_ratios = df.index.get_level_values('feature_ratio').unique()
     alphas = df.index.get_level_values('alpha').unique()
     linestyle_cycle = itertools.cycle(["-", "--", "-.", ":"])
     linestyle = {feature_ratio: this_linestyle for (feature_ratio,
-                                                   this_linestyle)
+                                                    this_linestyle)
                  in zip(feature_ratios, linestyle_cycle)}
     cm = itertools.cycle(['b', 'g', 'r', 'y', 'c', 'm'])
     color = {alpha: color for (alpha, color) in zip(alphas, cm)}
@@ -298,6 +260,7 @@ def display_explained_variance(output_dir):
         ax.plot(score[:, 0], score[:, 1], linestyle[index[4]],
                 color=color[index[5]])
     fig.savefig(join(output_dir, 'results.pdf'))
+
 
 def display_single(output_dir):
     import matplotlib.pyplot as plt
@@ -328,7 +291,7 @@ def display_all(output_dir):
 def analyse_single(masker, stack_base, results_dir, num, index,
                    random_state_df, cachedir):
     stack_target = np.concatenate(
-        masker.transform(random_state_df['components']))
+            masker.transform(random_state_df['components']))
     aligned = _align_one_to_one_flat(stack_base, stack_target,
                                      mem=Memory(cachedir=cachedir))
     filename = join(results_dir, 'aligned_%i.nii.gz' % num)
@@ -357,18 +320,18 @@ def analyse(exp_params, output_dir, n_jobs=1):
           ' and computing correlation score')
 
     stack_base = np.concatenate(
-        masker.transform(results.loc[True]['components']))
+            masker.transform(results.loc[True]['components']))
     masker.inverse_transform(stack_base).to_filename(
-        join(results_dir, 'base.nii.gz'))
+            join(results_dir, 'base.nii.gz'))
 
     res = Parallel(n_jobs=n_jobs, verbose=3)(
-        delayed(analyse_single)(masker, stack_base, results_dir, num,
-                                index, random_state_df, cachedir)
-        for num, (index, random_state_df) in enumerate(results.groupby(
-            level=['reference', 'estimator_type', 'reduction_method',
-                   'reduction_ratio',
-                   'feature_ratio',
-                   'alpha'])))
+            delayed(analyse_single)(masker, stack_base, results_dir, num,
+                                    index, random_state_df, cachedir)
+            for num, (index, random_state_df) in enumerate(results.groupby(
+                    level=['reference', 'estimator_type', 'reduction_method',
+                           'reduction_ratio',
+                           'feature_ratio',
+                           'alpha'])))
     for index, score, aligned_filename in res:
         results.loc[index, 'score'] = score
         results.loc[index, 'aligned'] = aligned_filename
@@ -378,23 +341,23 @@ def analyse(exp_params, output_dir, n_jobs=1):
 
     # Selection best scoring alpha for each parameter set
     indices = scores.groupby(
-        level=['reference', 'estimator_type', 'reduction_method',
-               'reduction_ratio',
-               'feature_ratio', ]).apply(
-        lambda x: x['score'].idxmax())
+            level=['reference', 'estimator_type', 'reduction_method',
+                   'reduction_ratio',
+                   'feature_ratio', ]).apply(
+            lambda x: x['score'].idxmax())
 
     scores = scores.loc[indices.values]
     scores.reset_index(level='alpha', drop=False, inplace=True)
     # Mean over random_state
     scores = scores.groupby(
-        level=['reference', 'estimator_type', 'reduction_method',
-               'reduction_ratio',
-               'feature_ratio']).agg(
-        {'math_time': [np.mean, np.std],
-         'io_time': [np.mean, np.std],
-         'alpha': 'last',
-         'aligned': 'last',
-         'score': 'last'})
+            level=['reference', 'estimator_type', 'reduction_method',
+                   'reduction_ratio',
+                   'feature_ratio']).agg(
+            {'math_time': [np.mean, np.std],
+             'io_time': [np.mean, np.std],
+             'alpha': 'last',
+             'aligned': 'last',
+             'score': 'last'})
 
     scores.to_csv(join(results_dir, 'scores.csv'))
 
@@ -424,9 +387,9 @@ def analyse_num_exp(exp_params, output_dir, n_jobs=1, n_run_var=1, limit=1000):
                          index_col=range(4), header=[0, 1])
     scores.reset_index(inplace=True)
     scores.set_index(
-        ['reference', 'estimator_type', 'compression_type',
-         'reduction_ratio',
-         ('alpha', 'last')], inplace=True)
+            ['reference', 'estimator_type', 'compression_type',
+             'reduction_ratio',
+             ('alpha', 'last')], inplace=True)
     scores.index = scores.index.set_names('alpha', level=4)
     scores.sortlevel(inplace=True)
 
@@ -446,28 +409,28 @@ def analyse_num_exp(exp_params, output_dir, n_jobs=1, n_run_var=1, limit=1000):
 
     for this_slice in slices:
         base_list = masker.transform(
-            results.loc[True]['components'][this_slice])
+                results.loc[True]['components'][this_slice])
 
         this_stability = pd.DataFrame(columns=np.arange(len(base_list)),
                                       index=results_score.index)
         res = Parallel(n_jobs=n_jobs, verbose=3)(
-            delayed(align_num_exp_single)(masker, base_list, this_slice,
-                                          i, index, random_state_df,
-                                          cachedir=exp_params.cachedir)
-            for index, random_state_df in
-            results_score.groupby(level=['reference',
-                                         'estimator_type',
-                                         'compression_type',
-                                         'reduction_ratio'])
-            for i in range(0, total_n_exp))
+                delayed(align_num_exp_single)(masker, base_list, this_slice,
+                                              i, index, random_state_df,
+                                              cachedir=exp_params.cachedir)
+                for index, random_state_df in
+                results_score.groupby(level=['reference',
+                                             'estimator_type',
+                                             'compression_type',
+                                             'reduction_ratio'])
+                for i in range(0, total_n_exp))
         for index, n_exp, score in res:
             this_stability.loc[index, n_exp] = score
 
         this_stability = this_stability.groupby(
-            level=['reference',
-                   'estimator_type',
-                   'compression_type',
-                   'reduction_ratio']).last()
+                level=['reference',
+                       'estimator_type',
+                       'compression_type',
+                       'reduction_ratio']).last()
         score_num_exp.append(this_stability)
 
     score_num_exp = pd.concat(score_num_exp, keys=np.arange(3),
@@ -480,7 +443,7 @@ def analyse_num_exp(exp_params, output_dir, n_jobs=1, n_run_var=1, limit=1000):
                                                  'estimator_type',
                                                  'compression_type',
                                                  'reduction_ratio']).agg(
-        [np.mean, np.std])
+            [np.mean, np.std])
     score_num_exp.to_csv(join(results_dir, 'scores_num_exp.csv'))
     scores.reset_index(level='alpha', inplace=True)
     scores_extended = pd.concat([scores, score_num_exp], axis=1)
@@ -504,15 +467,15 @@ def analyse_median_maps(output_dir):
 
     base_components = scores_extended.loc[True]['aligned', 'last'][0]
     target_components = scores_extended.loc[idx[False, :, :, [1, 2]],
-                                            ( 'aligned', 'last')]
+                                            ('aligned', 'last')]
 
     aligned_target_components = align_many_to_one_nii(masker, base_components,
                                                       target_components)
 
     median_series = pd.Series("", index=target_components.index)
     corr = np.diagonal(
-        spatial_correlation(masker, base_components,
-                            aligned_target_components[-1]))
+            spatial_correlation(masker, base_components,
+                                aligned_target_components[-1]))
     len_non_zero = np.sum(corr != 0.)
     print(len_non_zero)
     i = np.argsort(corr)[::-1][len_non_zero / 2 + 1]
@@ -539,7 +502,8 @@ def plot_median(output_dir):
     median_series = pd.read_csv(join(median_dir, 'median.csv'),
                                 index_col=list(range(5)),
                                 header=None)
-    fig, axes = plt.subplots(2, 4, figsize=(3.38676401384, 1.6), gridspec_kw=dict(hspace=0.3))
+    fig, axes = plt.subplots(2, 4, figsize=(3.38676401384, 1.6),
+                             gridspec_kw=dict(hspace=0.3))
     axes = axes.reshape(-1)
     for i, (index, img) in enumerate(median_series.iterrows()):
         plot_stat_map(img.values[0], display_mode='x',
@@ -552,7 +516,7 @@ def plot_median(output_dir):
                       figure=fig,
                       axes=axes[3 + 2 * i], colorbar=False,
                       annotate=False)
-        if index[4]== 1:
+        if index[4] == 1:
             label = 'Second run'
         else:
             label = 'Red. ratio: %i' % index[4]
@@ -577,7 +541,7 @@ def plot_median(output_dir):
                      textcoords='offset points',
                      va='center', ha="center", rotation='vertical')
     axes[0].annotate('Sparse PCA', xy=(0., 0.6), xytext=(-10,
-                                                                       0.),
+                                                         0.),
                      xycoords="axes fraction",
                      textcoords='offset points',
                      va='center', ha="center", rotation='vertical')
