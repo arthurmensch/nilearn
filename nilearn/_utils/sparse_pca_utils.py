@@ -230,7 +230,8 @@ def gather_results(output_dir):
                 exp_dict['score_test'] = join(dirpath, 'debug/score_test.npy')
                 full_dict_list.append(exp_dict)
 
-    results = pd.DataFrame(full_dict_list, columns=['alpha',
+    results = pd.DataFrame(full_dict_list, columns=['feature_ratio',
+                                                    'alpha',
                                                     'slice',
                                                     'random_state',
                                                     'score_test'])
@@ -244,7 +245,7 @@ def gather_results(output_dir):
 
 def display_explained_variance(output_dir):
     df = pd.read_csv(join(output_dir, 'results.csv'),
-                     index_col=list(range(1, 8)))
+                     index_col=list(range(1, 5)))
     fig = plt.figure()
     ax = fig.add_subplot(111)
     feature_ratios = df.index.get_level_values('feature_ratio').unique()
@@ -257,8 +258,8 @@ def display_explained_variance(output_dir):
     color = {alpha: color for (alpha, color) in zip(alphas, cm)}
     for index, score in df.ix[:, 'score_test'].iteritems():
         score = np.load(score)
-        ax.plot(score[:, 0], score[:, 1], linestyle[index[4]],
-                color=color[index[5]])
+        ax.plot(score[:, 0], score[:, 1], linestyle[index[0]],
+                color=color[index[1]])
     fig.savefig(join(output_dir, 'results.pdf'))
 
 
