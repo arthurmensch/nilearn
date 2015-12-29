@@ -47,6 +47,6 @@ def adhd_20(n_jobs=1):
 if __name__ == '__main__':
     warnings.filterwarnings('ignore', category=DeprecationWarning)
     adhd_20(n_jobs=15)
-    output_dir = '/home/arthur/drago/output/sparse_pca/2015-12-29_14-05-13'
-    gather_results(output_dir)
-    display_explained_variance(output_dir)
+    # output_dir = '/home/arthur/drago/output/sparse_pca/2015-12-29_14-05-13'
+    # gather_results(output_dir)
+    # display_explained_variance(output_dir)
