@@ -56,6 +56,11 @@ def load_dataset(exp_params, output_dir=None, as_shelved_list=False):
         dataset = datasets_sandbox.fetch_hcp_rest(n_subjects=n_subjects,
                                                   data_dir=data_dir).func
         mask = join(exp_params.data_dir, 'HCP_mask', 'mask_img.nii.gz')
+    elif exp_params.dataset_name == 'hcp_reduced':
+        dataset = datasets_sandbox.fetch_hcp_reduced(n_subjects=
+                                                     n_subjects,
+                                                     data_dir=data_dir).func
+        mask = join(exp_params.data_dir, 'HCP_mask', 'mask_img.nii.gz')
     elif exp_params.dataset_name == 'adni':
         dataset = datasets_sandbox.fetch_adni_longitudinal_rs_fmri_DARTEL().func
         dataset = dataset[:exp_params.n_subjects]
@@ -195,10 +200,10 @@ def run(estimators, exp_params):
         check_niimg(dict_init).to_filename(join(output_dir,
                                                 'dict_init.nii.gz'))
     exp_estimators = list(yield_estimators(estimators,
-                                exp_params,
-                                masker,
-                                dict_init,
-                                n_components))
+                                           exp_params,
+                                           masker,
+                                           dict_init,
+                                           n_components))
 
     slices = list(gen_even_slices(len(dataset), exp_params.n_slices))
 
@@ -214,8 +219,12 @@ def run(estimators, exp_params):
                 run_single)(index, slice_index, estimator, dataset, output_dir,
                             this_slice,
                             from_shelved_list=as_shelved_list)
-                            for slice_index, this_slice in enumerate(slices)
-                            for index, estimator in enumerate(exp_estimators))
+                                                       for
+                                                       slice_index, this_slice
+                                                       in enumerate(slices)
+                                                       for index, estimator in
+                                                       enumerate(
+                                                           exp_estimators))
     return output_dir
 
 

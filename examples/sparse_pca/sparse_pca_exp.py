@@ -22,8 +22,8 @@ def adhd_20(n_jobs=1):
     # for support in [True, False]]
     # estimators = [ref_estimator] + estimators
     estimators = estimators
-    experiment = Experiment('hcp',
-                            n_subjects=10,
+    experiment = Experiment('hcp_reduced',
+                            n_subjects=77,
                             smoothing_fwhm=4,
                             dict_init='rsn70',
                             output_dir=expanduser('~/output/sparse_pca'),
