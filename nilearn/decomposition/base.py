@@ -109,16 +109,16 @@ def mask_and_reduce(masker, imgs,
     else:
         func = _mask_and_reduce_single
     data_list = Parallel(n_jobs=n_jobs, verbose=True)(
-        delayed(func)(
-            masker,
-            img, confound,
-            reduction_ratio=reduction_ratio,
-            reduction_method=reduction_method,
-            n_samples=n_samples,
-            memory=memory,
-            memory_level=memory_level,
-            random_state=random_state
-        ) for img, confound in zip(imgs, confounds))
+            delayed(func)(
+                    masker,
+                    img, confound,
+                    reduction_ratio=reduction_ratio,
+                    reduction_method=reduction_method,
+                    n_samples=n_samples,
+                    memory=memory,
+                    memory_level=memory_level,
+                    random_state=random_state
+            ) for img, confound in zip(imgs, confounds))
 
     if as_shelved_list:
         return data_list
@@ -188,9 +188,9 @@ def _mask_and_reduce_single(masker,
                                        random_state=random_state)
         U = Q.T.dot(this_data)
     elif reduction_method == 'ss':
-            indices = np.floor(np.linspace(0, this_data.shape[0] - 1,
-                                           n_samples)).astype('int')
-            U = this_data[indices]
+        indices = np.floor(np.linspace(0, this_data.shape[0] - 1,
+                                       n_samples)).astype('int')
+        U = this_data[indices]
     else:
         U = this_data
 
@@ -381,8 +381,8 @@ class BaseDecomposition(BaseEstimator, CacheMixin):
         self._check_components_()
         components_img_ = self.masker_.inverse_transform(self.components_)
         nifti_maps_masker = NiftiMapsMasker(
-            components_img_, self.masker_.mask_img_,
-            resampling_target='maps')
+                components_img_, self.masker_.mask_img_,
+                resampling_target='maps')
         nifti_maps_masker.fit()
         # XXX: dealing properly with 4D/ list of 4D data?
         if confounds is None:
@@ -412,8 +412,8 @@ class BaseDecomposition(BaseEstimator, CacheMixin):
         self._check_components_()
         components_img_ = self.masker_.inverse_transform(self.components_)
         nifti_maps_masker = NiftiMapsMasker(
-            components_img_, self.masker_.mask_img_,
-            resampling_target='maps')
+                components_img_, self.masker_.mask_img_,
+                resampling_target='maps')
         nifti_maps_masker.fit()
         # XXX: dealing properly with 2D/ list of 2D data?
         return [nifti_maps_masker.inverse_transform(loading)
@@ -429,9 +429,9 @@ class BaseDecomposition(BaseEstimator, CacheMixin):
     def _raw_score(self, data, per_component=True):
         """Return explained variance over data of estimator components_"""
         return explained_variance(data, self.components_,
-                                               per_component=per_component)
+                                  per_component=per_component)
 
-    def score(self, imgs, confounds=None):
+    def score(self, imgs, confounds=None, from_shelved_list=False):
         """Score function based on explained variance on imgs.
 
         Should only be used by DecompositionEstimator derived classes
@@ -453,9 +453,19 @@ class BaseDecomposition(BaseEstimator, CacheMixin):
             if per_component is True. First dimension
             is squeezed if the number of subjects is one
         """
-        data = mask_and_reduce(self.masker_, imgs, confounds,
-                               reduction_ratio=1.)
-        return self._raw_score(data, per_component=False)
+        if not from_shelved_list:
+            data_list = mask_and_reduce(self.masker_, imgs, confounds,
+                                        reduction_method=None,
+                                        as_shelved_list=True,
+                                        memory=self.memory,
+                                        memory_level=self.memory_level)
+        else:
+            data_list = imgs
+        score = []
+        for data in data_list:
+            data = data.get()
+            score.append(self._raw_score(data, per_component=False))
+        return np.array(score).mean()
 
 
 def explained_variance(X, components, per_component=True):

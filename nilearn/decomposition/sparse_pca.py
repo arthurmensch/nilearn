@@ -167,7 +167,7 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
         self._dict_init /= S[:, np.newaxis]
         if self.debug_folder is not None:
             self.masker_.inverse_transform(self._dict_init).to_filename(join(
-                self.debug_folder, 'init.nii.gz'))
+                    self.debug_folder, 'init.nii.gz'))
 
     def fit(self, imgs, y=None, confounds=None, probe=None):
         """Compute the mask and the ICA maps across subjects
@@ -239,8 +239,13 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
         self.time_[1] += time.time() - t0
         n_record = len(data_list)
         data_list = itertools.chain(*[random_state.permutation(
-            data_list) for _ in range(n_epochs)])
-
+                data_list) for _ in range(n_epochs)])
+        probe_data_list = mask_and_reduce(self.masker_, probe,
+                                          reduction_method=None,
+                                          as_shelved_list=True,
+                                          memory=self.memory,
+                                          memory_level=max(0,
+                                                           self.memory_level - 1))
         for record, data in enumerate(data_list):
             t0 = time.time()
             data = data.get()
@@ -261,7 +266,7 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                 if probe is not None:
                     if not hasattr(self, 'score_'):
                         self.score_ = []
-                    score = self.score(probe)
+                    score = self.score(probe_data_list, from_shelved_list=True)
                     self.score_.append([record, score])
                     np.save(join(self.debug_folder, 'score_test'), self.score_)
 
@@ -270,7 +275,7 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                     if np.sum(component > 0) < np.sum(component < 0):
                         component *= -1
                 components_img = self.masker_.inverse_transform(
-                    components_temp)
+                        components_temp)
                 components_img.to_filename(join(self.debug_folder,
                                                 'intermediary',
                                                 'at_%i.nii.gz' % record))

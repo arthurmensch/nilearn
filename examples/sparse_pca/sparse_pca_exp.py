@@ -25,7 +25,7 @@ def adhd_20(n_jobs=1):
     # for support in [True, False]]
     # estimators = [ref_estimator] + estimators
     estimators = estimators
-    experiment = Experiment('hcp',
+    experiment = Experiment('adhd',
                             n_subjects=10,
                             smoothing_fwhm=4,
                             dict_init='rsn70',
@@ -49,7 +49,7 @@ def adhd_20(n_jobs=1):
 
 if __name__ == '__main__':
     warnings.filterwarnings('ignore', category=DeprecationWarning)
-    adhd_20(n_jobs=15)
-    # output_dir = '/home/arthur/drago/output/sparse_pca/2015-12-28_23-45-34'
-    # gather_results(output_dir)
-    # display_explained_variance(output_dir)
+    # adhd_20(n_jobs=3)
+    output_dir = '/home/arthur/drago/output/sparse_pca/2015-12-29_09-19-26'
+    gather_results(output_dir)
+    display_explained_variance(output_dir)
