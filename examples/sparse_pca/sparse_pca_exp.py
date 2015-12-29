@@ -1,3 +1,4 @@
+import warnings
 from os.path import expanduser
 
 from nilearn._utils.sparse_pca_utils import Experiment, gather_results, \
@@ -47,6 +48,7 @@ def adhd_20(n_jobs=1):
 
 
 if __name__ == '__main__':
+    warnings.filterwarnings('ignore', category=DeprecationWarning)
     adhd_20(n_jobs=15)
     # output_dir = '/home/arthur/drago/output/sparse_pca/2015-12-28_23-45-34'
     # gather_results(output_dir)
