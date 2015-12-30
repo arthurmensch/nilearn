@@ -590,7 +590,7 @@ def convert_nii_to_pdf(output_dir, n_jobs=1):
                 arr = niimg.load_data()
                 density.append(np.sum(arr != 0) / arr.size)
                 list_nii.append(niimg)
-    np.save(np.array(density), join(output_dir, 'densities'))
+    np.save(join(output_dir, 'densities'), np.array(density))
     list_pdf = []
     for this_nii in list_nii:
         this_pdf = this_nii.filename[:-7] + ".pdf"
