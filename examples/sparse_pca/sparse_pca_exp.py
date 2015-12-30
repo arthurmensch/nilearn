@@ -2,7 +2,7 @@ import warnings
 from os.path import expanduser
 
 from nilearn._utils.sparse_pca_utils import Experiment, gather_results, \
-    display_explained_variance
+    display_explained_variance, convert_nii_to_pdf
 from nilearn._utils.sparse_pca_utils import run
 from nilearn.decomposition import SparsePCA
 
@@ -48,5 +48,6 @@ if __name__ == '__main__':
     warnings.filterwarnings('ignore', category=DeprecationWarning)
     # adhd_20(n_jobs=15)
     output_dir = '/home/arthur/drago/output/sparse_pca/2015-12-29_18-14-44'
-    gather_results(output_dir)
-    display_explained_variance(output_dir)
+    # gather_results(output_dir)
+    # display_explained_variance(output_dir)
+    convert_nii_to_pdf(output_dir)

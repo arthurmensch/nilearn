@@ -575,3 +575,27 @@ def plot_median(output_dir):
     plt.savefig(join(figures_dir, 'median.pgf'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'median.svg'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'median.pdf'), bbox_inches="tight")
+
+
+def convert_nii_to_pdf(output_dir, n_jobs=1):
+    from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
+    list_nii = []
+    density = []
+    for dirpath, dirname, filenames in os.walk(output_dir):
+        for filename in fnmatch.filter(filenames, 'components.nii.gz'):
+            print(dirpath)
+            print(filename)
+            niimg = check_niimg(os.path.join(dirpath, filename))
+            if len(niimg.shape) == 4:
+                arr = niimg.load_data()
+                density.append(np.sum(arr != 0) / len(arr.ravel()))
+                list_nii.append(niimg)
+    np.save(np.array(density), join(output_dir, 'densities'))
+    list_pdf = []
+    for this_nii in list_nii:
+        this_pdf = this_nii.filename[:-7] + ".pdf"
+        list_pdf.append(this_pdf)
+    print(list_nii)
+    print(list_pdf)
+    Parallel(n_jobs=n_jobs)(delayed(plot_to_pdf)(this_nii, this_pdf)
+                            for this_nii, this_pdf in zip(list_nii, list_pdf))
