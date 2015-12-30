@@ -47,7 +47,7 @@ def adhd_20(n_jobs=1):
 if __name__ == '__main__':
     warnings.filterwarnings('ignore', category=DeprecationWarning)
     # adhd_20(n_jobs=15)
-    output_dir = '/home/arthur/drago/output/sparse_pca/2015-12-29_18-14-44'
+    output_dir = expanduser('~/output/sparse_pca/2015-12-29_18-14-44')
     # gather_results(o  utput_dir)
     # display_explained_variance(output_dir)
     convert_nii_to_pdf(output_dir, n_jobs=15)
