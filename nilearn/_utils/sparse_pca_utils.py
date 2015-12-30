@@ -593,7 +593,7 @@ def convert_nii_to_pdf(output_dir, n_jobs=1):
     np.save(join(output_dir, 'densities'), np.array(density))
     list_pdf = []
     for this_nii in list_nii:
-        this_pdf = this_nii.filename[:-7] + ".pdf"
+        this_pdf = this_nii.get_filename()[:-7] + ".pdf"
         list_pdf.append(this_pdf)
     print(list_nii)
     print(list_pdf)
