@@ -587,7 +587,7 @@ def convert_nii_to_pdf(output_dir, n_jobs=1):
             print(filename)
             niimg = check_niimg(os.path.join(dirpath, filename))
             if len(niimg.shape) == 4:
-                arr = niimg.load_data()
+                arr = niimg.get_data()
                 density.append(np.sum(arr != 0) / arr.size)
                 list_nii.append(niimg)
     np.save(join(output_dir, 'densities'), np.array(density))
