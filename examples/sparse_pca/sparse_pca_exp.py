@@ -17,12 +17,12 @@ def adhd_20(n_jobs=1):
                             random_state=0,
                             n_epochs=2 * feature_ratio,
                             feature_ratio=feature_ratio)
-                      for feature_ratio in np.linspace(1, 7, 7)
-                      for alpha in np.logspace(-5, -1, 5)]
+                      for feature_ratio in np.linspace(1, 10, 5)
+                      for alpha in np.logspace(-4, -2, 2)]
     # for support in [True, False]]
     # estimators = [ref_estimator] + estimators
     estimators = estimators
-    experiment = Experiment('adhd',
+    experiment = Experiment('hcp',
                             n_subjects=40,
                             smoothing_fwhm=4,
                             dict_init='rsn70',
@@ -46,8 +46,8 @@ def adhd_20(n_jobs=1):
 
 if __name__ == '__main__':
     warnings.filterwarnings('ignore', category=DeprecationWarning)
-    # adhd_20(n_jobs=15)
-    output_dir = expanduser('~/output/sparse_pca/2015-12-29_18-14-44')
-    # gather_results(o  utput_dir)
+    adhd_20(n_jobs=15)
+    # output_dir = expanduser('~/drago/output/sparse_pca/2015-12-29_18-14-44')
+    # gather_results(output_dir)
     # display_explained_variance(output_dir)
-    convert_nii_to_pdf(output_dir, n_jobs=15)
+    # convert_nii_to_pdf(output_dir, n_jobs=15)

@@ -9,6 +9,7 @@ from os.path import join, exists
 import itertools
 import numpy as np
 import pandas as pd
+from matplotlib import gridspec
 from sklearn.externals.joblib import Parallel, delayed, Memory
 from nilearn_sandbox import datasets as datasets_sandbox
 from nilearn_sandbox._utils.map_alignment import _align_one_to_one_flat, \
@@ -26,7 +27,7 @@ from nilearn.plotting import plot_prob_atlas, plot_stat_map
 from pandas import IndexSlice as idx
 
 import matplotlib.pyplot as plt
-
+import matplotlib.legend as mlegend
 # import seaborn as sns
 
 Experiment = collections.namedtuple('Experiment',
@@ -256,10 +257,13 @@ def display_explained_variance(output_dir):
     df = pd.read_csv(join(output_dir, 'results.csv'),
                      index_col=list(range(1, 5)))
     fig = plt.figure()
+    # gs = gridspec.GridSpec(1, 2, width_ratios=[5, 2])
     ax = fig.add_subplot(111)
+    fig.subplots_adjust(right=0.65)
+    # ax_legend = fig.add_subplot(111)
     feature_ratios = df.index.get_level_values('feature_ratio').unique()
     alphas = df.index.get_level_values('alpha').unique()
-    linestyle_cycle = itertools.cycle(["-", "--", "-.", ":"])
+    linestyle_cycle = itertools.cycle([":", "--", "-", ":"])
     linestyle = {feature_ratio: this_linestyle for (feature_ratio,
                                                     this_linestyle)
                  in zip(feature_ratios, linestyle_cycle)}
@@ -267,9 +271,24 @@ def display_explained_variance(output_dir):
     color = {alpha: color for (alpha, color) in zip(alphas, cm)}
     for index, score in df.ix[:, 'score_test'].iteritems():
         score = np.load(score)
-        ax.plot(score[:, 0] / index[0], score[:, 1], linestyle[index[0]],
-                color=color[index[1]])
-    fig.savefig(join(output_dir, 'results.pdf'))
+        ax.plot(score[:, 1], score[:, 0] / index[0] / 67,
+                    linestyle[index[0]],
+                marker='+', markevery=5, markersize=3,
+                color=color[index[1]], label='Red. ratio : %.1f' % index[0])
+        ax.set_ylabel('Epoch')
+        ax.set_xlabel('Explained variance on test set')
+        ax.set_title('Reduced HCP dataset')
+    h, l = ax.get_legend_handles_labels()
+    ax.grid(axis='x')
+    legend_ratio = mlegend.Legend(ax, h[::5], l[::5], loc='lower left',
+                                  bbox_to_anchor=(1, 0))
+    alpha_list = ['alpha = %.0e' % alpha for alpha in alphas]
+    legend_alpha = mlegend.Legend(ax, h[:5], alpha_list, loc='upper left',
+                                  bbox_to_anchor=(1, 1))
+    ax.add_artist(legend_ratio)
+    ax.add_artist(legend_alpha)
+    fig.savefig(join(output_dir, 'results.pdf'),
+                bbox_extra_artists=(legend_alpha, legend_ratio))
 
 
 def display_single(output_dir):
