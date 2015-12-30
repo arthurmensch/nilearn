@@ -17,8 +17,8 @@ def adhd_20(n_jobs=1):
                             random_state=0,
                             n_epochs=2 * feature_ratio,
                             feature_ratio=feature_ratio)
-                      for feature_ratio in np.linspace(1, 10, 5)
-                      for alpha in np.logspace(-4, -2, 2)]
+                      for feature_ratio in np.linspace(1, 10, 3)
+                      for alpha in np.logspace(-4, -4, 1)]
     # for support in [True, False]]
     # estimators = [ref_estimator] + estimators
     estimators = estimators
@@ -46,7 +46,7 @@ def adhd_20(n_jobs=1):
 
 if __name__ == '__main__':
     warnings.filterwarnings('ignore', category=DeprecationWarning)
-    adhd_20(n_jobs=15)
+    adhd_20(n_jobs=3)
     # output_dir = expanduser('~/drago/output/sparse_pca/2015-12-29_18-14-44')
     # gather_results(output_dir)
     # display_explained_variance(output_dir)
