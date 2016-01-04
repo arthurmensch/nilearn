@@ -19,8 +19,6 @@ def adhd_20(n_jobs=1):
                             feature_ratio=feature_ratio)
                   for feature_ratio in np.linspace(1, 10, 3)
                   for alpha in np.logspace(-4, -1, 4)]
-    # for support in [True, False]]
-    # estimators = [ref_estimator] + estimators
     estimators = estimators
     experiment = Experiment('hcp',
                             n_subjects=40,
