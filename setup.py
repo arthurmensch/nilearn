@@ -91,4 +91,4 @@ if __name__ == "__main__":
                         'nilearn.image.tests.data': ['*.mgz'],
                         'nilearn.datasets.tests.data': ['*.*'],
                         'nilearn.datasets.description': ['*.rst']},
-          install_requires=install_requires,)
+          install_requires=install_requires, requires=['clusterlib'])

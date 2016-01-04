@@ -14,6 +14,7 @@ import numpy as np
 from sklearn.base import TransformerMixin
 from sklearn.decomposition.dict_learning import MiniBatchDictionaryLearning
 from sklearn.externals.joblib import Memory
+from sklearn.linear_model import Ridge
 from sklearn.utils import check_random_state
 from .base import BaseDecomposition, mask_and_reduce
 from .canica import CanICA
@@ -102,7 +103,6 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
     def __init__(self, n_components=20,
                  n_epochs=1, dict_init=None,
                  alpha=0.,
-                 update_scheme='mean',
                  reduction_method=None,
                  reduction_ratio=1.,
                  forget_rate=1,
@@ -135,8 +135,6 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                                    )
 
         self.alpha = alpha
-        self.update_scheme = update_scheme
-        self.forget_rate = forget_rate
         self.n_epochs = n_epochs
         self.dict_init = dict_init
         self.batch_size = batch_size
@@ -151,7 +149,8 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
         else:
             canica = CanICA(n_components=self.n_components,
                             # CanICA specific parameters
-                            do_cca=True, threshold=float(self.n_components),
+                            do_cca=True,
+                            threshold=float(self.n_components),
                             n_init=1,
                             mask=self.masker_,
                             random_state=self.random_state,
@@ -289,11 +288,17 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                                                 'at_%i.nii.gz' % record))
                 np.save(join(self.debug_folder, 'residuals'),
                         np.array(incr_spca.debug_info_['residuals']))
+                np.save(join(self.debug_folder, 'residuals'),
+                        np.array(incr_spca.debug_info_['values']))
+                np.save(join(self.debug_folder, 'values'),
+                        np.array(incr_spca.debug_info_['values']))
             iter_offset += n_iter
 
-        S = np.sqrt(np.sum(self.components_ ** 2, axis=1))
-        S[S == 0] = 1
-        self.components_ /= S[:, np.newaxis]
+        # Post processing normalization
+        # S = np.sqrt(np.sum(self.components_ ** 2, axis=1))
+        # S[S == 0] = 1
+        # self.components_ /= S[:, np.newaxis]
+
         # flip signs in each composant positive part is l1 larger
         #  than negative part
         for component in self.components_:
@@ -307,3 +312,36 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
             np.save(join(self.debug_folder, 'score'), score)
 
         return self
+
+    def _raw_score(self, data, per_component=False):
+        if per_component is True:
+            raise NotImplementedError
+        return objective_function(data, self.components_,
+                                  alpha=self.alpha)
+
+
+def objective_function(X, components, alpha=0.):
+    """Score function based on explained variance
+
+        Parameters
+        ----------
+        X: ndarray,
+            Holds single subject data to be tested against components
+
+        components: boolean,
+            Specify whether the explained variance ratio is desired for each
+            map or for the global set of components_
+
+        alpha: regularization
+
+        Returns
+        -------
+        score: ndarray,
+            Holds the score for each subjects. score is two dimensional if
+            per_component = True
+        """
+
+    lr = Ridge(fit_intercept=False, alpha=alpha)
+    lr.fit(components.T, X.T)
+    residuals = X - lr.coef_.dot(components)
+    return np.sum(residuals ** 2) + alpha * np.sum(lr.coef_ ** 2)

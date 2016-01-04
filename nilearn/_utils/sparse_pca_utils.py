@@ -28,6 +28,7 @@ from pandas import IndexSlice as idx
 
 import matplotlib.pyplot as plt
 import matplotlib.legend as mlegend
+
 # import seaborn as sns
 
 Experiment = collections.namedtuple('Experiment',
@@ -184,7 +185,7 @@ def run(estimators, exp_params):
                                                        '-%M-%S'))
     os.makedirs(output_dir)
     with open(join(output_dir, 'experiment.json'), 'w+') as f:
-        json.dump(exp_params.__dict__, f)
+        json.dump(exp_params, f)
 
     as_shelved_list = True
 
@@ -225,7 +226,7 @@ def run(estimators, exp_params):
                                                        in enumerate(slices)
                                                        for index, estimator in
                                                        enumerate(
-                                                           exp_estimators))
+                                                               exp_estimators))
     return output_dir
 
 
@@ -237,14 +238,24 @@ def gather_results(output_dir):
                 exp_dict = json.load(f)
                 # if exp_dict['reduction_method'] is None:
                 #     exp_dict['reduction_method'] = 'none'
-                exp_dict['score_test'] = join(dirpath, 'debug/score_test.npy')
+                exp_dict['score_test_file'] = join(dirpath,
+                                                   'debug/score_test_file.npy')
+                exp_dict['score_test'] = np.load(
+                        exp_dict['score_test_file'])[-1]
+                exp_dict['density_file'] = join(dirpath, 'debug',
+                                                'density.npy')
+                exp_dict['density'] = np.load(exp_dict['density_file'])[-1]
+
                 full_dict_list.append(exp_dict)
 
     results = pd.DataFrame(full_dict_list, columns=['feature_ratio',
                                                     'alpha',
                                                     'slice',
                                                     'random_state',
-                                                    'score_test'])
+                                                    'score',
+                                                    'density',
+                                                    'score_test_file',
+                                                    'density_file'])
 
     results.sort_values(by=['feature_ratio',
                             'alpha',
@@ -269,7 +280,7 @@ def display_explained_variance(output_dir):
                  in zip(feature_ratios, linestyle_cycle)}
     cm = itertools.cycle(['b', 'g', 'r', 'y', 'c', 'm'])
     color = {alpha: color for (alpha, color) in zip(alphas, cm)}
-    for index, score in df.ix[:, 'score_test'].iteritems():
+    for index, score in df.ix[:, 'score_test_file'].iteritems():
         score = np.load(score)
         ax.plot(score[:, 0] / 67,
 

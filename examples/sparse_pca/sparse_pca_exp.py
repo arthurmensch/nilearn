@@ -15,12 +15,12 @@ def adhd_20(n_jobs=1):
                               feature_ratio=1)
     estimators = [SparsePCA(alpha=alpha, batch_size=20,
                             random_state=0,
-                            n_epochs=feature_ratio,
+                            n_epochs=int(2 * feature_ratio),
                             feature_ratio=feature_ratio)
                   for feature_ratio in np.linspace(1, 10, 3)
                   for alpha in np.logspace(-4, -1, 4)]
     estimators = estimators
-    experiment = Experiment('hcp',
+    experiment = Experiment('adhd',
                             n_subjects=40,
                             smoothing_fwhm=4,
                             dict_init='rsn70',
@@ -38,8 +38,4 @@ def adhd_20(n_jobs=1):
 
 if __name__ == '__main__':
     warnings.filterwarnings('ignore', category=DeprecationWarning)
-    adhd_20(n_jobs=15)
-    # output_dir = expanduser('~/drago/output/sparse_pca/2015-12-29_18-14-44')
-    # gather_results(output_dir)
-    # display_explained_variance(output_dir)
-    # convert_nii_to_pdf(output_dir, n_jobs=15)
+    adhd_20(n_jobs=12)
