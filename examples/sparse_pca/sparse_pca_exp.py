@@ -33,12 +33,8 @@ def adhd_20(n_jobs=1):
                             n_jobs=n_jobs,
                             parallel_exp=True,
                             n_runs=1)
-    output_dir = expanduser('~/output/sparse_pca/2015-12-29_14-05-13')
+    output_dir = run(estimators, experiment)
     gather_results(output_dir=output_dir)
-    # analyse(experiment, output_dir, n_jobs=32)
-    # analyse_median_maps(output_dir)
-    # plot_median(output_dir)
-    # display_all(output_dir)
     return output_dir
 
 
