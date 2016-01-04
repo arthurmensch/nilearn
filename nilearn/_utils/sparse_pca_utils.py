@@ -259,7 +259,7 @@ def display_explained_variance(output_dir):
     fig = plt.figure()
     # gs = gridspec.GridSpec(1, 2, width_ratios=[5, 2])
     ax = fig.add_subplot(111)
-    fig.subplots_adjust(right=0.65)
+    fig.subplots_adjust(right=0.7)
     # ax_legend = fig.add_subplot(111)
     feature_ratios = df.index.get_level_values('feature_ratio').unique()
     alphas = df.index.get_level_values('alpha').unique()
@@ -271,12 +271,14 @@ def display_explained_variance(output_dir):
     color = {alpha: color for (alpha, color) in zip(alphas, cm)}
     for index, score in df.ix[:, 'score_test'].iteritems():
         score = np.load(score)
-        ax.plot(score[:, 1], score[:, 0] / index[0] / 67,
-                    linestyle[index[0]],
+        ax.plot(score[:, 0] / 67,
+
+                score[:, 1],
+                linestyle[index[0]],
                 marker='+', markevery=5, markersize=3,
-                color=color[index[1]], label='Red. ratio : %.1f' % index[0])
-        ax.set_ylabel('Epoch')
-        ax.set_xlabel('Explained variance on test set')
+                color=color[index[1]], label='Reduc. : %.1f' % index[0])
+        ax.set_xlabel('Epoch')
+        ax.set_ylabel('Explained variance on test set')
         ax.set_title('Reduced HCP dataset')
     h, l = ax.get_legend_handles_labels()
     ax.grid(axis='x')
