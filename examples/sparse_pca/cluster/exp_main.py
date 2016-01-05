@@ -1,19 +1,19 @@
 import json
-import sys
 import os
+import sys
+from os.path import join
 
-from os.path import join, expanduser
 from clusterlib.storage import sqlite3_dumps
+from sklearn.model_selection import train_test_split
 
 from nilearn.decomposition import SparsePCA
 
 SPARSEPCA = SparsePCA(batch_size=20,
-                      n_epochs=10,
+                      n_epochs=3,
                       reduction_method=None,
                       reduction_ratio=1.,
                       verbose=10,
                       n_jobs=1)
-
 
 def run(argv=None):
     if argv is None:
@@ -27,12 +27,15 @@ def run(argv=None):
     with open(join(job_dir, 'exp_%s.json' % job_number), 'r') as f:
         eparams = json.load(f)
 
+    cachedir = sparams['cachedir']
     output_dir = sparams['output_dir']
+
     exp_folder = join(output_dir, 'exp_%s' % job_number)
     if not os.path.exists(exp_folder):
         os.makedirs(exp_folder)
 
-    sys.stdout = open(join(exp_folder, 'output'), 'w')
+    sys.stderr = open(join(exp_folder, 'stderr'), 'w')
+    sys.stdout = open(join(exp_folder, 'stdout'), 'w')
 
     debug_folder = join(exp_folder, 'debug')
 
@@ -46,7 +49,7 @@ def run(argv=None):
                      verbose=10,
                      n_jobs=1)
     spca.set_params(
-            memory=sparams['cachedir'],
+            memory=cachedir,
             dict_init=gparams['dict_init'],
             mask=gparams['mask'],
             smoothing_fwhm=gparams['smoothing_fwhm'],
@@ -57,9 +60,11 @@ def run(argv=None):
     )
 
     imgs = gparams['dataset'][slice(*eparams['slice'])]
-    with open(join(exp_folder, 'results'), 'w+') as f:
-        f.write('%s' % spca)
-        f.write('%s' % imgs)
+
+    train, test = train_test_split(imgs,
+                                   random_state=0,
+                                   test_size=0.1)
+    spca.fit(train, probe=test)
 
 
 if __name__ == "__main__":

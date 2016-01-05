@@ -1,11 +1,8 @@
-import datetime
 import json
 import os
-import shutil
 from os.path import exists
 from os.path import join, expanduser
 
-import numpy as np
 from nilearn_sandbox import datasets as datasets_sandbox
 from sklearn.utils import gen_batches
 
@@ -16,7 +13,8 @@ from nilearn._utils import check_niimg
 def check_dataset(system_params, dataset, n_subjects):
     data_dir = system_params['data_dir']
     if dataset == 'adhd':
-        dataset = datasets.fetch_adhd(n_subjects=n_subjects).func
+        dataset = datasets.fetch_adhd(data_dir=data_dir,
+                                      n_subjects=n_subjects).func
         mask = join(data_dir, 'ADHD_mask', 'mask_img.nii.gz')
     elif dataset == 'hcp':
         dataset = datasets_sandbox.fetch_hcp_rest(data_dir=data_dir,
@@ -36,7 +34,8 @@ def check_dataset(system_params, dataset, n_subjects):
 
 
 def check_init(system_params, init=None):
-    smith = datasets.fetch_atlas_smith_2009()
+    data_dir = system_params['data_dir']
+    smith = datasets.fetch_atlas_smith_2009(data_dir=data_dir)
     if init == 'rsn70':
         init = smith.rsn70
         n_components = 70
@@ -56,12 +55,11 @@ def check_init(system_params, init=None):
 
 def check_system_params(cachedir=expanduser('~/nilearn_cache'),
                         data_dir=expanduser('~/data'),
-                        output_dir=expanduser('~/output/cluster_spca'), ):
+                        output_dir=expanduser('~/output/cluster_spca')):
     sparams = dict(cachedir=cachedir,
                    data_dir=data_dir,
                    output_dir=output_dir)
     sparams['output_dir'] = output_dir
-    # shutil.rmtree(output_dir)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -129,9 +127,9 @@ def json_dump(job_dir, dictionary, target):
 
 
 def build_json_job_list(job_dir,
-                        cachedir=expanduser('~/nilearn_cache'),
-                        data_dir=expanduser('~/data'),
-                        output_dir=expanduser('~/output/cluster_spca'),
+                        cachedir='~/nilearn_cache',
+                        data_dir='~/data',
+                        output_dir='~/output/cluster_spca',
                         dict_init='rsn70',
                         dataset='hcp',
                         n_subjects=40,
@@ -140,8 +138,6 @@ def build_json_job_list(job_dir,
                         n_runs=1, n_slices=1,
                         warmup_slices=1,
                         ):
-    # if os.path.exists(job_dir):
-    #     shutil.rmtree(job_dir)
     if not os.path.exists(job_dir):
         os.makedirs(job_dir)
     sparams = check_system_params(cachedir=cachedir,
@@ -165,10 +161,10 @@ def build_json_job_list(job_dir,
                                                      n_slices=warmup_slices)):
         json_dump(job_dir, eparams, 'warmup_%i.json' % i)
 
-if __name__ == '__main__':
-    timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    build_json_job_list(join(expanduser('~/output/spca_cluster'), timestamp,
-                             'jobs'),
-                        alpha_list=np.logspace(-5, 0, 6),
-                        feature_ratio_list=np.linspace(1, 10, 5),
-                        warmup_slices=20)
+# if __name__ == '__main__':
+#     timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+#     build_json_job_list(join(expanduser('~/share/output/spca_cluster'), timestamp,
+#                              'jobs'),
+#                         alpha_list=np.logspace(-5, 0, 6),
+#                         feature_ratio_list=np.linspace(1, 10, 5),
+#                         warmup_slices=20)

@@ -14,6 +14,7 @@ def run(argv=None):
         argv = sys.argv
     job_dir = argv[1]
     job_number = argv[2]
+
     with open(join(job_dir, 'system.json'), 'r') as f:
         sparams = json.load(f)
     with open(join(job_dir, 'global.json'), 'r') as f:
@@ -23,6 +24,7 @@ def run(argv=None):
 
     output_dir = sparams['output_dir']
     exp_folder = join(output_dir, 'warmup_%s' % job_number)
+
     if not os.path.exists(exp_folder):
         os.makedirs(exp_folder)
 
@@ -41,15 +43,14 @@ def run(argv=None):
                                                 smoothing_fwhm=gparams[
                                                     'smoothing_fwhm'])
     imgs = gparams['dataset'][slice(*eparams['slice'])]
-
     decomposition_estimator.fit(imgs)
     masker = decomposition_estimator.masker_
 
-    # _ = mask_and_reduce(masker, imgs,
-    #                     reduction_method=None,
-    #                     memory=sparams['cachedir'],
-    #                     memory_level=2,
-    #                     n_jobs=1)
+    _ = mask_and_reduce(masker, imgs,
+                        reduction_method=None,
+                        memory=sparams['cachedir'],
+                        memory_level=2,
+                        n_jobs=1)
 
 
 if __name__ == "__main__":
