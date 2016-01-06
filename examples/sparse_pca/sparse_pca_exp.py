@@ -10,12 +10,10 @@ import numpy as np
 
 
 def adhd_20(n_jobs=1):
-    ref_estimator = SparsePCA(alpha=0.01, batch_size=20,
-                              random_state=0,
-                              feature_ratio=1)
     estimators = [SparsePCA(alpha=alpha, batch_size=20,
                             random_state=0,
                             n_epochs=2,
+                            warmup=False,
                             feature_ratio=feature_ratio)
                   for feature_ratio in np.linspace(1, 10, 3)
                   for alpha in np.logspace(-4, -1, 4)]

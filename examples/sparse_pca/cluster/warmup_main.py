@@ -28,9 +28,6 @@ def run(argv=None):
     if not os.path.exists(exp_folder):
         os.makedirs(exp_folder)
 
-    sys.stdout = open(join(exp_folder, 'stdout'), 'w')
-    sys.stderr = open(join(exp_folder, 'stderr'), 'w')
-
 
     debug_folder = join(exp_folder, 'debug')
 

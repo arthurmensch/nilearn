@@ -12,6 +12,7 @@ SPARSEPCA = SparsePCA(batch_size=20,
                       n_epochs=5,
                       reduction_method=None,
                       reduction_ratio=1.,
+                      memory_level=2,
                       warmup=False,
                       verbose=10,
                       n_jobs=1)
@@ -34,9 +35,6 @@ def run(argv=None):
     exp_folder = join(output_dir, 'exp_%s' % job_number)
     if not os.path.exists(exp_folder):
         os.makedirs(exp_folder)
-
-    sys.stderr = open(join(exp_folder, 'stderr'), 'w')
-    sys.stdout = open(join(exp_folder, 'stdout'), 'w')
 
     debug_folder = join(exp_folder, 'debug')
 

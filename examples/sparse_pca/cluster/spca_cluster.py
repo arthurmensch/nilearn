@@ -58,7 +58,7 @@ def queue_phase(job_dir, phase):
 
     n_exp = len(glob.glob(join(job_dir, '%s_*.json' % phase)))
     for exp_json in range(n_exp):
-        job_name = "%s%s" % (phase, exp_json)
+        job_name = "%s_%s" % (phase, exp_json)
 
         job_command = "%s %s %s %s %s" % (remote_python, script_file,
                                           job_dir,
@@ -67,6 +67,7 @@ def queue_phase(job_dir, phase):
         if job_name not in scheduled_jobs and job_command not \
                 in done_jobs:
             script = submit(job_command, job_name=job_name,
+                            log_directory=job_dir,
                             time='24:00:00',
                             memory=17000, backend='sge')
             # Remote execution
@@ -111,7 +112,7 @@ def main():
         os.makedirs(local_run_dir)
     job_dir = join(local_run_dir, 'jobs')
     build_json_job_list(job_dir,
-                        dataset='adhd',
+                        dataset='hcp_reduced',
                         output_dir=join(remote_run_dir, 'results'),
                         data_dir=join(remote_home, 'data'),
                         cachedir=join(remote_home, 'nilearn_cache'),
