@@ -116,6 +116,7 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, verbose=0, feature_ratio=1,
+                 warmup=True
                  ):
         BaseDecomposition.__init__(self, n_components=n_components,
                                    random_state=random_state,
@@ -142,6 +143,7 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
         self.reduction_method = reduction_method
         self.feature_ratio = feature_ratio
         self.debug_folder = debug_folder
+        self.warmup = warmup
 
     def _init_dict(self, imgs, confounds=None):
         if self.dict_init is not None:
@@ -227,71 +229,98 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                                                 verbose=max(0,
                                                             self.verbose - 1))
         t0 = time.time()
-        if from_shelved_list is False:
-            data_list = mask_and_reduce(self.masker_, imgs, confounds,
-                                        reduction_ratio=self.reduction_ratio,
-                                        n_components=self.n_components,
-                                        reduction_method=self.reduction_method,
-                                        random_state=self.random_state,
-                                        memory=self.memory,
-                                        memory_level=max(0, self.memory_level - 1),
-                                        as_shelved_list=True,
-                                        n_jobs=self.n_jobs)
+        if self.warmup:
+            if from_shelved_list is False:
+                data_list = mask_and_reduce(self.masker_, imgs, confounds,
+                                            reduction_ratio=
+                                            self.reduction_ratio,
+                                            n_components=self.n_components,
+                                            reduction_method=
+                                            self.reduction_method,
+                                            random_state=self.random_state,
+                                            memory=self.memory,
+                                            memory_level=
+                                            max(0, self.memory_level - 1),
+                                            as_shelved_list=True,
+                                            n_jobs=self.n_jobs)
+            else:
+                data_list = imgs
+            if probe is not None:
+                if from_shelved_list is False:
+                    probe_data_list = mask_and_reduce(self.masker_, probe,
+                                                      reduction_method=None,
+                                                      as_shelved_list=True,
+                                                      memory=self.memory,
+                                                      memory_level=
+                                                      max(0,
+                                                          self.memory_level - 1))
+                else:
+                    probe_data_list = probe
         else:
             data_list = imgs
-        if probe is not None:
-            if from_shelved_list is False:
-                probe_data_list = mask_and_reduce(self.masker_, probe,
-                                                  reduction_method=None,
-                                                  as_shelved_list=True,
-                                                  memory=self.memory,
-                                                  memory_level=
-                                                  max(0, self.memory_level - 1))
-            else:
-                probe_data_list = probe
+            probe_data_list = probe
+
         self.time_[1] += time.time() - t0
         data_list = itertools.chain(*[random_state.permutation(
-                data_list) for _ in range(n_epochs)])
+                data_list) for _ in range(int(n_epochs * self.feature_ratio))])
         for record, data in enumerate(data_list):
+            if self.debug_folder is not None and (
+                            record % (n_epochs * self.feature_ratio) == 0):
+                if probe is not None:
+                    if not hasattr(self, 'score_'):
+                        self.score_ = []
+                    score = self.score(probe_data_list,
+                                       from_shelved_list=self.warmup)
+                    self.score_.append([record, score])
+                    np.save(join(self.debug_folder, 'score_test'), self.score_)
+
+                if hasattr(self, 'components_'):
+                    components = self.components_.copy()
+                else:
+                    components = self._dict_init.copy()
+
+                for component in components:
+                    if np.sum(component > 0) < np.sum(component < 0):
+                        component *= -1
+
+                components_img = self.masker_.inverse_transform(
+                        components)
+                components_img.to_filename(join(self.debug_folder,
+                                                'intermediary',
+                                                'at_%i.nii.gz' % record))
+                if hasattr(incr_spca, 'components_'):
+                    np.save(join(self.debug_folder, 'residuals'),
+                            np.array(incr_spca.debug_info_['residuals']))
+                    np.save(join(self.debug_folder, 'residuals'),
+                            np.array(incr_spca.debug_info_['values']))
+                    np.save(join(self.debug_folder, 'values'),
+                            np.array(incr_spca.debug_info_['values']))
+
             t0 = time.time()
-            data = data.get()
+            if self.warmup:
+                data = data.get()
+            else:
+                data = mask_and_reduce(self.masker_, [data],
+                                       None,
+                                       reduction_ratio=
+                                       self.reduction_ratio,
+                                       n_components=self.n_components,
+                                       reduction_method=
+                                       self.reduction_method,
+                                       random_state=self.random_state,
+                                       memory=self.memory,
+                                       memory_level=
+                                       max(0, self.memory_level - 1),
+                                       n_jobs=1)
             self.time_[1] += time.time() - t0
             n_iter = (data.shape[0] - 1) // self.batch_size + 1
             if self.verbose:
                 print('[DictLearning] Learning dictionary')
             t0 = time.time()
-            # if record == n_record - 1:
-            #     incr_spca.set_params(feature_ratio=1)
             incr_spca.partial_fit(data, deprecated=False)
-            # if record == n_record - 1:
-            #     incr_spca.set_params(feature_ratio=self.feature_ratio)
             self.time_[0] += time.time() - t0
             self.components_ = incr_spca.components_
 
-            if self.debug_folder is not None and \
-                    (record + 1) % (self.n_epochs * 4) == 0:
-                if probe is not None:
-                    if not hasattr(self, 'score_'):
-                        self.score_ = []
-                    score = self.score(probe_data_list, from_shelved_list=True)
-                    self.score_.append([record, score])
-                    np.save(join(self.debug_folder, 'score_test'), self.score_)
-
-                components_temp = self.components_.copy()
-                for component in components_temp:
-                    if np.sum(component > 0) < np.sum(component < 0):
-                        component *= -1
-                components_img = self.masker_.inverse_transform(
-                        components_temp)
-                components_img.to_filename(join(self.debug_folder,
-                                                'intermediary',
-                                                'at_%i.nii.gz' % record))
-                np.save(join(self.debug_folder, 'residuals'),
-                        np.array(incr_spca.debug_info_['residuals']))
-                np.save(join(self.debug_folder, 'residuals'),
-                        np.array(incr_spca.debug_info_['values']))
-                np.save(join(self.debug_folder, 'values'),
-                        np.array(incr_spca.debug_info_['values']))
             iter_offset += n_iter
 
         # Post processing normalization
@@ -316,7 +345,11 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
     def _raw_score(self, data, per_component=False):
         if per_component is True:
             raise NotImplementedError
-        return objective_function(data, self.components_,
+        if hasattr(self, 'components_'):
+            component = self.components_
+        else:
+            component = self._dict_init
+        return objective_function(data, component,
                                   alpha=self.alpha)
 
 

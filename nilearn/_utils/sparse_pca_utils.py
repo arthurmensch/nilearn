@@ -29,8 +29,6 @@ from pandas import IndexSlice as idx
 import matplotlib.pyplot as plt
 import matplotlib.legend as mlegend
 
-# import seaborn as sns
-
 Experiment = collections.namedtuple('Experiment',
                                     ['dataset_name',
                                      'n_subjects',
@@ -51,7 +49,8 @@ def load_dataset(exp_params, output_dir=None, as_shelved_list=False):
     data_dir = exp_params.data_dir
 
     if exp_params.dataset_name == 'adhd':
-        dataset = datasets.fetch_adhd(n_subjects=
+        dataset = datasets.fetch_adhd(data_dir=data_dir,
+                                      n_subjects=
                                       min(40, n_subjects)).func
         mask = join(exp_params.data_dir, 'ADHD_mask', 'mask_img.nii.gz')
     elif exp_params.dataset_name == 'hcp':
@@ -95,7 +94,9 @@ def load_dataset(exp_params, output_dir=None, as_shelved_list=False):
 
 
 def check_init(exp_params):
-    smith = datasets.fetch_atlas_smith_2009()
+    data_dir = exp_params.data_dir
+
+    smith = datasets.fetch_atlas_smith_2009(data_dir=data_dir)
     if exp_params.dict_init == 'rsn70':
         dict_init = smith.rsn70
         n_components = 70
@@ -187,7 +188,7 @@ def run(estimators, exp_params):
     with open(join(output_dir, 'experiment.json'), 'w+') as f:
         json.dump(exp_params, f)
 
-    as_shelved_list = True
+    as_shelved_list = estimators[0].warmup
 
     dataset, masker = load_dataset(exp_params, output_dir=output_dir,
                                    as_shelved_list=as_shelved_list)

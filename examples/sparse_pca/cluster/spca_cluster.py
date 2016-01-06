@@ -6,7 +6,6 @@ import time
 from os.path import join
 
 import numpy as np
-from clusterlib.scheduler import queued_or_running_jobs
 from clusterlib.scheduler import submit
 from clusterlib.storage import sqlite3_loads
 from job_lister import build_json_job_list
@@ -48,6 +47,7 @@ def _sge_queued_or_running_jobs(user=None, encoding='utf-8'):
 
 scheduler._sge_queued_or_running_jobs = _sge_queued_or_running_jobs
 
+queued_or_running_jobs = scheduler.queued_or_running_jobs
 
 def queue_phase(job_dir, phase):
     db_path = join(job_dir, '%s_job.sqlite3' % phase)
@@ -91,14 +91,14 @@ def join_phase(job_dir, phase, timeout=None):
             return
         output = set(queued_or_running_jobs())
         print('qstat:\n %s' % output)
-        time.sleep(60)
+        time.sleep(20)
 
 
 def queue_jobs(job_dir):
-    queue_phase(job_dir, 'warmup')
-    join_phase(job_dir, 'warmup')
+    # queue_phase(job_dir, 'warmup')
+    # join_phase(job_dir, 'warmup')
     queue_phase(job_dir, 'exp')
-
+    join_phase(job_dir, 'exp')
 
 def main():
     # make sure we run the same nilearn on cluster / local
@@ -117,8 +117,9 @@ def main():
                         cachedir=join(remote_home, 'nilearn_cache'),
                         alpha_list=np.logspace(-5, 0, 6),
                         feature_ratio_list=np.linspace(1, 10, 5),
-                        n_subjects=40,
-                        warmup_slices=10)
+                        n_runs=5,
+                        n_subjects=77,
+                        warmup_slices=20)
     queue_jobs(job_dir)
 
 

@@ -15,7 +15,7 @@ def adhd_20(n_jobs=1):
                               feature_ratio=1)
     estimators = [SparsePCA(alpha=alpha, batch_size=20,
                             random_state=0,
-                            n_epochs=int(2 * feature_ratio),
+                            n_epochs=2,
                             feature_ratio=feature_ratio)
                   for feature_ratio in np.linspace(1, 10, 3)
                   for alpha in np.logspace(-4, -1, 4)]
@@ -38,4 +38,4 @@ def adhd_20(n_jobs=1):
 
 if __name__ == '__main__':
     warnings.filterwarnings('ignore', category=DeprecationWarning)
-    adhd_20(n_jobs=12)
+    adhd_20(n_jobs=10)

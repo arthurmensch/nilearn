@@ -96,10 +96,10 @@ def _yield_exp_params(sparams, gparams,
                       feature_ratio_list=[1],
                       n_runs=1, n_slices=1):
     slices = gen_batches(gparams['n_records'],
-                         gparams['n_records'] // n_slices)
+                         gparams['n_records'] // n_slices + 1)
 
-    for random_state in range(n_runs):
-        for this_slice in slices:
+    for this_slice in slices:
+        for random_state in range(n_runs):
             for feature_ratio in feature_ratio_list:
                 for alpha in alpha_list:
                     eparams = dict(random_state=random_state,
@@ -112,7 +112,7 @@ def _yield_exp_params(sparams, gparams,
 
 def _yield_warmup_params(sparams, gparams, n_slices=1):
     slices = gen_batches(gparams['n_records'],
-                         gparams['n_records'] // n_slices)
+                         gparams['n_records'] // n_slices + 1)
 
     for this_slice in slices:
         eparams = dict(slice=this_slice.indices(gparams['n_records']))
@@ -127,7 +127,8 @@ def json_dump(job_dir, dictionary, target):
 
 
 def build_json_job_list(job_dir,
-                        cachedir='~/nilearn_cache',
+                        cachedir='~/nilear'
+                                 'n_cache',
                         data_dir='~/data',
                         output_dir='~/output/cluster_spca',
                         dict_init='rsn70',
@@ -160,11 +161,3 @@ def build_json_job_list(job_dir,
     for i, eparams in enumerate(_yield_warmup_params(sparams, gparams,
                                                      n_slices=warmup_slices)):
         json_dump(job_dir, eparams, 'warmup_%i.json' % i)
-
-# if __name__ == '__main__':
-#     timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-#     build_json_job_list(join(expanduser('~/share/output/spca_cluster'), timestamp,
-#                              'jobs'),
-#                         alpha_list=np.logspace(-5, 0, 6),
-#                         feature_ratio_list=np.linspace(1, 10, 5),
-#                         warmup_slices=20)
