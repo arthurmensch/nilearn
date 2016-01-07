@@ -6,12 +6,13 @@ import time
 from os.path import join
 
 import numpy as np
-from clusterlib.scheduler import submit
+from clusterlib.scheduler import submit, queued_or_running_jobs
 from clusterlib.storage import sqlite3_loads
 from job_lister import build_json_job_list
-from lxml.etree import XML, XMLParser
 
-from clusterlib import scheduler
+# from lxml.etree import XML, XMLParser
+#
+# from clusterlib import scheduler
 
 remote_home = '/home/parietal/amensch'
 local_home = '/home/parietal/amensch'
@@ -22,32 +23,32 @@ script_files = {'exp': join(remote_home, 'work/repos/nilearn/'
                           'examples/sparse_pca/cluster/'
                           'warmup_main.py')}
 
-remote_python = subprocess.check_output("""ssh tompouce 'which python'""",
+remote_python = subprocess.check_output("""which python """,
                                         shell=True).strip().decode('ascii')
 
 
-def _sge_queued_or_running_jobs(user=None, encoding='utf-8'):
-    """Get queued or running jobs from SGE queue system."""
-    command = ["ssh tompouce 'qstat'", "-xml"]
-    if user is not None:
-        command.extend(["-u", user])
-
-    try:
-        with open(os.devnull, 'w') as shutup:
-            xml = subprocess.check_output(command, stderr=shutup)
-            tree = XML(xml, parser=XMLParser(encoding=encoding))
-            return [leaf.text for leaf in tree.iter("JB_name")]
-    except (OSError, subprocess.CalledProcessError):
-        # OSError is raised if the program is not installed
-        # A CalledProcessError is raised if there is an issue during
-        # the call of the command. This might happens if the option -xml
-        # is not available such as on rock roll clusters which provide
-        # a proxy to qstat whenever only SLURM is installed.
-        return []
-
-scheduler._sge_queued_or_running_jobs = _sge_queued_or_running_jobs
-
-queued_or_running_jobs = scheduler.queued_or_running_jobs
+# def _sge_queued_or_running_jobs(user=None, encoding='utf-8'):
+#     """Get queued or running jobs from SGE queue system."""
+#     command = ["ssh tompouce 'qstat'", "-xml"]
+#     if user is not None:
+#         command.extend(["-u", user])
+#
+#     try:
+#         with open(os.devnull, 'w') as shutup:
+#             xml = subprocess.check_output(command, stderr=shutup)
+#             tree = XML(xml, parser=XMLParser(encoding=encoding))
+#             return [leaf.text for leaf in tree.iter("JB_name")]
+#     except (OSError, subprocess.CalledProcessError):
+#         # OSError is raised if the program is not installed
+#         # A CalledProcessError is raised if there is an issue during
+#         # the call of the command. This might happens if the option -xml
+#         # is not available such as on rock roll clusters which provide
+#         # a proxy to qstat whenever only SLURM is installed.
+#         return []
+#
+# scheduler._sge_queued_or_running_jobs = _sge_queued_or_running_jobs
+#
+# queued_or_running_jobs = scheduler.queued_or_running_jobs
 
 def queue_phase(job_dir, phase):
     db_path = join(job_dir, '%s_job.sqlite3' % phase)
@@ -71,10 +72,10 @@ def queue_phase(job_dir, phase):
                             time='24:00:00',
                             memory=17000, backend='sge')
             # Remote execution
-            script = script.replace('qsub', """ssh tompouce 'qsub'""")
+            # script = script.replace('qsub', """ssh tompouce 'qsub'""")
             # os.system(script)
+            print(script)
             output = subprocess.check_output(script,
-                                             stderr=subprocess.STDOUT,
                                              shell=True)
             print(output)
 
@@ -116,9 +117,9 @@ def main():
                         output_dir=join(remote_run_dir, 'results'),
                         data_dir=join(remote_home, 'data'),
                         cachedir=join(remote_home, 'nilearn_cache'),
-                        alpha_list=np.logspace(-5, 0, 6),
-                        feature_ratio_list=np.linspace(1, 10, 5),
-                        n_runs=5,
+                        alpha_list=np.logspace(-5, 0, 2),
+                        feature_ratio_list=np.linspace(1, 10, 2),
+                        n_runs=1,
                         n_subjects=77,
                         warmup_slices=20)
     queue_jobs(job_dir)

@@ -4,18 +4,17 @@ Transformer used to apply basic transformations on MRI data.
 # Author: Gael Varoquaux, Alexandre Abraham
 # License: simplified BSD
 
-import warnings
 import abc
+import warnings
 
 import numpy as np
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.externals.joblib import Memory
-
-from .. import masking
-from .. import image
-from .. import signal
 from .. import _utils
+from .. import image
+from .. import masking
+from .. import signal
 from .._utils.cache_mixin import CacheMixin, cache
 from .._utils.class_inspect import enclosing_scope_name
 from .._utils.compat import _basestring
@@ -219,7 +218,8 @@ class BaseMasker(BaseEstimator, TransformerMixin, CacheMixin):
     def inverse_transform(self, X):
         """ Transform the 2D data matrix back to an image in brain space.
         """
-        img = self._cache(masking.unmask)(X, self.mask_img_)
+        img = self._cache(masking.unmask,
+                          func_memory_level=2)(X, self.mask_img_)
         # Be robust again memmapping that will create read-only arrays in
         # internal structures of the header: remove the memmaped array
         try:

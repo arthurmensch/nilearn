@@ -6,11 +6,14 @@ component sparsity
 # Author: Arthur Mensch
 # License: BSD 3 clause
 from __future__ import division
+
 import itertools
 import os
 import time
 from os.path import join
+
 import numpy as np
+
 from sklearn.base import TransformerMixin
 from sklearn.decomposition.dict_learning import MiniBatchDictionaryLearning
 from sklearn.externals.joblib import Memory
@@ -245,6 +248,7 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                                             n_jobs=self.n_jobs)
             else:
                 data_list = imgs
+
             if probe is not None:
                 if from_shelved_list is False:
                     probe_data_list = mask_and_reduce(self.masker_, probe,
@@ -276,15 +280,17 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
 
                 if hasattr(self, 'components_'):
                     components = self.components_.copy()
+
+                    for component in components:
+                        if np.sum(component > 0) < np.sum(component < 0):
+                            component *= -1
+
+                    components_img = self.masker_.inverse_transform(
+                            components)
                 else:
-                    components = self._dict_init.copy()
+                    components_img = self.masker_.inverse_transform(
+                            self._dict_init)
 
-                for component in components:
-                    if np.sum(component > 0) < np.sum(component < 0):
-                        component *= -1
-
-                components_img = self.masker_.inverse_transform(
-                        components)
                 components_img.to_filename(join(self.debug_folder,
                                                 'intermediary',
                                                 'at_%i.nii.gz' % record))

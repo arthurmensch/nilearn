@@ -4,9 +4,9 @@ import sys
 from os.path import join
 
 from clusterlib.storage import sqlite3_dumps
-from sklearn.model_selection import train_test_split
 
 from nilearn.decomposition import SparsePCA
+from sklearn.model_selection import train_test_split
 
 SPARSEPCA = SparsePCA(batch_size=20,
                       n_epochs=5,
@@ -41,12 +41,7 @@ def run(argv=None):
     if not os.path.exists(debug_folder):
         os.makedirs(debug_folder)
 
-    spca = SparsePCA(batch_size=20,
-                     n_epochs=10,
-                     reduction_method=None,
-                     reduction_ratio=1.,
-                     verbose=10,
-                     n_jobs=1)
+    spca = SPARSEPCA
     spca.set_params(
             memory=cachedir,
             dict_init=gparams['dict_init'],
