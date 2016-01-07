@@ -32,4 +32,4 @@ tags
 *.tar.gz
 *.tgz
 
-.idea
+.idea/
