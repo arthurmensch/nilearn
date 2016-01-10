@@ -460,7 +460,7 @@ def analyse_num_exp(exp_params, output_dir, n_jobs=1, n_run_var=1, limit=1000):
     results.sortlevel(inplace=True)
 
     scores = pd.read_csv(join(results_dir, 'scores.csv'),
-                         index_col=range(4), header=[0, 1])
+                         index_col=list(range(4)), header=[0, 1])
     scores.reset_index(inplace=True)
     scores.set_index(
         ['reference', 'estimator_type', 'compression_type',
@@ -536,7 +536,7 @@ def analyse_median_maps(output_dir, reduction_ratio=0.1):
         os.mkdir(median_dir)
 
     scores_extended = pd.read_csv(join(results_dir, 'scores.csv'),
-                                  index_col=range(4), header=[0, 1])
+                                  index_col=list(range(4)), header=[0, 1])
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
     n_exp = scores_extended.columns.get_level_values(0)[-1]
 
@@ -563,11 +563,13 @@ def analyse_median_maps(output_dir, reduction_ratio=0.1):
     print(len_non_zero)
     i = np.argsort(corr)[::-1][len_non_zero / 2 + 1]
     median_img = index_img(base_components, i)
+    shutil.copyfile(base_components, join(median_dir, 'full_base.nii.gz'))
     median_filename = join(median_dir, 'base.nii.gz')
     median_img.to_filename(median_filename)
     for j, (index, aligned_components) in enumerate(
             zip(target_components.index,
                 aligned_target_components)):
+        aligned_components.to_filename(join(median_dir, 'full_%i.nii.gz'))
         median_img = index_img(aligned_components, i)
         median_filename = join(median_dir, 'median_%i.nii.gz' % j)
         median_img.to_filename(median_filename)
@@ -583,11 +585,12 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
         os.mkdir(figures_dir)
 
     scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
-                                  index_col=range(4), header=[0, 1])
+                                  index_col=list(range(4)), header=[0, 1])
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
     n_exp = n_exp  # scores_extended.columns.get_level_values(0)[-1]
 
     fig, axes = plt.subplots(len(reduction_ratio_list), 1, sharex=True)
+    axes = [axes]
     for reduction_ratio, ax in zip(reduction_ratio_list, axes):
         incr_df = pd.concat((scores_extended.loc[idx[False, :,
                                                  ['subsample',
@@ -622,7 +625,7 @@ def plot_num_exp(output_dir, reduction_ratio_list=[0.1], n_exp=9):
         ax.set_yticks([0.6, 0.7, 0.8])
     handles, labels = axes[0].get_legend_handles_labels()
     fig.text(0.0, 0.5,
-             'Correspondence with ref. $d_l (\\mathbf X, \\mathbf Y)$',
+             'Correspondence with reference networks\n obtained on $\\mathbf X$',
              va='center',
              rotation='vertical')
     fig.legend(handles, labels, bbox_to_anchor=(0.93, 0.65), loc='center right',
@@ -647,7 +650,7 @@ def plot_median(output_dir):
     median_dir = join(results_dir, 'median')
     figures_dir = join(output_dir, 'figures')
     median_series = pd.read_csv(join(median_dir, 'median.csv'),
-                                index_col=range(4),
+                                index_col=list(range(4)),
                                 header=None)
     fig, axes = plt.subplots(2, 4, figsize=(3.38676401384, 1.6), gridspec_kw=dict(hspace=0.3))
     axes = axes.reshape(-1)
@@ -739,7 +742,7 @@ def plot_full(output_dir, n_exp=9):
         os.mkdir(figures_dir)
 
     scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
-                                  index_col=range(4), header=[0, 1])
+                                  index_col=list(range(4)), header=[0, 1])
     scores_extended.rename(columns=convert_litteral_int_to_int, inplace=True)
     n_exp = n_exp
 
@@ -836,8 +839,8 @@ def plot_full(output_dir, n_exp=9):
         loc='lower right',
         handler_map={
             mpatches.Arrow: HandlerPatch(patch_func=make_legend_arrow)})
-    plt.ylabel('Correspondence with ref. $d_p (\\mathbf X, \\mathbf Y)$')
-    plt.xlabel('CPU Time (relative to non-reduced $\\mathrm{DL}(\\mathbf X)$)')
+    plt.ylabel('Correspondence with reference networks obtained on $\\mathbf X$')
+    plt.xlabel('CPU Time relative to non-reduced dictionary learning')
     plt.savefig(join(figures_dir, 'time_v_corr.pdf'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'time_v_corr.svg'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'time_v_corr.pgf'), bbox_inches="tight")
@@ -870,7 +873,7 @@ def plot_full_multiple(output_dir_list, n_exp_list):
         results_dir = join(output_dir, 'stability')
 
         scores_extended = pd.read_csv(join(results_dir, 'scores_extended.csv'),
-                                      index_col=range(4), header=[0, 1])
+                                      index_col=list(range(4)), header=[0, 1])
         scores_extended.rename(columns=convert_litteral_int_to_int,
                                inplace=True)
 
@@ -973,7 +976,7 @@ def plot_full_multiple(output_dir_list, n_exp_list):
         handler_map={
             mpatches.Arrow: HandlerPatch(patch_func=make_legend_arrow)})
     fig.text(0.01, 0.5,
-             'Correspondence with ref. $d_p (\\mathbf X, \\mathbf Y)$',
+             'Correspondence with reference networks obtained on $\\mathbf X$',
              va='center',
              rotation='vertical')
     axes[0].annotate('ADHD', xy=(1.0, 0.5),
@@ -989,7 +992,7 @@ def plot_full_multiple(output_dir_list, n_exp_list):
                      va='center',
                      rotation='vertical')
     axes[1].set_xlabel(
-        'CPU Time (relative to non-reduced $\\mathrm{DL}(\\mathbf X)$)')
+        'CPU Time relative to non-reduced dictionary learning')
     plt.savefig(join(figures_dir, 'time_v_corr.pdf'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'time_v_corr.svg'), bbox_inches="tight")
     plt.savefig(join(figures_dir, 'time_v_corr.pgf'), bbox_inches="tight")

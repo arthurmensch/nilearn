@@ -1,5 +1,5 @@
 import os
-from os.path import expanduser
+from os.path import expanduser, join
 import shutil
 
 import numpy as np
@@ -42,11 +42,12 @@ def adhd_20(n_jobs=1):
                             reference=False,
                             temp_folder=expanduser('~/temp'),
                             n_runs=48)
-    temp_folder = drop_memmmap(estimators, experiment)
-    output_dir = run(estimators, experiment, temp_folder=temp_folder)
-    gather_results(output_dir=output_dir)
-    analyse(output_dir, n_jobs=n_jobs)
-    analyse_num_exp(output_dir, n_jobs=n_jobs, n_run_var=4)
+    # temp_folder = drop_memmmap(estimators, experiment)
+    # output_dir = run(estimators, experiment, temp_folder=temp_folder)
+    # gather_results(output_dir=output_dir)
+    # analyse(output_dir, n_jobs=n_jobs)
+    # analyse_num_exp(output_dir, n_jobs=n_jobs, n_run_var=4)
+    output_dir = expanduser('~/output/2015-10-14_21-02-57/')
     analyse_median_maps(output_dir)
     plot_num_exp(output_dir)
     plot_full(output_dir, n_exp=9)
@@ -89,12 +90,13 @@ def hcp_70(n_jobs=1):
                             temp_folder=expanduser('~/temp'),
                             # Stability specific
                             n_runs=9)
-    temp_folder = drop_memmmap(estimators, experiment)
-    output_dir = run(estimators, experiment, temp_folder=temp_folder)
-    gather_results(output_dir)
-    analyse(experiment, output_dir, n_jobs=n_jobs, limit=9)
-    analyse_num_exp(experiment, output_dir, n_jobs=n_jobs, limit=9,
-                    n_run_var=3)
+    # temp_folder = drop_memmmap(estimators, experiment)
+    # output_dir = run(estimators, experiment, temp_folder=temp_folder)
+    # gather_results(output_dir)
+    # analyse(experiment, output_dir, n_jobs=n_jobs, limit=9)
+    # analyse_num_exp(experiment, output_dir, n_jobs=n_jobs, limit=9,
+    #                 n_run_var=3)
+    output_dir = expanduser('~/output/2015-10-14_23-46-52')
     analyse_median_maps(output_dir, reduction_ratio=0.025)
     plot_median(output_dir)
     plot_full(output_dir, n_exp=2)
@@ -111,8 +113,11 @@ def main():
         os.makedirs(expanduser('~/output'))
     except:
         pass
-    output_adhd = adhd_20(n_jobs=n_jobs)
+#    output_adhd = adhd_20(n_jobs=n_jobs)
     output_hcp = hcp_70(n_jobs=n_jobs)
     plot_full_multiple([output_adhd, output_hcp], n_exp_list=[9, 2])
-    shutil.copytree(output_adhd, os.path.join(expanduser('~/figures'), 'adhd'))
-    shutil.copytree(output_adhd, os.path.join(expanduser('~/figures'), 'hcp'))
+    shutil.copytree(join(output_adhd, 'figures'), os.path.join(expanduser('~/figures'), 'adhd'))
+    shutil.copytree(join(output_hcp, 'figures'), os.path.join(expanduser('~/figures'), 'hcp'))
+
+if __name__ == '__main__':
+    main()
