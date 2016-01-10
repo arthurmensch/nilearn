@@ -57,7 +57,7 @@ def run(argv=None):
 
     train, test = train_test_split(imgs,
                                    random_state=0,
-                                   test_size=0.1)
+                                   test_size=2)
     spca.fit(train, probe=test)
 
 
