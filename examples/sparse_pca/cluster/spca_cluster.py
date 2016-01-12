@@ -46,7 +46,7 @@ def queue_phase(job_dir, phase):
             script = submit(job_command, job_name=job_name,
                             log_directory=job_dir,
                             time='72:00:00',
-                            memory=15000, backend='sge')
+                            memory=20000, backend='sge')
             # Remote execution
             # script = script.replace('qsub', """ssh tompouce 'qsub'""")
             # os.system(script)
@@ -59,24 +59,26 @@ def queue_phase(job_dir, phase):
 # Basically a blocking semaphore
 def join_phase(job_dir, phase, timeout=None):
     t0 = time.time()
-    while True:
-        n_jobs = len(glob.glob(join(job_dir, '%s_*.json' % phase)))
-        db_path = join(job_dir, '%s_job.sqlite3' % phase)
-        done_jobs = sqlite3_loads(db_path)
-        if len(done_jobs) == n_jobs:
-            return
-        if timeout is not None and time.time() - t0 < timeout:
-            return
-        output = set(queued_or_running_jobs())
-        print('qstat:\n %s' % output)
-        time.sleep(20)
+    n_jobs = len(glob.glob(join(job_dir, '%s_*.json' % phase)))
+    db_path = join(job_dir, '%s_job.sqlite3' % phase)
+    done_jobs = sqlite3_loads(db_path)
+    if len(done_jobs) == n_jobs:
+        return
+    if timeout is not None and time.time() - t0 < timeout:
+        return
+    queue = set(queued_or_running_jobs())
+    print('qstat:\n %s' % queue)
+    time.sleep(120)
+    return queue
 
 
 def queue_jobs(job_dir):
-    # queue_phase(job_dir, 'warmup')
-    # join_phase(job_dir, 'warmup')
-    queue_phase(job_dir, 'exp')
-    join_phase(job_dir, 'exp')
+    while True:
+        queue_phase(job_dir, 'exp')
+        queue = join_phase(job_dir, 'exp')
+        if len(queue) == 0:
+            return
+
 
 def main():
     # make sure we run the same nilearn on cluster / local

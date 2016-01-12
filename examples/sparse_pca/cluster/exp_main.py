@@ -34,12 +34,17 @@ def run(argv=None):
 
     exp_folder = join(output_dir, 'exp_%s' % job_number)
     if not os.path.exists(exp_folder):
-        os.makedirs(exp_folder)
-
+        try:
+            os.makedirs(exp_folder)
+        except:
+            pass
     debug_folder = join(exp_folder, 'debug')
 
     if not os.path.exists(debug_folder):
-        os.makedirs(debug_folder)
+        try:
+            os.makedirs(debug_folder)
+        except:
+            pass
 
     spca = SPARSEPCA
     spca.set_params(
