@@ -29,8 +29,10 @@ def adhd_20(n_jobs=1):
                             n_jobs=n_jobs,
                             parallel_exp=True,
                             n_runs=1)
-    output_dir = run(estimators, experiment)
-    gather_results(output_dir=output_dir)
+    # output_dir = run(estimators, experiment)
+    gather_results(output_dir=expanduser('~/share/output/'
+                                         'spca_cluster/2016-01-11_15-32-09/'
+                                         'results/'))
     return output_dir
 
 
