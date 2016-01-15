@@ -24,10 +24,6 @@ def check_dataset(system_params, dataset, n_subjects):
         dataset = datasets_sandbox.fetch_hcp_reduced(
                 data_dir=data_dir, n_subjects=n_subjects).func
         mask = join(data_dir, 'HCP_mask', 'mask_img.nii.gz')
-    elif dataset == 'adni':
-        dataset = datasets_sandbox.fetch_adni_longitudinal_rs_fmri_DARTEL().func
-        dataset = dataset[:n_subjects]
-        mask = datasets_sandbox.fetch_adni_masks().fmri
     else:
         raise NotImplementedError
     return dataset, mask

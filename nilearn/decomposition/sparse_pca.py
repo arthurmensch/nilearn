@@ -108,10 +108,9 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                  alpha=0.,
                  reduction_method=None,
                  reduction_ratio=1.,
-                 forget_rate=1,
                  random_state=None,
                  batch_size=10,
-                 debug_folder=None,
+                 callback=None,
                  mask=None, smoothing_fwhm=None,
                  standardize=True, detrend=True,
                  low_pass=None, high_pass=None, t_r=None,
@@ -145,7 +144,7 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
         self.reduction_ratio = reduction_ratio
         self.reduction_method = reduction_method
         self.feature_ratio = feature_ratio
-        self.debug_folder = debug_folder
+        self.callback = callback
         self.warmup = warmup
 
     def _init_dict(self, imgs, confounds=None):
@@ -297,8 +296,8 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                 if hasattr(incr_spca, 'components_'):
                     np.save(join(self.debug_folder, 'residuals'),
                             np.array(incr_spca.debug_info_['residuals']))
-                    np.save(join(self.debug_folder, 'residuals'),
-                            np.array(incr_spca.debug_info_['values']))
+                    np.save(join(self.debug_folder, 'density'),
+                            np.array(incr_spca.debug_info_['density']))
                     np.save(join(self.debug_folder, 'values'),
                             np.array(incr_spca.debug_info_['values']))
 
@@ -325,14 +324,15 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
             t0 = time.time()
             incr_spca.partial_fit(data, deprecated=False)
             self.time_[0] += time.time() - t0
+
             self.components_ = incr_spca.components_
 
             iter_offset += n_iter
 
         # Post processing normalization
-        # S = np.sqrt(np.sum(self.components_ ** 2, axis=1))
-        # S[S == 0] = 1
-        # self.components_ /= S[:, np.newaxis]
+        S = np.sqrt(np.sum(self.components_ ** 2, axis=1))
+        S[S == 0] = 1
+        self.components_ /= S[:, np.newaxis]
 
         # flip signs in each composant positive part is l1 larger
         #  than negative part
