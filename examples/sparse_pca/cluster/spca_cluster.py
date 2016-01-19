@@ -13,6 +13,7 @@ from job_lister import build_json_job_list
 # from lxml.etree import XML, XMLParser
 #
 # from clusterlib import scheduler
+from joblib import Parallel, delayed
 
 remote_home = '/home/parietal/amensch'
 local_home = '/home/parietal/amensch'
@@ -43,17 +44,13 @@ def queue_phase(job_dir, phase):
 
         if job_name not in scheduled_jobs and job_command not \
                 in done_jobs:
-            script = submit(job_command, job_name=job_name,
-                            log_directory=job_dir,
-                            time='72:00:00',
-                            memory=20000, backend='sge')
-            # Remote execution
-            # script = script.replace('qsub', """ssh tompouce 'qsub'""")
-            # os.system(script)
-            print(script)
-            output = subprocess.check_output(script,
-                                             shell=True)
-            print(output)
+            # script = submit(job_command, job_name=job_name,
+            #                 log_directory=job_dir,
+            #                 time='72:00:00',
+            #                 memory=20000, backend='sge')
+            # output = subprocess.check_output(script,
+            #                                  shell=True)
+        Parallel(n_jobs=40, verbose=10)(delayed(spca_run)(['', job_dir, exp_json]))
 
 
 # Basically a blocking semaphore
@@ -95,11 +92,11 @@ def main():
                         output_dir=join(remote_run_dir, 'results'),
                         data_dir=join(remote_home, 'data'),
                         cachedir=join(remote_home, 'nilearn_cache'),
-                        alpha_list=np.logspace(-5, 0, 6),
+                        alpha_list=np.logspace(-4, -1, 4),
                         feature_ratio_list=np.linspace(1, 10, 5),
-                        n_runs=3,
-                        n_slices=2,
-                        n_subjects=200,
+                        n_runs=2,
+                        n_slices=1,
+                        n_subjects=100,
                         warmup_slices=80)
     queue_jobs(job_dir)
 

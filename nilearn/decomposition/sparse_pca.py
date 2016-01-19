@@ -172,8 +172,7 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
             self.masker_.inverse_transform(self._dict_init).to_filename(join(
                     self.debug_folder, 'init.nii.gz'))
 
-    def fit(self, imgs, y=None, confounds=None, probe=None,
-            from_shelved_list=False):
+    def fit(self, imgs, y=None, confounds=None, from_shelved_list=False):
         """Compute the mask and the ICA maps across subjects
 
         Parameters
@@ -247,21 +246,8 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                                             n_jobs=self.n_jobs)
             else:
                 data_list = imgs
-
-            if probe is not None:
-                if from_shelved_list is False:
-                    probe_data_list = mask_and_reduce(self.masker_, probe,
-                                                      reduction_method=None,
-                                                      as_shelved_list=True,
-                                                      memory=self.memory,
-                                                      memory_level=
-                                                      max(0,
-                                                          self.memory_level - 1))
-                else:
-                    probe_data_list = probe
         else:
             data_list = imgs
-            probe_data_list = probe
 
         self.time_[1] += time.time() - t0
         data_list = itertools.chain(*[random_state.permutation(
@@ -269,13 +255,6 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
         for record, data in enumerate(data_list):
             if self.debug_folder is not None and (
                             record % (n_epochs * self.feature_ratio) == 0):
-                if probe is not None:
-                    if not hasattr(self, 'score_'):
-                        self.score_ = []
-                    score = self.score(probe_data_list,
-                                       from_shelved_list=self.warmup)
-                    self.score_.append([record, score])
-                    np.save(join(self.debug_folder, 'score_test'), self.score_)
 
                 if hasattr(self, 'components_'):
                     components = self.components_.copy()

@@ -47,6 +47,7 @@ def run(argv=None):
             pass
 
     spca = SPARSEPCA
+
     spca.set_params(
             memory=cachedir,
             dict_init=gparams['dict_init'],
@@ -60,10 +61,7 @@ def run(argv=None):
 
     imgs = gparams['dataset'][slice(*eparams['slice'])]
 
-    train, test = train_test_split(imgs,
-                                   random_state=0,
-                                   test_size=2)
-    spca.fit(train, probe=test)
+    spca.fit(imgs)
 
 
 if __name__ == "__main__":
