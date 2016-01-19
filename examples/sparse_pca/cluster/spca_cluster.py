@@ -44,13 +44,12 @@ def queue_phase(job_dir, phase):
 
         if job_name not in scheduled_jobs and job_command not \
                 in done_jobs:
-            # script = submit(job_command, job_name=job_name,
-            #                 log_directory=job_dir,
-            #                 time='72:00:00',
-            #                 memory=20000, backend='sge')
-            # output = subprocess.check_output(script,
-            #                                  shell=True)
-        Parallel(n_jobs=40, verbose=10)(delayed(spca_run)(['', job_dir, exp_json]))
+            script = submit(job_command, job_name=job_name,
+                            log_directory=job_dir,
+                            time='72:00:00',
+                            memory=20000, backend='sge')
+            output = subprocess.check_output(script,
+                                             shell=True)
 
 
 # Basically a blocking semaphore

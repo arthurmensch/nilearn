@@ -157,9 +157,10 @@ def display_explained_variance_cluster(job_dir):
                         [189, 151, 73],
                         [77, 63, 61],
                         [123, 189, 145]])
+    np.random.shuffle(palette)
     alphas = np.logspace(-5, 0, 6)
     feature_ratios = np.linspace(1, 10, 5)
-    H = {alpha: h for alpha, h in zip(alphas, np.linspace(0, 1, 6))}
+    H = {alpha: h for alpha, h in zip(alphas, palette[:6, 0] / 360)}
     V = {feature_ratio: v for
          feature_ratio, v in zip(feature_ratios,
                                  np.linspace(0.2, 1, len(feature_ratios)))}
@@ -167,24 +168,25 @@ def display_explained_variance_cluster(job_dir):
     h_alphas = []
     for this_stat in stat:
         print(float(this_stat['alpha']))
-        if this_stat['alpha'] in [1e-4, 1e-3]:
-            color = hsv_to_rgb([H[this_stat['alpha']],
-                                V[this_stat['feature_ratio']],
-                                1 - V[this_stat['feature_ratio']] / 2])
-            # records = list(map(int, this_stat['records']))
-            # h, = ax.plot(np.array(records) / this_stat['feature_ratio'],
-            #              this_stat['exp_vars'], color=color)
-            # h, = ax.plot(this_stat['exp_vars'][1:], this_stat['densities'][1:],
-            #                 color=color, marker='o', markersize=2)
-            h = ax.scatter(this_stat['exp_vars'][-1], this_stat['densities'][-1],
-                            color=color, marker='o', s=20)
-            if this_stat['random_state'] == 0 and this_stat['slice'] == [0, 394,
-                                                                         1]:
-                if this_stat['alpha'] == 1e-4:
-                    h_feature_ratios.append(
-                            (h, 'F. ratio : %.2f' % this_stat['feature_ratio']))
-                if this_stat['feature_ratio'] == 10:
-                    h_alphas.append((h, 'Reg: %.0e' % this_stat['alpha']))
+        if True: # this_stat['feature_ratio'] in [1, 5.5, 10]:
+            if this_stat['alpha'] in [1e-4, 1e-5]:
+                color = hsv_to_rgb([H[this_stat['alpha']],
+                                    V[this_stat['feature_ratio']],
+                                    1 - V[this_stat['feature_ratio']] / 2])
+                # records = list(map(int, this_stat['records']))
+                # h, = ax.plot(np.array(records) / this_stat['feature_ratio'],
+                #              this_stat['exp_vars'], color=color)
+                h, = ax.plot(this_stat['exp_vars'][1::3], this_stat['densities'][1::3],
+                                color=color, marker='o', markersize=2)
+                h = ax.scatter(this_stat['exp_vars'][-1], this_stat['densities'][-1],
+                                color=color, marker='o', s=20)
+                if this_stat['random_state'] == 0 and this_stat['slice'] == [0, 394,
+                                                                             1]:
+                    if this_stat['alpha'] == 1e-4:
+                        h_feature_ratios.append(
+                                (h, 'F. ratio : %.2f' % this_stat['feature_ratio']))
+                    if this_stat['feature_ratio'] == 10:
+                        h_alphas.append((h, 'Reg: %.0e' % this_stat['alpha']))
     ax.set_xlabel('Density')
     ax.set_ylabel('Explained variance on test set')
     ax.set_title('HCP dataset')

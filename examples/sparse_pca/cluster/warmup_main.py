@@ -52,6 +52,7 @@ def run(argv=None):
                         reduction_method=None,
                         memory=sparams['cachedir'],
                         memory_level=2,
+                        as_shelved_list=True,
                         n_jobs=1)
 
 
