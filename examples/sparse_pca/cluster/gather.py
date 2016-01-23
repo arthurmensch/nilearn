@@ -147,7 +147,7 @@ def display_explained_variance_cluster(job_dir):
     fig.subplots_adjust(right=0.7)
 
     stat = []
-    for filename in fnmatch.filter(os.listdir(job_dir), 'exp_*_stat.json'):
+    for filename in fnmatch.filter(os.listdir(job_dir), 'results_stat.json'):
         with open(join(job_dir, filename), 'r') as f:
             stat.append(json.load(f))
     palette = np.array([[139, 203, 75],

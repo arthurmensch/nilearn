@@ -9,11 +9,11 @@ from nilearn.decomposition import SparsePCA
 from sklearn.model_selection import train_test_split
 
 SPARSEPCA = SparsePCA(batch_size=20,
-                      n_epochs=5,
+                      n_epochs=10,
                       reduction_method=None,
                       reduction_ratio=1.,
                       memory_level=2,
-                      warmup=False,
+                      warmup=True,
                       verbose=10,
                       n_jobs=1)
 

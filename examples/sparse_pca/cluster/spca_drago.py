@@ -30,7 +30,7 @@ def queue_phase(job_dir, phase):
 
 
 def queue_jobs(job_dir):
-    queue_phase(job_dir, 'warmup')
+    # queue_phase(job_dir, 'warmup')
     queue_phase(job_dir, 'exp')
 
 
