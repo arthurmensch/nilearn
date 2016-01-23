@@ -118,7 +118,8 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                  mask_strategy='epi', mask_args=None,
                  memory=Memory(cachedir=None), memory_level=0,
                  n_jobs=1, verbose=0, feature_ratio=1,
-                 warmup=True
+                 warmup=True,
+                 debug_folder=None,
                  ):
         BaseDecomposition.__init__(self, n_components=n_components,
                                    random_state=random_state,
@@ -146,6 +147,7 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
         self.feature_ratio = feature_ratio
         self.callback = callback
         self.warmup = warmup
+        self.debug_folder = debug_folder
 
     def _init_dict(self, imgs, confounds=None):
         if self.dict_init is not None:
