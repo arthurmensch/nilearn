@@ -1,15 +1,19 @@
 import collections
 import datetime
 import fnmatch
+import glob
 import json
 import os
 import warnings
-from os.path import join, exists
+from os.path import join, exists, expanduser
 
 import itertools
 import numpy as np
 import pandas as pd
 from matplotlib import gridspec
+from matplotlib.colors import hsv_to_rgb
+
+from nilearn_sandbox.datasets import fetch_hcp_rest
 from sklearn.externals.joblib import Parallel, delayed, Memory
 from nilearn_sandbox import datasets as datasets_sandbox
 from nilearn_sandbox._utils.map_alignment import _align_one_to_one_flat, \
@@ -20,7 +24,8 @@ from sklearn.utils import gen_even_slices
 
 from nilearn import datasets
 from nilearn._utils import check_niimg
-from nilearn.decomposition.base import BaseDecomposition, mask_and_reduce
+from nilearn.decomposition.base import BaseDecomposition, mask_and_reduce, \
+    explained_variance
 from nilearn.image import index_img
 from nilearn.input_data import MultiNiftiMasker
 from nilearn.plotting import plot_prob_atlas, plot_stat_map
@@ -153,13 +158,12 @@ def run_single(index, slice_index, estimator, dataset, output_dir,
     with open(join(exp_output, 'results.json'), 'w+') as f:
         json.dump(single_run_dict, f)
     print('[Example] Learning maps')
-    cut = int(this_slice.stop * 9 / 10)
-    train = slice(0, cut)
-    test = slice(cut, this_slice.stop)
+    # cut = int(this_slice.stop * 9 / 10)
+    # train = slice(0, cut)
+    # test = slice(cut, this_slice.stop)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
-        estimator.fit(dataset[this_slice][train],
-                      probe=dataset[this_slice][test],
+        estimator.fit(dataset[this_slice],
                       from_shelved_list=from_shelved_list)
     print('[Example] Dumping results')
     components_img = estimator.masker_.inverse_transform(estimator.components_)
@@ -610,6 +614,53 @@ def plot_median(output_dir):
     plt.savefig(join(figures_dir, 'median.pdf'), bbox_inches="tight")
 
 
+def density(output_dir):
+    masker = MultiNiftiMasker(mask_img=expanduser('~/data/'
+                                                  'HCP_mask/mask_img.nii.gz'),
+                              standardize=True, detrend=True, smoothing_fwhm=4,
+                              )
+    neutral_masker = MultiNiftiMasker(mask_img=expanduser('~/data/'
+                                                          'HCP_mask/mask_img.nii.gz'),
+                                      standardize=False, detrend=False,
+                                      smoothing_fwhm=None,
+                                      ).fit()
+    masker.fit()
+    dataset = fetch_hcp_rest(expanduser('~/data'), n_subjects=300)
+    test_imgs = dataset.func[1000:1004:4]
+    X = mask_and_reduce(masker, test_imgs, reduction_method=None)
+
+    for dirpath, dirname, filenames in os.walk(output_dir):
+        for filename in fnmatch.filter(filenames, 'results.json'):
+            with open(join(dirpath, filename), 'r') as f:
+                exp_dict = json.load(f)
+            intermediary = join(dirpath, 'debug', 'intermediary')
+            print('Entering intermediary dir')
+            dirfiles = os.listdir(intermediary)
+            res = Parallel(n_jobs=24, verbose=10)(delayed(
+                    compute_exp_var)(X, neutral_masker, intermediary, filename)
+                                                  for filename in
+                                                  fnmatch.filter(dirfiles,
+                                                                 '*.nii.gz'))
+
+            records, exp_vars, densities = zip(*res)
+            exp_dict['records'] = records
+            exp_dict['exp_vars'] = exp_vars
+            exp_dict['densities'] = densities
+            with open(join(dirpath, 'results_stat.json'), 'w+') as f:
+                json.dump(exp_dict, f)
+
+
+def compute_exp_var(X, masker, intermediary, filename):
+    record = filename[3:-7]
+    print('Computing explained variance')
+    components = masker.transform(join(intermediary, filename))
+    densities = np.sum(components != 0) / components.shape[1] / \
+                components.shape[0]
+    exp_var = explained_variance(X, components,
+                                 per_component=False)
+    return record, exp_var.flat[0], densities
+
+
 def convert_nii_to_pdf(output_dir, n_jobs=1):
     from nilearn_sandbox.plotting.pdf_plotting import plot_to_pdf
     list_nii = []
@@ -632,3 +683,177 @@ def convert_nii_to_pdf(output_dir, n_jobs=1):
     print(list_pdf)
     Parallel(n_jobs=n_jobs)(delayed(plot_to_pdf)(this_nii, this_pdf)
                             for this_nii, this_pdf in zip(list_nii, list_pdf))
+
+
+def display_explained_variance_cluster(output_dir):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    fig.subplots_adjust(right=0.7)
+
+    stat = []
+    for filename in glob.glob(join(output_dir, '**/results_stat.json'),
+                              recursive=True):
+        with open(filename, 'r') as f:
+            stat.append(json.load(f))
+    palette = np.array([[]])
+    np.random.shuffle(palette)
+    alphas = np.logspace(-4, -1, 4)
+    feature_ratios = np.linspace(1, 10, 4)
+    H = {alpha: h for alpha, h in zip(alphas, np.linspace(0, 270, 4) / 360)}
+    V = {feature_ratio: v for
+         feature_ratio, v in zip(feature_ratios,
+                                 np.linspace(0.2, 1, len(feature_ratios)))}
+    h_feature_ratios = []
+    h_alphas = []
+    pareto_fronts = {feature_ratio: [] for feature_ratio in feature_ratios}
+    min_len = 10000
+    for this_stat in stat:
+        min_len = min(min_len, len(this_stat['exp_vars']))
+    min_len -= 1
+    for this_stat in stat:
+        print("%s %s", (this_stat['alpha'], this_stat['feature_ratio']))
+        color = hsv_to_rgb([H[this_stat['alpha']],
+                            V[this_stat['feature_ratio']],
+                            1 - V[this_stat['feature_ratio']] / 2])
+        # records = list(map(int, this_stat['records']))
+        # h, = ax.plot(np.array(records) / this_stat['feature_ratio'],
+        #              this_stat['exp_vars'], color=color)
+        # h, = ax.plot(this_stat['exp_vars'][1::3], this_stat['densities'][1::3],
+        #                color=color, marker='o', markersize=2)
+        pareto_fronts[this_stat['feature_ratio']].append(
+                [this_stat['densities'][min_len],
+                 this_stat['exp_vars'][min_len]])
+        h = ax.scatter(this_stat['densities'][min_len],
+                       this_stat['exp_vars'][min_len],
+                       color=color, marker='o', s=20)
+        if this_stat['alpha'] == 1e-4:
+            h_feature_ratios.append(
+                    (h, 'F. ratio : %.2f' % this_stat['feature_ratio']))
+        if this_stat['feature_ratio'] == 10:
+            h_alphas.append((h, 'Reg: %.0e' % this_stat['alpha']))
+    for feature_ratio, pareto_front in pareto_fronts.items():
+        print(feature_ratio)
+        color = [1 - V[feature_ratio] / 2] * 3
+        values = np.array(list(zip(*pareto_front)))
+        order = np.argsort(values[0])
+        plt.plot(values[0, order], values[1, order], color=color)
+
+    ax.set_xlabel('Density')
+    ax.set_ylabel('Explained variance on test set')
+    ax.set_title('HCP dataset')
+    ax.grid(axis='x')
+    legend_ratio = mlegend.Legend(ax, *list(zip(*h_feature_ratios)),
+                                  loc='lower left',
+                                  bbox_to_anchor=(1, 0))
+    legend_alpha = mlegend.Legend(ax, *list(zip(*h_alphas)),
+                                  loc='upper left',
+                                  bbox_to_anchor=(1, 1))
+    ax.add_artist(legend_ratio)
+    ax.add_artist(legend_alpha)
+    ax.set_xlim([-0.01, 0.15])
+    ax.set_ylim([-0.01, 0.15])
+    fig.savefig(join(output_dir, 'results.pdf'),
+                bbox_extra_artists=(legend_alpha, legend_ratio))
+
+
+def display_explained_variance_time(output_dir):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    fig.subplots_adjust(right=0.7)
+
+    stat = []
+    for filename in glob.glob(join(output_dir, '**/results_stat.json'),
+                              recursive=True):
+        with open(filename, 'r') as f:
+            stat.append(json.load(f))
+    palette = np.array([[]])
+    np.random.shuffle(palette)
+    alphas = np.logspace(-4, -1, 4)
+    feature_ratios = np.linspace(1, 10, 4)
+    H = {alpha: h for alpha, h in zip(alphas, np.linspace(0, 270, 4) / 360)}
+    V = {feature_ratio: v for
+         feature_ratio, v in zip(feature_ratios,
+                                 np.linspace(0.2, 1, len(feature_ratios)))}
+    h_feature_ratios = []
+    h_alphas = []
+    for this_stat in stat:
+        print("%s %s", (this_stat['alpha'], this_stat['feature_ratio']))
+        color = hsv_to_rgb([H[this_stat['alpha']],
+                            V[this_stat['feature_ratio']],
+                            1 - V[this_stat['feature_ratio']] / 2])
+        records = list(map(int, this_stat['records']))
+        h, = ax.plot(np.array(records) / this_stat['feature_ratio'],
+                     this_stat['exp_vars'], color=color)
+        if this_stat['alpha'] == 1e-4:
+            h_feature_ratios.append(
+                    (h, 'F. ratio : %.2f' % this_stat['feature_ratio']))
+        if this_stat['feature_ratio'] == 10:
+            h_alphas.append((h, 'Reg: %.0e' % this_stat['alpha']))
+
+    ax.set_xlabel('Seen voxels  ')
+    ax.set_ylabel('Explained variance on test set')
+    ax.set_title('HCP dataset')
+    ax.grid(axis='x')
+    legend_ratio = mlegend.Legend(ax, *list(zip(*h_feature_ratios)),
+                                  loc='lower left',
+                                  bbox_to_anchor=(1, 0))
+    legend_alpha = mlegend.Legend(ax, *list(zip(*h_alphas)),
+                                  loc='upper left',
+                                  bbox_to_anchor=(1, 1))
+    ax.add_artist(legend_ratio)
+    ax.add_artist(legend_alpha)
+    ax.set_xlim([0., 400.])
+    ax.set_ylim([0., 0.15])
+    fig.savefig(join(output_dir, 'time.pdf'),
+                bbox_extra_artists=(legend_alpha, legend_ratio))
+
+def display_density_time(output_dir):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    fig.subplots_adjust(right=0.7)
+
+    stat = []
+    for filename in glob.glob(join(output_dir, '**/results_stat.json'),
+                              recursive=True):
+        with open(filename, 'r') as f:
+            stat.append(json.load(f))
+    palette = np.array([[]])
+    np.random.shuffle(palette)
+    alphas = np.logspace(-4, -1, 4)
+    feature_ratios = np.linspace(1, 10, 4)
+    H = {alpha: h for alpha, h in zip(alphas, np.linspace(0, 270, 4) / 360)}
+    V = {feature_ratio: v for
+         feature_ratio, v in zip(feature_ratios,
+                                 np.linspace(0.2, 1, len(feature_ratios)))}
+    h_feature_ratios = []
+    h_alphas = []
+    for this_stat in stat:
+        print("%s %s", (this_stat['alpha'], this_stat['feature_ratio']))
+        color = hsv_to_rgb([H[this_stat['alpha']],
+                            V[this_stat['feature_ratio']],
+                            1 - V[this_stat['feature_ratio']] / 2])
+        records = list(map(int, this_stat['records']))
+        h, = ax.plot(np.array(records) / this_stat['feature_ratio'],
+                     this_stat['densities'], color=color)
+        if this_stat['alpha'] == 1e-4:
+            h_feature_ratios.append(
+                    (h, 'F. ratio : %.2f' % this_stat['feature_ratio']))
+        if this_stat['feature_ratio'] == 10:
+            h_alphas.append((h, 'Reg: %.0e' % this_stat['alpha']))
+
+    ax.set_xlabel('Seen voxels  ')
+    ax.set_ylabel('Explained variance on test set')
+    ax.set_title('HCP dataset')
+    ax.grid(axis='x')
+    legend_ratio = mlegend.Legend(ax, *list(zip(*h_feature_ratios)),
+                                  loc='lower left',
+                                  bbox_to_anchor=(1, 0))
+    legend_alpha = mlegend.Legend(ax, *list(zip(*h_alphas)),
+                                  loc='upper left',
+                                  bbox_to_anchor=(1, 1))
+    ax.add_artist(legend_ratio)
+    ax.add_artist(legend_alpha)
+    ax.set_xlim([0., 400])
+    ax.set_ylim([0., 0.1])
+    fig.savefig(join(output_dir, 'density.pdf'),
+                bbox_extra_artists=(legend_alpha, legend_ratio))
