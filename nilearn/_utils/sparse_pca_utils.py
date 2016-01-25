@@ -685,7 +685,7 @@ def convert_nii_to_pdf(output_dir, n_jobs=1):
                             for this_nii, this_pdf in zip(list_nii, list_pdf))
 
 
-def display_explained_variance_cluster(output_dir):
+def display_explained_variance_density(output_dir):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     fig.subplots_adjust(right=0.7)
@@ -790,7 +790,7 @@ def display_explained_variance_time(output_dir):
         if this_stat['feature_ratio'] == 10:
             h_alphas.append((h, 'Reg: %.0e' % this_stat['alpha']))
 
-    ax.set_xlabel('Seen voxels  ')
+    ax.set_xlabel('Seen voxels')
     ax.set_ylabel('Explained variance on test set')
     ax.set_title('HCP dataset')
     ax.grid(axis='x')
@@ -841,7 +841,7 @@ def display_density_time(output_dir):
         if this_stat['feature_ratio'] == 10:
             h_alphas.append((h, 'Reg: %.0e' % this_stat['alpha']))
 
-    ax.set_xlabel('Seen voxels  ')
+    ax.set_xlabel('Seen voxels')
     ax.set_ylabel('Explained variance on test set')
     ax.set_title('HCP dataset')
     ax.grid(axis='x')
