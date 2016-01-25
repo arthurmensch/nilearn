@@ -14,6 +14,7 @@ from os.path import join
 
 import numpy as np
 
+from nilearn.decomposition.dict_fact import DictMF
 from sklearn.base import TransformerMixin
 from sklearn.decomposition.dict_learning import MiniBatchDictionaryLearning
 from sklearn.externals.joblib import Memory
@@ -231,6 +232,13 @@ class SparsePCA(BaseDecomposition, TransformerMixin, CacheMixin):
                                                 debug_info=True,
                                                 verbose=max(0,
                                                             self.verbose - 1))
+        # incr_spca = DictMF(n_components=self.n_components,
+        #                    dict_init=dict_init,
+        #                    alpha=self.alpha,
+        #                    impute=True,
+        #                    reduction=self.feature_ratio,
+        #                    batch_size=self.batch_size,
+        #                    backend='python')
         t0 = time.time()
         if self.warmup:
             if from_shelved_list is False:

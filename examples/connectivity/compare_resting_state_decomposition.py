@@ -20,9 +20,12 @@ https://hal.inria.fr/inria-00588898/en/
 """
 
 ### Load ADHD rest dataset ####################################################
-from os.path import expanduser
+import datetime
+import os
+from os.path import expanduser, join
 
 from nilearn import datasets
+from nilearn.datasets import fetch_atlas_smith_2009
 from nilearn_sandbox.datasets.fetch_adni import \
     fetch_adni_longitudinal_rs_fmri_DARTEL, fetch_adni_masks
 from nilearn_sandbox.plotting.papaya import papaya_viewer
@@ -57,14 +60,23 @@ canica = CanICA(n_components=n_components, smoothing_fwhm=6.,
                 threshold=3.,
                 verbose=1)
 
+
+output_dir = join(expanduser('~/output/compare'),
+                  datetime.datetime.now().strftime('%Y-%m-%d_%H'
+                                                   '-%M-%S'))
+os.makedirs(output_dir)
+
 sparse_pca = SparsePCA(n_components=n_components, smoothing_fwhm=6.,
                        memory="nilearn_cache", memory_level=2,
+                       feature_ratio=1,
                        verbose=1,
-                       alpha=0.1,
+                       alpha=0.01,
                        random_state=0,
-                       n_epochs=1,
-                       n_jobs=10,
-                       debug_folder=expanduser('~/output/intermediary'))
+                       n_epochs=3,
+                       dict_init=fetch_atlas_smith_2009().rsn20,
+                       n_jobs=1,
+                       debug_folder=output_dir,
+                       )
 
 ### Fitting both estimators ###################################################
 estimators = [sparse_pca]
