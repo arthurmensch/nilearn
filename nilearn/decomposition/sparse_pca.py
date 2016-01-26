@@ -14,7 +14,6 @@ from os.path import join
 
 import numpy as np
 
-from nilearn.decomposition.dict_fact import DictMF
 from sklearn.base import TransformerMixin
 from sklearn.decomposition.dict_learning import MiniBatchDictionaryLearning
 from sklearn.externals.joblib import Memory
@@ -355,10 +354,6 @@ def objective_function(X, components, alpha=0.):
         ----------
         X: ndarray,
             Holds single subject data to be tested against components
-
-        components: boolean,
-            Specify whether the explained variance ratio is desired for each
-            map or for the global set of components_
 
         alpha: regularization
 
