@@ -124,7 +124,6 @@ class DictMF(BaseEstimator):
                        self.impute,
                        1 if self.counter_[0] < 1000 else self.reduction, )
         else:
-            print(self.counter_[0])
             _online_dl_slow(X,
                             float(self.alpha), float(self.learning_rate),
                             self.A_, self.B_,
