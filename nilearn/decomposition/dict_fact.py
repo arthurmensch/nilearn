@@ -3,13 +3,13 @@ from math import pow, floor
 
 import numpy as np
 from scipy import linalg
+from sklearn.utils.enet_proj_fast import enet_projection_inplace
 from spira.impl.dict_fact_fast import _online_dl_fast
 
 from sklearn.base import BaseEstimator
 from sklearn.utils import check_random_state, gen_batches, check_array, \
     gen_cycling_subsets
-from sklearn.utils.enet_projection import enet_scale, enet_projection, \
-    enet_norm
+from sklearn.utils.enet_projection import enet_scale, enet_norm
 
 
 class DictMF(BaseEstimator):
@@ -17,7 +17,7 @@ class DictMF(BaseEstimator):
                  n_components=30, n_epochs=2,
                  normalize=False,
                  fit_intercept=False,
-                 callback=None, random_state=None, verbose=0,
+                 random_state=None, verbose=0,
                  impute=True,
                  batch_size=1,
                  dict_init=None,
@@ -29,7 +29,6 @@ class DictMF(BaseEstimator):
         self.batch_size = batch_size
         self.fit_intercept = fit_intercept
         self.normalize = normalize
-        self.callback = callback
         self.learning_rate = learning_rate
         self.alpha = alpha
         self.n_components = n_components
@@ -94,13 +93,16 @@ class DictMF(BaseEstimator):
 
         if self.reduction > 1:
             self.subsets_ = gen_cycling_subsets(n_cols,
-                                                int(floor(n_cols / self.reduction)),
+                                                int(floor(
+                                                    n_cols / self.reduction)),
                                                 random=True,
                                                 random_state=random_state)
         else:
             self.subsets_ = itertools.repeat(np.arange(n_cols))
-        if self.debug_:
+        if self.debug:
             self.loss_ = [0]
+        else:
+            self.loss_ = None
 
     def fit(self, X, y=None):
         self.partial_fit(X)
@@ -120,7 +122,7 @@ class DictMF(BaseEstimator):
                        self.random_state_,
                        self.verbose,
                        self.impute,
-                       1 if self.counter_[0] < 1000 else self.reduction,)
+                       1 if self.counter_[0] < 1000 else self.reduction, )
         else:
             print(self.counter_[0])
             _online_dl_slow(X,
@@ -140,14 +142,14 @@ class DictMF(BaseEstimator):
                             self.loss_,
                             self.debug)
 
+
 def _online_dl(X,
                alpha, learning_rate,
                A, B, counter,
                G, T,
                Q,
                fit_intercept, n_epochs, batch_size, random_state, verbose,
-               impute,
-               callback, ):
+               impute):
     row_nnz = X.getnnz(axis=1)
     n_cols = X.shape[1]
     max_idx_size = min(row_nnz.max() * batch_size, n_cols)
@@ -170,7 +172,7 @@ def _online_dl(X,
                     Q,
                     n_epochs, batch_size,
                     random_seed,
-                    verbose, fit_intercept, impute, callback)
+                    verbose, fit_intercept, impute)
 
 
 def get_w_B(w_B, idx, counter, batch_size, learning_rate):
@@ -186,78 +188,78 @@ def get_w_B(w_B, idx, counter, batch_size, learning_rate):
 
 def _update_code_slow(X, idx, alpha, learning_rate,
                       A, B, counter, G, T,
-                      Q, row_batch, impute, loss):
+                      Q, row_batch,
+                      x, Q_idx, H, Qx, P, w,
+                      loss, impute):
     n_cols = X.shape[1]
     n_components = Q.shape[0]
-    len_idx = len(idx)
-    len_batch = len(row_batch)
-    x = X[row_batch][:, idx]
+    len_idx = idx.shape[0]
+    len_batch = row_batch.shape[0]
 
-    w_A = 1 - np.product(1 - np.power(
+    Q_idx[:, :len_idx] = Q[:, idx]
+    Q_idx = Q_idx[:, :len_idx]
+    x[:len_batch, :len_idx] = X[row_batch][:, idx]
+    x = x[:len_batch, :len_idx]
+
+    w[0] = 1 - np.product(1 - np.power(
             np.arange(counter[0], counter[0] + len_batch) + 1,
             - learning_rate))
 
-    w_B = np.ones(len_idx)
-    get_w_B(w_B, idx, counter, len_batch, learning_rate)
+    get_w_B(w[1:], idx, counter, len_batch, learning_rate)
 
     counter[0] += len_batch
     counter[idx + 1] += len_batch
+
     if impute:
-
-        # T[:, 0] -= T[:, idx + 1].sum(axis=1)
-        # T[:, idx + 1] *= 1 - w_B / len_batch
-        #
-        # Qx = (T[:, 0] + T[:, idx + 1].sum(axis=1))[:, np.newaxis] +\
-        #      Q[:, idx].dot(x.T * w_B[:, np.newaxis] / len_batch)
-        #
-        # T[:, idx + 1] *= (1 - w_B) / (1 - w_B / len_batch)
-        # T[:, idx + 1] += np.outer(Q[:, idx].dot(
-        #         x.sum(axis=0)), w_B) / len_batch
-        # T[:, 0] += T[:, idx + 1].sum(axis=1)
-
         T[:, 0] -= T[:, idx + 1].sum(axis=1)
-        Qx = T[:, 0][:, np.newaxis] + Q[:, idx].dot(x.T)
-        T[:, idx + 1] = Q[:, idx] * x.mean(axis=0)
+        Qx[:, :len_batch] = T[:, 0][:, np.newaxis]
+        Qx[:, :len_batch] += Q_idx.dot(x.T)
+        Qx = Qx[:, :len_batch]
+        T[:, idx + 1] = Q_idx * x.mean(axis=0)
         T[:, 0] += T[:, idx + 1].sum(axis=1)
-        G.flat[::n_components + 1] += 2 * alpha
-
+        H[:] = G
+        H.flat[::n_components + 1] += 2 * alpha
     else:
-        Qx = Q[:, idx].dot(x.T)
-        G = Q[:, idx].dot(Q[:, idx].T)
-        G.flat[::n_components + 1] += 2 * alpha * len_idx / n_cols
+        Qx[:, :len_batch] = Q_idx.dot(x.T)
+        Qx = Qx[:, :len_batch]
+        H[:] = Q_idx.dot(Q_idx.T)
+        H.flat[::n_components + 1] += 2 * alpha * len_idx / n_cols
 
-    P = linalg.solve(G, Qx, sym_pos=True,
-                     overwrite_a=not impute, check_finite=False)
+    P[:, :len_batch] = linalg.solve(H, Qx, sym_pos=True,
+                                    overwrite_a=True, check_finite=False)
+    P = P[:, :len_batch]
 
-    if impute:
-        G.flat[::n_components + 1] -= 2 * alpha
+    A *= 1 - w[0]
+    A += P.dot(P.T) * w[0] / len_batch
 
-    A *= 1 - w_A
-
-    A += P.dot(P.T) * w_A / len_batch
-
-    B[:, idx] *= 1 - w_B
-
-    B[:, idx] += P.dot(x) * w_B / len_batch
+    B[:, idx] *= 1 - w[1:(len_idx + 1)]
+    B[:, idx] += P.dot(x) * w[1:(len_idx + 1)] / len_batch
 
     return idx
 
 
-def _update_dict_slow(A, B, G, Q, Q_idx, idx, fit_intercept,
+def _update_dict_slow(A, B, G, Q, Q_idx, R, idx, fit_intercept,
                       components_range, norm, buffer, impute,
                       l1_ratio,
                       full_update=False):
     ger, = linalg.get_blas_funcs(('ger',), (A, Q_idx))
+    len_idx = idx.shape[0]
 
-    Q_idx = Q[:, idx]
+    Q_idx[:, :len_idx] = Q[:, idx]
+    Q_idx = Q_idx[:, :len_idx]
+
     if full_update:
-        norm = enet_norm(Q, l1_ratio)
+        for j in components_range:
+            norm[j] = enet_norm(Q[j], l1_ratio)
     else:
-        norm = enet_norm(Q_idx, l1_ratio)
+        for j in components_range:
+            norm[j] = enet_norm(Q_idx[j], l1_ratio)
 
     if impute and not full_update:
         G -= Q_idx.dot(Q_idx.T)
-    R = B[:, idx] - np.dot(Q_idx.T, A).T
+
+    R[:, :len_idx] = B[:, idx] - np.dot(Q_idx.T, A).T
+    R = R[:, :len_idx]
 
     # Intercept on first column
     for j in components_range:
@@ -265,10 +267,13 @@ def _update_dict_slow(A, B, G, Q, Q_idx, idx, fit_intercept,
         Q_idx[j] = R[j] / A[j, j]
         if full_update:
             Q[j, idx] = Q_idx[j]
-            Q[j] = enet_projection(Q[j], norm[j], l1_ratio)
+            enet_projection_inplace(Q[j], buffer, norm[j], l1_ratio)
+            Q[j] = buffer
             Q_idx[j] = Q[j, idx]
         else:
-            Q_idx[j] = enet_projection(Q_idx[j], norm[j], l1_ratio)
+            enet_projection_inplace(Q_idx[j], buffer[:len_idx],
+                                    norm[j], l1_ratio)
+            Q_idx[j] = buffer[:len_idx]
         ger(-1.0, A[j], Q_idx[j], a=R, overwrite_a=True)
 
     Q[:, idx] = Q_idx
@@ -291,19 +296,24 @@ def _online_dl_slow(X,
                     l1_ratio,
                     subsets,
                     loss,
-                    callback,
                     debug):
     max_idx_size = int(floor(X.shape[1] / reduction))
     row_range = np.arange(X.shape[0])
 
     n_rows, n_cols = X.shape
     n_components = Q.shape[0]
+
+    x = np.zeros((batch_size, max_idx_size), order='F')
     Q_idx = np.zeros((n_components, max_idx_size), order='F')
+    R = np.zeros((n_components, max_idx_size), order='F')
+    H = np.zeros((n_components, n_components), order='F')
+    Qx = np.zeros((n_components, batch_size), order='F')
+    P = np.zeros((n_components, batch_size), order='F')
+
+    w = np.zeros(max_idx_size + 1)
     buffer = np.zeros(n_cols)
-
-    last_call = 0
-
     norm = np.zeros(n_components)
+    last_call = 0
 
     if not fit_intercept:
         components_range = np.arange(n_components)
@@ -312,27 +322,27 @@ def _online_dl_slow(X,
 
     random_state.shuffle(row_range)
     batches = gen_batches(len(row_range), batch_size)
+
     for subset, batch in zip(subsets, batches):
         row_batch = row_range[batch]
         idx = _update_code_slow(X, subset,
                                 alpha, learning_rate,
                                 A, B, counter, G, T,
                                 Q, row_batch,
-                                impute,
-                                loss)
+                                x, Q_idx, H, Qx, P, w,
+                                loss,
+                                impute)
         random_state.shuffle(components_range)
 
-        _update_dict_slow(A, B, G, Q, Q_idx, idx, fit_intercept,
+        _update_dict_slow(A, B, G, Q, Q_idx, R, idx, fit_intercept,
                           components_range, norm, buffer, impute,
                           l1_ratio)
 
         if debug:
             this_loss = .5 * np.trace(Q.dot(Q.T) * A) - np.trace(Q.dot(B.T))
-            # this_loss += loss[0]
+            this_loss += loss[0]
             loss.append(this_loss)
 
-        # assert_array_almost_equal(Q.dot(Q.T), G)
         if verbose and counter[0] // (n_rows // verbose) == last_call + 1:
             print("Iteration %i" % (counter[0]))
             last_call += 1
-            callback()
