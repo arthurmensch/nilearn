@@ -14,6 +14,7 @@ from matplotlib.colors import hsv_to_rgb
 from nilearn.datasets import fetch_atlas_smith_2009
 from nilearn.decomposition.base import explained_variance
 from nilearn.decomposition.dict_fact import DictMF
+from nilearn.decomposition.sparse_pca import objective_function
 from nilearn.input_data import MultiNiftiMasker
 from sklearn.utils import check_random_state
 
@@ -42,16 +43,19 @@ def load_data(init='rsn70',
     return masker, dict_init, sorted(data, key=lambda t: t['filename'])
 
 
-def compute_exp_var(X, masker, filename):
+def compute_exp_var(X, masker, filename, alpha=None):
     print('Computing explained variance')
     components = masker.transform(filename)
     densities = np.sum(components != 0) / components.size
-    exp_var = explained_variance(X, components,
-                                 per_component=False)
-    return exp_var.flat[0], densities
+    if alpha is None:
+        exp_var = explained_variance(X, components,
+                                     per_component=False).flat[0]
+    else:
+        exp_var = objective_function(X, components, alpha)
+    return exp_var, densities
 
 
-def analyse_exp_var_in_dir(output_dir, dataset='hcp'):
+def analyse_exp_var_in_dir(output_dir, dataset='hcp', objective=False):
     masker, _, data = load_data(dataset=dataset)
 
     if dataset == 'hcp':
@@ -70,12 +74,17 @@ def analyse_exp_var_in_dir(output_dir, dataset='hcp'):
     densities = []
     for filename in fnmatch.filter(output_files, 'a_*.nii.gz'):
         exp_var, density = compute_exp_var(X, masker,
-                                           join(output_dir, filename))
+                                           join(output_dir, filename),
+                                           alpha=exp_dict['alpha'] if objective
+                                           else None)
         records.append(int(filename[2:-7]))
         exp_vars.append(exp_var)
         densities.append(density)
         exp_dict['records'] = records
-        exp_dict['exp_vars'] = exp_vars
+        if objective:
+            exp_dict['objective'] = exp_vars
+        else:
+            exp_dict['exp_vars'] = exp_vars
         exp_dict['densities'] = densities
         with open(join(output_dir, 'experiment.json'), 'w+') as f:
             json.dump(exp_dict, f)
@@ -146,7 +155,7 @@ def main(dataset='hcp', init='rsn70', n_jobs=1):
 
     os.makedirs(output_dir)
 
-    alphas = np.logspace(-4, -1, 4)
+    alphas = np.logspace(-6, -2, 5)
     reductions = np.linspace(1, 9, 5)
     imputes = [False]
 
@@ -192,11 +201,11 @@ def simple(alpha, reduction, impute, dataset, init, records_range):
     single(output_dir, alpha, reduction, impute, dataset, init, records_range)
 
 
-def analyse_dir(output_dir, dataset='hcp', n_jobs=1):
+def analyse_dir(output_dir, dataset='hcp', objective=False, n_jobs=1):
     experiment_dirs = fnmatch.filter(os.listdir(output_dir), 'experiment_*')
     Parallel(n_jobs=n_jobs)(
             delayed(analyse_exp_var_in_dir)(join(output_dir, experiment_dir),
-                                            dataset=dataset)
+                                            objective=objective, dataset=dataset)
             for experiment_dir in experiment_dirs)
 
 
@@ -299,10 +308,10 @@ def display_explained_variance_density(output_dir, impute=True):
 
 
 if __name__ == '__main__':
-    main('hcp', 'rsn70', n_jobs=20)
+    # main('hcp', 'rsn70', n_jobs=25)
     # simple(1e-5, 5, True, 'adhd', 'rsn20', list(range(0, 36)))
-    # analyse_dir('/storage/workspace/amensch/output/fast_spca/2016-01-25_23-56-39',
-    #             n_jobs=36)
+    analyse_dir('/storage/workspace/amensch/output/fast_spca/2016-01-25_23-56-39',
+                n_jobs=12, objective=True)
     # display_explained_variance_density('/home/parietal/amensch/output/fast_spca/2016-01-25_23-56-39')
     # display_explained_variance_density(
     #     expanduser('~/drago/output/fast_spca/2016-01-25_23-56-39'),
