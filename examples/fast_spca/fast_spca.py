@@ -165,8 +165,8 @@ def main(dataset='hcp', init='rsn70', n_jobs=1):
     # alphas = np.logspace(-6, -2, 5)
     # reductions = np.linspace(1, 9, 5)
     alphas = [0.01]
-    reductions = [3]
-    random_states = list(range(10))
+    reductions = [1, 3]
+    random_states = {1: [0], 3: list(range(2))}
     imputes = [False]
 
     if dataset == 'hcp':
@@ -177,10 +177,10 @@ def main(dataset='hcp', init='rsn70', n_jobs=1):
 
     i = 0
     experiment_dirs = []
-    for random_state in random_states:
-        for alpha in alphas:
-            for reduction in reductions[::-1]:
-                for impute in imputes:
+    for alpha in alphas:
+        for reduction in reductions:
+            for impute in imputes:
+                for this_random_state in random_states[reduction]:
                     experiment = {}
                     experiment_dir = join(output_dir, 'experiment_%i' % i)
                     experiment_dirs.append(experiment_dir)
@@ -191,7 +191,7 @@ def main(dataset='hcp', init='rsn70', n_jobs=1):
                     experiment['dataset'] = dataset
                     experiment['init'] = init
                     experiment['records_range'] = records_range
-                    experiment['random_state'] = random_state
+                    experiment['random_state'] = this_random_state
                     print(experiment)
                     with open(join(output_dir, 'experiment_%i' % i,
                                    'experiment.json'),
@@ -231,12 +231,15 @@ def analyse_distance(output_dir, dataset='hcp'):
     dictionaries = {}
     records = {}
 
-    min_len = 100
-    for exp in ['ref'] + list(range(3)):
-        output_exp = join(output_dir, 'experiment_%i' % exp)
+    experiment_dirs = fnmatch.filter(os.listdir(output_dir), 'experiment_*')
+    min_len = 10000
+    for exp in experiment_dirs:
+        output_exp = join(output_dir, exp)
         output_files = os.listdir(output_exp)
+        dictionaries[exp] = []
+        records[exp] = []
         for filename in fnmatch.filter(output_files, 'a_*.nii.gz'):
-            dictionaries[exp].append(masker.transform(join(output_exp,
+            dictionaries[exp].append(masker.transform(join(output_dir, output_exp,
                                                            filename)))
             records[exp].append(int(filename[2:-7]))
 
@@ -246,12 +249,14 @@ def analyse_distance(output_dir, dataset='hcp'):
         dictionaries[exp] = np.array(dictionaries[exp])
         dictionaries[exp] = dictionaries[exp][order]
         min_len = min(len(dictionaries[exp]), min_len)
-    dictionaries = [dictionary[:min_len] for dictionary in dictionaries]
+    ref_dict = dictionaries.pop('experiment_0')[:min_len]
+    dictionaries = [dictionary[:min_len] for dictionary in dictionaries.values()]
     dictionaries = np.array(dictionaries)
     mean_dict = dictionaries.mean(axis=0)
-    var_dict = dictionaries.var(axis=0)
-    # results = dict(diff=diff, records=records[0][:len(diff)].tolist())
-    results = dict(mean_dict=mean_dict.tolist(), var_dict=var_dict.tolist(),
+    diff_norm = np.sum((mean_dict - ref_dict) ** 2, axis=(1, 2))
+    var_dict = (dictionaries - ref_dict).var(axis=0)
+    var_norm = np.sum(var_dict, axis=(1, 2))
+    results = dict(diff_norm=diff_norm.tolist(), var_norm=var_norm.tolist(),
                    records=records[0][:len(mean_dict)].tolist())
     json.dump(results, open(join(output_dir, 'diff.json'), 'w+'))
 
@@ -363,14 +368,14 @@ def display_explained_variance_density(output_dir, impute=True):
 
 
 if __name__ == '__main__':
-    # main('adhd', 'rsn20', n_jobs=3)
+    main('adhd', 'rsn20', n_jobs=3)
     # analyse_distance('/home/arthur/output/fast_spca/2016-01-28_18-06-42', 'adhd')
     # plot_diff('/media/storage/output/fast_spca/2016-01-28_17-16-23')
     # simple(1e-4, 3, True, 'adhd', 'rsn20', list(range(0, 36)))
     # analyse_dir('/storage/workspace/amensch/output/fast_spca/2016-01-26_15-31-43',   n_jobs=20, objective=True)
-    display_explained_variance_density(
-            expanduser('~/drago/output/fast_spca/2016-01-26_15-31-43'),
-            impute=False)
+    # display_explained_variance_density(
+    #         expanduser('~/drago/output/fast_spca/2016-01-26_15-31-43'),
+    #         impute=False)
     # display_explained_variance_density('/home/parietal/amensch/output/fast_spca/2016-01-25_23-56-39')
     # display_explained_variance_density(
     #     expanduser('~/drago/output/fast_spca/2016-01-25_23-56-39'),
