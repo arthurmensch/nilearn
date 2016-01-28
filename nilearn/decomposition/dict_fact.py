@@ -45,7 +45,8 @@ class DictMF(BaseEstimator):
     def _init(self, X, random_state):
         n_rows, n_cols = X.shape
 
-        self.random_state_ = check_random_state(random_state)
+        # Hack
+        self.random_state_ = check_random_state(0)
 
         # Q dictionary
         if self.dict_init is not None:
@@ -96,7 +97,8 @@ class DictMF(BaseEstimator):
                                                 int(floor(
                                                     n_cols / self.reduction)),
                                                 random=True,
-                                                random_state=random_state)
+                                                random_state=self.random_state)
+        # Hack
         else:
             self.subsets_ = itertools.repeat(np.arange(n_cols))
         if self.debug:

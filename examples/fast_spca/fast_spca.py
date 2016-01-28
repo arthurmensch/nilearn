@@ -9,6 +9,7 @@ import matplotlib.legend as mlegend
 import matplotlib.pyplot as plt
 import numpy as np
 from joblib import delayed, Parallel
+from matplotlib import gridspec
 from matplotlib.colors import hsv_to_rgb
 
 from nilearn.datasets import fetch_atlas_smith_2009
@@ -17,6 +18,8 @@ from nilearn.decomposition.dict_fact import DictMF
 from nilearn.decomposition.sparse_pca import objective_function
 from nilearn.input_data import MultiNiftiMasker
 from sklearn.utils import check_random_state
+
+import seaborn.apionly as sns
 
 
 def load_data(init='rsn70',
@@ -40,7 +43,7 @@ def load_data(init='rsn70',
     elif init == 'rsn20':
         init = smith2009.rsn20
     dict_init = masker.transform(init)
-    return masker, dict_init, sorted(data, key=lambda t: t['filename'])
+    return masker, dict_init, sorted(data, key=lambda t: t['img'])
 
 
 def compute_exp_var(X, masker, filename, alpha=None):
@@ -72,7 +75,8 @@ def analyse_exp_var_in_dir(output_dir, dataset='hcp', objective=False):
     records = []
     exp_vars = []
     densities = []
-    for filename in fnmatch.filter(output_files, 'a_*.nii.gz'):
+    for filename in sorted(fnmatch.filter(output_files, 'a_*.nii.gz'))[
+                    ::exp_dict['reduction']]:
         exp_var, density = compute_exp_var(X, masker,
                                            join(output_dir, filename),
                                            alpha=exp_dict['alpha'] if objective
@@ -89,20 +93,25 @@ def analyse_exp_var_in_dir(output_dir, dataset='hcp', objective=False):
         with open(join(output_dir, 'experiment.json'), 'w+') as f:
             json.dump(exp_dict, f)
     order = np.argsort(np.array(records))
-    exp_vars = np.array(exp_vars)[order]
-    densities = np.array(densities)[order]
-    records = np.array(records)[order]
-    exp_dict['records'] = records.tolist()
-    exp_dict['exp_vars'] = exp_vars.tolist()
-    exp_dict['densities'] = densities.tolist()
-    with open(join(output_dir, 'experiment.json'), 'w+') as f:
+    exp_vars = np.array(exp_vars)[order].tolist()
+    densities = np.array(densities)[order].tolist()
+    records = np.array(records)[order].tolist()
+    exp_dict['records'] = records
+    if objective:
+        exp_dict['objective'] = exp_vars
+    else:
+        exp_dict['exp_vars'] = exp_vars
+    exp_dict['densities'] = densities
+    with open(join(output_dir, 'experiment_stat.json'), 'w+') as f:
         json.dump(exp_dict, f)
 
 
-def single(output_dir, alpha, reduction, impute, dataset, init, records_range):
+def single(output_dir, alpha, reduction, impute, dataset, init, records_range,
+           random_state=0):
     masker, dict_init, data = load_data(dataset=dataset, init=init)
     n_components = dict_init.shape[0]
-    dict_mf = DictMF(batch_size=20, reduction=reduction, random_state=0,
+    dict_mf = DictMF(batch_size=20, reduction=reduction,
+                     random_state=random_state,
                      learning_rate=1,
                      dict_init=dict_init,
                      alpha=alpha,
@@ -111,6 +120,7 @@ def single(output_dir, alpha, reduction, impute, dataset, init, records_range):
                      fit_intercept=False,
                      n_components=n_components,
                      backend='python',
+                     debug=True,
                      )
     random_state = check_random_state(0)
     data = [data[i] for i in records_range]
@@ -133,11 +143,8 @@ def single(output_dir, alpha, reduction, impute, dataset, init, records_range):
                 components.to_filename(join(output_dir, 'a_%i.nii.gz'
                                             % dict_mf.counter_[0]))
                 if dict_mf.debug:
-                    fig = plt.figure()
-                    plt.plot(np.arange(len(dict_mf.loss_[1:])),
-                             dict_mf.loss_[1:])
-                    plt.savefig(join(output_dir, 'loss.pdf'))
-                    plt.close(fig)
+                    with open(join(output_dir, 'loss.json'), 'w+') as f:
+                        json.dump(dict_mf.loss_, f)
 
 
 def launch_from_dir(output_dir):
@@ -145,7 +152,7 @@ def launch_from_dir(output_dir):
         exp_dict = json.load(f)
     single(output_dir, exp_dict['alpha'], exp_dict['reduction'],
            exp_dict['impute'], exp_dict['dataset'], exp_dict['init'],
-           exp_dict['records_range'])
+           exp_dict['records_range'], exp_dict['random_state'])
 
 
 def main(dataset='hcp', init='rsn70', n_jobs=1):
@@ -155,8 +162,11 @@ def main(dataset='hcp', init='rsn70', n_jobs=1):
 
     os.makedirs(output_dir)
 
-    alphas = np.logspace(-6, -2, 5)
-    reductions = np.linspace(1, 9, 5)
+    # alphas = np.logspace(-6, -2, 5)
+    # reductions = np.linspace(1, 9, 5)
+    alphas = [0.01]
+    reductions = [3]
+    random_states = list(range(10))
     imputes = [False]
 
     if dataset == 'hcp':
@@ -167,25 +177,27 @@ def main(dataset='hcp', init='rsn70', n_jobs=1):
 
     i = 0
     experiment_dirs = []
-    for alpha in alphas:
-        for reduction in reductions[::-1]:
-            for impute in imputes:
-                experiment = {}
-                experiment_dir = join(output_dir, 'experiment_%i' % i)
-                experiment_dirs.append(experiment_dir)
-                os.makedirs(experiment_dir)
-                experiment['alpha'] = alpha
-                experiment['reduction'] = reduction
-                experiment['impute'] = impute
-                experiment['dataset'] = dataset
-                experiment['init'] = init
-                experiment['records_range'] = records_range
-                print(experiment)
-                with open(join(output_dir, 'experiment_%i' % i,
-                               'experiment.json'),
-                          'w+') as f:
-                    json.dump(experiment, f)
-                i += 1
+    for random_state in random_states:
+        for alpha in alphas:
+            for reduction in reductions[::-1]:
+                for impute in imputes:
+                    experiment = {}
+                    experiment_dir = join(output_dir, 'experiment_%i' % i)
+                    experiment_dirs.append(experiment_dir)
+                    os.makedirs(experiment_dir)
+                    experiment['alpha'] = alpha
+                    experiment['reduction'] = reduction
+                    experiment['impute'] = impute
+                    experiment['dataset'] = dataset
+                    experiment['init'] = init
+                    experiment['records_range'] = records_range
+                    experiment['random_state'] = random_state
+                    print(experiment)
+                    with open(join(output_dir, 'experiment_%i' % i,
+                                   'experiment.json'),
+                              'w+') as f:
+                        json.dump(experiment, f)
+                    i += 1
 
     Parallel(n_jobs=n_jobs)(delayed(launch_from_dir)(experiment_dir)
                             for experiment_dir in experiment_dirs)
@@ -198,29 +210,74 @@ def simple(alpha, reduction, impute, dataset, init, records_range):
 
     os.makedirs(output_dir)
 
-    single(output_dir, alpha, reduction, impute, dataset, init, records_range)
+    single(output_dir, alpha, reduction, impute, dataset, init, records_range,
+           random_state=0)
 
 
 def analyse_dir(output_dir, dataset='hcp', objective=False, n_jobs=1):
     experiment_dirs = fnmatch.filter(os.listdir(output_dir), 'experiment_*')
     Parallel(n_jobs=n_jobs)(
             delayed(analyse_exp_var_in_dir)(join(output_dir, experiment_dir),
-                                            objective=objective, dataset=dataset)
+                                            objective=objective,
+                                            dataset=dataset)
             for experiment_dir in experiment_dirs)
+
+
+def analyse_distance(output_dir, dataset='hcp'):
+    masker, _, _ = load_data(dataset=dataset)
+
+    masker.set_params(smoothing_fwhm=None, standardize=False)
+
+    dictionaries = {}
+    records = {}
+
+    min_len = 100
+    for exp in ['ref'] + list(range(3)):
+        output_exp = join(output_dir, 'experiment_%i' % exp)
+        output_files = os.listdir(output_exp)
+        for filename in fnmatch.filter(output_files, 'a_*.nii.gz'):
+            dictionaries[exp].append(masker.transform(join(output_exp,
+                                                           filename)))
+            records[exp].append(int(filename[2:-7]))
+
+        records[exp] = np.array(records[exp])
+        order = records[exp].argsort()
+        records[exp] = records[exp][order]
+        dictionaries[exp] = np.array(dictionaries[exp])
+        dictionaries[exp] = dictionaries[exp][order]
+        min_len = min(len(dictionaries[exp]), min_len)
+    dictionaries = [dictionary[:min_len] for dictionary in dictionaries]
+    dictionaries = np.array(dictionaries)
+    mean_dict = dictionaries.mean(axis=0)
+    var_dict = dictionaries.var(axis=0)
+    # results = dict(diff=diff, records=records[0][:len(diff)].tolist())
+    results = dict(mean_dict=mean_dict.tolist(), var_dict=var_dict.tolist(),
+                   records=records[0][:len(mean_dict)].tolist())
+    json.dump(results, open(join(output_dir, 'diff.json'), 'w+'))
+
+
+def plot_diff(output_dir):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    results = json.load(open(join(output_dir, 'diff.json'), 'r'))
+    ax.plot(results['records'], results['diff'])
+    plt.savefig(join(output_dir, 'diff.pdf'))
 
 
 def display_explained_variance_density(output_dir, impute=True):
     fig = plt.figure()
-    ax = fig.add_subplot(121)
-    ax_time = fig.add_subplot(122, sharey=ax)
+    gs = gridspec.GridSpec(1, 3, width_ratios=[1, 1, 1])
+    # ax_pareto = fig.add_subplot(gs[3])
     fig.subplots_adjust(right=0.8)
+    fig.subplots_adjust(bottom=0.2)
 
     stat = []
     alphas = []
     reductions = []
-    for filename in glob.glob(join(output_dir, '**/experiment.json'),
+    for filename in glob.glob(join(output_dir, '**/experiment_stat.json'),
                               recursive=True):
         with open(filename, 'r') as f:
+            print(filename)
             stat.append(json.load(f))
         alphas.append(stat[-1]['alpha'])
         reductions.append(stat[-1]['reduction'])
@@ -237,86 +294,87 @@ def display_explained_variance_density(output_dir, impute=True):
     min_len = 10000
     for this_stat in stat:
         if len(this_stat['records']) > 0 and this_stat['impute'] == impute:
-            min_len = min(min_len, len(this_stat['exp_vars']))
+            min_len = min(min_len, len(this_stat['objective']))
     min_len -= 1
     min_len = -1
+    ax = {}
+    for i, alpha in enumerate([1e-2, 1e-3, 1e-4]):
+        ax[alpha] = fig.add_subplot(gs[i])
+        if i == 0:
+            ax[alpha].set_ylabel('Objective value on test set')
+        ax[alpha].set_title('$\\alpha$  = %.0e' % alpha)
+        ax[alpha]
+        # ax[alpha].grid()
+        ax[alpha].set_xscale('log')
+    colormap = sns.cubehelix_palette(9, start=0, rot=0, dark=.3, light=.8,
+                                     reverse=False)
+    colormap[0] = [1, .8, .8]
+    # colormap = sns.color_palette("Blues", 9)
     for this_stat in stat:
-        if len(this_stat['records']) > 0 and this_stat['impute'] == impute:
+        if len(this_stat['records']) > 0 and this_stat['impute'] == impute \
+                and this_stat['alpha'] in [1e-2, 1e-3, 1e-4]:
+
             print("%s %s" % (this_stat['alpha'], this_stat['reduction']))
-            color = hsv_to_rgb([H[this_stat['alpha']],
-                                V[this_stat['reduction']],
-                                1 - V[this_stat['reduction']] / 2])
-            pareto_fronts[this_stat['reduction']].append(
-                    [1 - this_stat['densities'][min_len],
-                     this_stat['exp_vars'][min_len]])
-            # ax.plot(this_stat['densities'],
-            #        this_stat['exp_vars'],
-            #        color=color, marker='o', markersize=3)
-            s = ax.scatter(1 - this_stat['densities'][min_len],
-                           this_stat['exp_vars'][min_len],
-                           color=color, marker='o', s=20)
-            h, = ax_time.plot(np.array(this_stat['records']) / this_stat['reduction'] / 60000,
-                    this_stat['exp_vars'],
-                    color=color, marker='o', markersize=1)
+            # pareto_fronts[this_stat['reduction']].append(
+            #         [1 - this_stat['densities'][min_len],
+            #          this_stat['objective'][min_len]])
+            # s = ax_pareto.scatter(1 - this_stat['densities'][min_len],
+            #                this_stat['objective'][min_len],
+            #                color=color, marker='o', s=20)
+            s, = ax[this_stat[
+                'alpha']].plot(np.array(this_stat['records']) /
+                               this_stat['reduction'] / (1200 *
+                                                         400),
+                               this_stat['objective'],
+                               color=colormap[int(this_stat[
+                                                      'reduction']) - 1],
+                               marker='o',
+                               markersize=1)
             if this_stat['alpha'] == 1e-4:
                 h_reductions.append(
                         (s, '%.2f' % this_stat['reduction']))
-            if this_stat['reduction'] == 7:
-                h_alphas.append((h, '%.0e' % this_stat['alpha']))
-    for reduction, pareto_front in pareto_fronts.items():
-        print(reduction)
-        color = [1 - V[reduction] / 2] * 3
-        values = np.array(list(zip(*pareto_front)))
-        order = np.argsort(values[0])
-        ax.plot(values[0, order], values[1, order], color=color)
-    ax.annotate("Pareto front", xy=(1, 1), xycoords="axes fraction",
-                  xytext=(-60, -40), textcoords='offset points',
-                  va="bottom", ha="right",
-                  arrowprops=dict(arrowstyle="->"))
-    ax.set_xlabel('Dictionary sparsity')
-    ax.set_ylabel('Explained variance on test set')
+                # if this_stat['reduction'] == 7:
+                #     h_alphas.append((h, '%.0e' % this_stat['alpha']))
+                # for reduction, pareto_front in pareto_fronts.items():
+                #     print(reduction)
+                #     color = [1 - V[reduction] / 2] * 3
+                #     values = np.array(list(zip(*pareto_front)))
+                #     order = np.argsort(values[0])
+                # ax_pareto.plot(values[0, order], values[1, order], color=color)
     # ax.set_title('ADHD dataset, impute = %r' % impute)
-    fig.suptitle('HCP dataset')
-    ax.grid()
-    ax_time.grid()
-    ax_time.set_xlabel('Time / size of loaded data (relative)')
+    # ax_pareto.grid()
+    # ax_pareto.set_xlabel('Dictionary sparsity')
     # ax_time.set_ylabel('Explained variance on test set')
-    legend_ratio = mlegend.Legend(ax_time, *list(zip(*h_reductions)),
+    legend_ratio = mlegend.Legend(ax[1e-4], *list(zip(*h_reductions)),
                                   loc='lower left',
-                                  bbox_to_anchor=(1, 0),
+                                  bbox_to_anchor=(1.05, -.15),
                                   title='Reduction')
-    legend_alpha = mlegend.Legend(ax_time, *list(zip(*h_alphas)),
-                                  loc='upper left',
-                                  bbox_to_anchor=(1, 1),
-                                  title='Regularisation')
-    ax_time.add_artist(legend_ratio)
-    ax_time.add_artist(legend_alpha)
-    # ax.set_xscale('log')
-    ax.set_xlim([0.6, 1])
-    ax.set_xticks([0.6, 0.7, 0.8, 0.9, 1])
-    # ax.set_xticklabels([0.85, 0.9, 0.95, 1])
-    ax.set_ylim([0.01, .35])
-    ax_time.set_xscale('log')
-    # ax_time.set_ylim(ax.get_ylim())
-    # ax_time.set_yticks(ax.get_yticks())
-    # ax_time.set_yticklabels([])
-    plt.setp(ax_time.get_yticklabels(), visible=False)
-    # ax.set_yscale('log')
+    # legend_alpha = mlegend.Legend(ax[10e-4], *list(zip(*h_alphas)),
+    #                               loc='upper left',
+    #                               bbox_to_anchor=(1.05, 1),
+    #                               title='Regularisation')
+    ax[1e-4].add_artist(legend_ratio)
+    # ax_pareto.add_artist(legend_alpha)
+    # ax_pareto.set_xlim([0.8, 1])
+    # ax_pareto.set_xticks([0.8, 0.9, 1])
 
     fig.savefig(join(output_dir, 'results_%r.pdf' % impute),
-                bbox_extra_artists=(legend_alpha, legend_ratio))
+                bbox_extra_artists=(legend_ratio))
 
 
 if __name__ == '__main__':
-    # main('hcp', 'rsn70', n_jobs=25)
-    # simple(1e-5, 5, True, 'adhd', 'rsn20', list(range(0, 36)))
-    analyse_dir('/storage/workspace/amensch/output/fast_spca/2016-01-25_23-56-39',
-                n_jobs=12, objective=True)
+    # main('adhd', 'rsn20', n_jobs=3)
+    # analyse_distance('/home/arthur/output/fast_spca/2016-01-28_18-06-42', 'adhd')
+    # plot_diff('/media/storage/output/fast_spca/2016-01-28_17-16-23')
+    # simple(1e-4, 3, True, 'adhd', 'rsn20', list(range(0, 36)))
+    # analyse_dir('/storage/workspace/amensch/output/fast_spca/2016-01-26_15-31-43',   n_jobs=20, objective=True)
+    display_explained_variance_density(
+            expanduser('~/drago/output/fast_spca/2016-01-26_15-31-43'),
+            impute=False)
     # display_explained_variance_density('/home/parietal/amensch/output/fast_spca/2016-01-25_23-56-39')
     # display_explained_variance_density(
     #     expanduser('~/drago/output/fast_spca/2016-01-25_23-56-39'),
     #     impute=False)
-
     # display_explained_variance_density(
     #     expanduser('/home/arthur/drago/output/fast_spca/2016-01-25_22-21-50'),
     #     impute=False)
