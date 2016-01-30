@@ -1,5 +1,6 @@
 import itertools
-from math import pow, floor
+from copy import deepcopy
+from math import pow, floor, ceil
 
 import numpy as np
 from scipy import linalg
@@ -45,8 +46,7 @@ class DictMF(BaseEstimator):
     def _init(self, X, random_state):
         n_rows, n_cols = X.shape
 
-        # Hack
-        self.random_state_ = check_random_state(0)
+        self.random_state_ = check_random_state(self.random_state)
 
         # Q dictionary
         if self.dict_init is not None:
@@ -94,17 +94,25 @@ class DictMF(BaseEstimator):
 
         if self.reduction > 1:
             self.subsets_ = gen_cycling_subsets(n_cols,
-                                                int(floor(
+                                                int(ceil(
                                                     n_cols / self.reduction)),
                                                 random=True,
-                                                random_state=self.random_state)
-        # Hack
+                                                random_state=random_state)
+            if self.debug:
+                self.subsets_ = [self.subsets_] + [
+                    gen_cycling_subsets(n_cols,
+                                        int(floor(n_cols / self.reduction)),
+                                        random=True,
+                                        random_state=rng)
+                    for rng in range(10)]
         else:
             self.subsets_ = itertools.repeat(np.arange(n_cols))
         if self.debug:
             self.loss_ = [0]
+            self.diff_ = []
         else:
             self.loss_ = None
+            self.diff_ = None
 
     def fit(self, X, y=None):
         self.partial_fit(X)
@@ -141,7 +149,8 @@ class DictMF(BaseEstimator):
                             self.l1_ratio,
                             self.subsets_,
                             self.loss_,
-                            self.debug)
+                            self.debug,
+                            self.diff_)
 
 
 def _online_dl(X,
@@ -176,15 +185,21 @@ def _online_dl(X,
                     verbose, fit_intercept, impute)
 
 
-def get_w_B(w_B, idx, counter, batch_size, learning_rate):
+def get_w(w, idx, counter, batch_size, learning_rate):
     idx_len = idx.shape[0]
+    count = counter[0]
+    w[0] = 1
+    for i in range(count + 1, count + 1 + batch_size):
+        w[0] *= (1 - pow(i, - learning_rate))
+    w[0] = 1 - w[0]
+
     for jj in range(idx_len):
         j = idx[jj]
         count = counter[j + 1]
-        w_B[jj] = 1
+        w[jj + 1] = 1
         for i in range(count + 1, count + 1 + batch_size):
-            w_B[jj] *= (1 - pow(i, - learning_rate))
-        w_B[jj] = 1 - w_B[jj]
+            w[jj + 1] *= (1 - pow(i, - learning_rate))
+        w[jj + 1] = 1 - w[jj + 1]
 
 
 def _update_code_slow(X, idx, alpha, learning_rate,
@@ -202,11 +217,11 @@ def _update_code_slow(X, idx, alpha, learning_rate,
     x[:len_batch, :len_idx] = X[row_batch][:, idx]
     x = x[:len_batch, :len_idx]
 
-    w[0] = 1 - np.product(1 - np.power(
-            np.arange(counter[0], counter[0] + len_batch) + 1,
-            - learning_rate))
+    # w[0] = 1 - np.product(1 - np.power(
+    #     np.arange(counter[0], counter[0] + len_batch) + 1,
+    #     - learning_rate))
 
-    get_w_B(w[1:], idx, counter, len_batch, learning_rate)
+    get_w(w, idx, counter, len_batch, learning_rate)
 
     counter[0] += len_batch
     counter[idx + 1] += len_batch
@@ -297,12 +312,17 @@ def _online_dl_slow(X,
                     l1_ratio,
                     subsets,
                     loss,
-                    debug):
-    max_idx_size = int(floor(X.shape[1] / reduction))
-    row_range = np.arange(X.shape[0])
+                    debug,
+                    diff=None):
 
     n_rows, n_cols = X.shape
     n_components = Q.shape[0]
+
+    if debug:
+        max_idx_size = n_cols
+    else:
+        max_idx_size = int(ceil(n_cols / reduction))
+    row_range = np.arange(n_rows)
 
     x = np.zeros((batch_size, max_idx_size), order='F')
     Q_idx = np.zeros((n_components, max_idx_size), order='F')
@@ -324,8 +344,15 @@ def _online_dl_slow(X,
     random_state.shuffle(row_range)
     batches = gen_batches(len(row_range), batch_size)
 
-    for subset, batch in zip(subsets, batches):
+    if debug:
+        main_subsets = subsets[0]
+    else:
+        main_subsets = subsets
+
+    for subset, batch in zip(main_subsets, batches):
         row_batch = row_range[batch]
+        if debug:
+            Q_old = Q.copy()
         idx = _update_code_slow(X, subset,
                                 alpha, learning_rate,
                                 A, B, counter, G, T,
@@ -340,10 +367,50 @@ def _online_dl_slow(X,
                           l1_ratio)
 
         if debug:
+
             this_loss = .5 * np.trace(Q.dot(Q.T) * A) - np.trace(Q.dot(B.T))
             this_loss += loss[0]
             loss.append(this_loss)
 
+            Q_full = Q_old.copy()
+            A_copy, B_copy, counter_copy, G_copy, T_copy = deepcopy((A, B, counter, G, T))
+            idx = _update_code_slow(X, np.arange(n_cols),
+                                    alpha, learning_rate,
+                                    A_copy, B_copy, counter_copy, G_copy, T_copy,
+                                    Q_full, row_batch,
+                                    x, Q_idx, H, Qx, P, w,
+                                    loss,
+                                    impute)
+            random_state.shuffle(components_range)
+
+            _update_dict_slow(A_copy, B_copy, G_copy, Q_full, Q_idx, R, idx,
+                              fit_intercept,
+                              components_range, norm, buffer, impute,
+                              l1_ratio)
+
+
+            Q_mean = np.zeros_like(Q_old)
+            for i in range(1, 11):
+                this_Q = Q_old.copy()
+                subset = next(subsets[i])
+
+                idx = _update_code_slow(X, subset,
+                                        alpha, learning_rate,
+                                        A, B, counter, G, T,
+                                        this_Q, row_batch,
+                                        x, Q_idx, H, Qx, P, w,
+                                        loss,
+                                        impute)
+                random_state.shuffle(components_range)
+
+                _update_dict_slow(A, B, G, this_Q, Q_idx, R, idx, fit_intercept,
+                                  components_range, norm, buffer, impute,
+                                  l1_ratio)
+                Q_mean += this_Q
+            Q_mean /= 10
+            diff.append(np.sum((Q_mean - Q_full) ** 2))
+            print(diff[-1])
         if verbose and counter[0] // (n_rows // verbose) == last_call + 1:
             print("Iteration %i" % (counter[0]))
             last_call += 1
+

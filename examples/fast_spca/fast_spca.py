@@ -9,6 +9,7 @@ import matplotlib.legend as mlegend
 import matplotlib.pyplot as plt
 import numpy as np
 from joblib import delayed, Parallel
+from math import log
 from matplotlib import gridspec
 from matplotlib.colors import hsv_to_rgb
 
@@ -145,6 +146,8 @@ def single(output_dir, alpha, reduction, impute, dataset, init, records_range,
                 if dict_mf.debug:
                     with open(join(output_dir, 'loss.json'), 'w+') as f:
                         json.dump(dict_mf.loss_, f)
+                    with open(join(output_dir, 'diff.json'), 'w+') as f:
+                        json.dump(dict_mf.diff_, f)
 
 
 def launch_from_dir(output_dir):
@@ -273,8 +276,7 @@ def display_explained_variance_density(output_dir, impute=True):
     fig = plt.figure()
     gs = gridspec.GridSpec(1, 3, width_ratios=[1, 1, 1])
     # ax_pareto = fig.add_subplot(gs[3])
-    fig.subplots_adjust(right=0.8)
-    fig.subplots_adjust(bottom=0.2)
+    fig.subplots_adjust(bottom=0.3)
 
     stat = []
     alphas = []
@@ -303,18 +305,23 @@ def display_explained_variance_density(output_dir, impute=True):
     min_len -= 1
     min_len = -1
     ax = {}
+    ylim = {1e-2: [2.475e8, 2.52e8], 1e-3: [2.3e8, 2.43e8], 1e-4: [2.15e8, 2.35e8]}
     for i, alpha in enumerate([1e-2, 1e-3, 1e-4]):
         ax[alpha] = fig.add_subplot(gs[i])
         if i == 0:
             ax[alpha].set_ylabel('Objective value on test set')
-        ax[alpha].set_title('$\\alpha$  = %.0e' % alpha)
-        ax[alpha]
-        # ax[alpha].grid()
+        ax[alpha].annotate('$\\lambda  = 10^{%.0f}$' % log(alpha, 10), xy=(.65, .85),
+                           xycoords='axes fraction')
+        sns.despine(fig, ax[alpha])
+        ax[alpha].set_xlim([0.001, 1])
+        for tick in ax[alpha].xaxis.get_major_ticks():
+                tick.label.set_fontsize(5)
         ax[alpha].set_xscale('log')
+        ax[alpha].set_ylim(ylim[alpha])
+    ax[1e-2].set_xlabel('CPU time')
     colormap = sns.cubehelix_palette(9, start=0, rot=0, dark=.3, light=.8,
                                      reverse=False)
     colormap[0] = [1, .8, .8]
-    # colormap = sns.color_palette("Blues", 9)
     for this_stat in stat:
         if len(this_stat['records']) > 0 and this_stat['impute'] == impute \
                 and this_stat['alpha'] in [1e-2, 1e-3, 1e-4]:
@@ -333,8 +340,8 @@ def display_explained_variance_density(output_dir, impute=True):
                                this_stat['objective'],
                                color=colormap[int(this_stat[
                                                       'reduction']) - 1],
-                               marker='o',
-                               markersize=1)
+                               marker='+',
+                               markersize=2)
             if this_stat['alpha'] == 1e-4:
                 h_reductions.append(
                         (s, '%.2f' % this_stat['reduction']))
@@ -350,15 +357,18 @@ def display_explained_variance_density(output_dir, impute=True):
     # ax_pareto.grid()
     # ax_pareto.set_xlabel('Dictionary sparsity')
     # ax_time.set_ylabel('Explained variance on test set')
-    legend_ratio = mlegend.Legend(ax[1e-4], *list(zip(*h_reductions)),
+    legend_ratio = mlegend.Legend(ax[1e-3], *list(zip(*h_reductions[::-1])),
                                   loc='lower left',
-                                  bbox_to_anchor=(1.05, -.15),
-                                  title='Reduction')
+                                  ncol=6,
+                                  markerscale=1.2,
+                                  bbox_to_anchor=(0, -.4),
+                                  frameon=False
+                                  )
     # legend_alpha = mlegend.Legend(ax[10e-4], *list(zip(*h_alphas)),
     #                               loc='upper left',
     #                               bbox_to_anchor=(1.05, 1),
     #                               title='Regularisation')
-    ax[1e-4].add_artist(legend_ratio)
+    ax[1e-3].add_artist(legend_ratio)
     # ax_pareto.add_artist(legend_alpha)
     # ax_pareto.set_xlim([0.8, 1])
     # ax_pareto.set_xticks([0.8, 0.9, 1])
@@ -368,14 +378,14 @@ def display_explained_variance_density(output_dir, impute=True):
 
 
 if __name__ == '__main__':
-    main('adhd', 'rsn20', n_jobs=3)
+    # main('adhd', 'rsn20', n_jobs=3)
     # analyse_distance('/home/arthur/output/fast_spca/2016-01-28_18-06-42', 'adhd')
     # plot_diff('/media/storage/output/fast_spca/2016-01-28_17-16-23')
-    # simple(1e-4, 3, True, 'adhd', 'rsn20', list(range(0, 36)))
+    simple(1e-4, 3, True, 'adhd', 'rsn20', list(range(0, 36)))
     # analyse_dir('/storage/workspace/amensch/output/fast_spca/2016-01-26_15-31-43',   n_jobs=20, objective=True)
-    # display_explained_variance_density(
-    #         expanduser('~/drago/output/fast_spca/2016-01-26_15-31-43'),
-    #         impute=False)
+    display_explained_variance_density(
+            expanduser('~/drago/output/fast_spca/2016-01-26_15-31-43'),
+            impute=False)
     # display_explained_variance_density('/home/parietal/amensch/output/fast_spca/2016-01-25_23-56-39')
     # display_explained_variance_density(
     #     expanduser('~/drago/output/fast_spca/2016-01-25_23-56-39'),
