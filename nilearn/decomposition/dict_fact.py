@@ -23,7 +23,6 @@ class DictMF(BaseEstimator):
                  batch_size=1,
                  dict_init=None,
                  reduction=1,
-                 backend='c',
                  l1_ratio=1,
                  debug=False):
 
@@ -39,7 +38,6 @@ class DictMF(BaseEstimator):
         self.impute = impute
         self.reduction = reduction
         self.dict_init = dict_init
-        self.backend = backend
         self.l1_ratio = l1_ratio
         self.debug = debug
 
@@ -95,7 +93,7 @@ class DictMF(BaseEstimator):
         if self.reduction > 1:
             self.subsets_ = gen_cycling_subsets(n_cols,
                                                 int(ceil(
-                                                    n_cols / self.reduction)),
+                                                        n_cols / self.reduction)),
                                                 random=True,
                                                 random_state=random_state)
             if self.debug:
@@ -314,7 +312,6 @@ def _online_dl_slow(X,
                     loss,
                     debug,
                     diff=None):
-
     n_rows, n_cols = X.shape
     n_components = Q.shape[0]
 
@@ -373,10 +370,12 @@ def _online_dl_slow(X,
             loss.append(this_loss)
 
             Q_full = Q_old.copy()
-            A_copy, B_copy, counter_copy, G_copy, T_copy = deepcopy((A, B, counter, G, T))
+            A_copy, B_copy, counter_copy, G_copy, T_copy = deepcopy(
+                    (A, B, counter, G, T))
             idx = _update_code_slow(X, np.arange(n_cols),
                                     alpha, learning_rate,
-                                    A_copy, B_copy, counter_copy, G_copy, T_copy,
+                                    A_copy, B_copy, counter_copy, G_copy,
+                                    T_copy,
                                     Q_full, row_batch,
                                     x, Q_idx, H, Qx, P, w,
                                     loss,
@@ -387,7 +386,6 @@ def _online_dl_slow(X,
                               fit_intercept,
                               components_range, norm, buffer, impute,
                               l1_ratio)
-
 
             Q_mean = np.zeros_like(Q_old)
             for i in range(1, 11):
@@ -403,7 +401,8 @@ def _online_dl_slow(X,
                                         impute)
                 random_state.shuffle(components_range)
 
-                _update_dict_slow(A, B, G, this_Q, Q_idx, R, idx, fit_intercept,
+                _update_dict_slow(A, B, G, this_Q, Q_idx, R, idx,
+                                  fit_intercept,
                                   components_range, norm, buffer, impute,
                                   l1_ratio)
                 Q_mean += this_Q
@@ -413,4 +412,3 @@ def _online_dl_slow(X,
         if verbose and counter[0] // (n_rows // verbose) == last_call + 1:
             print("Iteration %i" % (counter[0]))
             last_call += 1
-
