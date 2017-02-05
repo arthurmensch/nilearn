@@ -4,12 +4,12 @@ Neuroimaging file input and output.
 # Author: Gael Varoquaux, Alexandre Abraham, Philippe Gervais
 # License: simplified BSD
 
+import collections
 import copy
 import gc
-import collections
 
-import numpy as np
 import nibabel
+import numpy as np
 
 from .compat import _basestring, get_affine
 
@@ -112,8 +112,12 @@ def load_niimg(niimg, dtype=None):
         raise TypeError("Data given cannot be loaded because it is"
                         " not compatible with nibabel format:\n"
                         + short_repr(niimg))
-
-    dtype = _get_target_dtype(niimg.get_data().dtype, dtype)
+    try:
+        this_dtype = niimg.get_data_dtype()
+    except AttributeError:
+        # Nibabel bug
+        this_dtype = niimg.get_data().dtype
+    dtype = _get_target_dtype(this_dtype, dtype)
 
     if dtype is not None:
         niimg = new_img_like(niimg, niimg.get_data().astype(dtype),

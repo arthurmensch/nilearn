@@ -13,12 +13,13 @@ import sklearn
 from nibabel import Nifti1Image
 from nose import SkipTest
 from nose.tools import assert_true, assert_false, assert_raises, assert_equal
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_array_equal, assert_array_almost_equal
 from sklearn.externals.joblib import Memory
 
 from nilearn._utils.exceptions import DimensionError
 from nilearn._utils.testing import assert_raises_regex, write_tmp_imgs
 from nilearn.input_data.multi_nifti_masker import MultiNiftiMasker
+from nilearn.tests.test_signal import generate_signals
 
 
 def test_auto_mask():
@@ -167,3 +168,31 @@ def test_shelving():
             shutil.rmtree(cachedir, ignore_errors=True)
     else:
         pass
+
+
+def def_test_masking_with_confounds():
+    return
+    signals, _, confounds = generate_signals(n_features=41,
+                                             n_confounds=3, length=20)
+    affine = np.eye(4)
+    imgs = []
+    for signal in signals:
+        img = Nifti1Image(signal.T[np.newaxis, np.newaxis, ...], affine)
+        imgs.append(img)
+    data_single = []
+
+    mask = Nifti1Image(np.ones_like(signals[0][np.newaxis, np.newaxis, :]),
+                       affine)
+
+    masker = MultiNiftiMasker(smoothing_fwhm=6,
+                              standardize=True,
+                              detrend=True,
+                              mask_img=mask,
+                              n_jobs=1).fit()
+
+    for img, these_confounds in zip(imgs, confounds):
+        data_single.append(masker.transform(img, these_confounds))
+    data = masker.transform(imgs, confounds)
+
+    for this_data, this_data_single in zip(data, data_single):
+        assert_array_almost_equal(this_data, data)

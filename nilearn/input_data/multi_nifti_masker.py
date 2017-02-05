@@ -10,6 +10,7 @@ import warnings
 
 from sklearn.externals.joblib import Memory, Parallel, delayed
 
+from .nifti_masker import NiftiMasker, filter_and_mask
 from .. import _utils
 from .. import image
 from .. import masking
@@ -17,7 +18,6 @@ from .._utils import CacheMixin
 from .._utils.class_inspect import get_params
 from .._utils.compat import _basestring, izip, get_affine
 from .._utils.niimg_conversions import _iter_check_niimg
-from .nifti_masker import NiftiMasker, filter_and_mask
 
 
 class MultiNiftiMasker(NiftiMasker, CacheMixin):
@@ -305,5 +305,5 @@ class MultiNiftiMasker(NiftiMasker, CacheMixin):
         self._check_fitted()
         if not hasattr(imgs, '__iter__') \
                 or isinstance(imgs, _basestring):
-            return self.transform_single_imgs(imgs)
+            return self.transform_single_imgs(imgs, confounds=confounds)
         return self.transform_imgs(imgs, confounds, n_jobs=self.n_jobs)
