@@ -9,6 +9,7 @@ constitutes output maps
 
 from __future__ import division
 
+import time
 import warnings
 from distutils.version import LooseVersion
 
@@ -16,12 +17,12 @@ import numpy as np
 import sklearn
 from sklearn.base import TransformerMixin
 from sklearn.decomposition import dict_learning_online
+from sklearn.decomposition import sparse_encode
 from sklearn.externals.joblib import Memory
 from sklearn.linear_model import Ridge
 
 from .base import BaseDecomposition, mask_and_reduce
 from .canica import CanICA
-
 
 if LooseVersion(sklearn.__version__) >= LooseVersion('0.17'):
     # check_input=False is an optimization available only in sklearn >=0.17
@@ -143,6 +144,7 @@ class DictLearning(BaseDecomposition, TransformerMixin):
                  n_epochs=1, alpha=10, reduction_ratio='auto', dict_init=None,
                  random_state=None, batch_size=20, method="cd", mask=None,
                  smoothing_fwhm=4, standardize=True, detrend=True,
+                 screening=5,
                  low_pass=None, high_pass=None, t_r=None, target_affine=None,
                  target_shape=None, mask_strategy='epi', mask_args=None,
                  n_jobs=1, verbose=0, memory=Memory(cachedir=None),
@@ -158,6 +160,7 @@ class DictLearning(BaseDecomposition, TransformerMixin):
                                    mask_args=mask_args, memory=memory,
                                    memory_level=memory_level, n_jobs=n_jobs,
                                    verbose=verbose)
+        self.screening = screening
         self.n_epochs = n_epochs
         self.batch_size = batch_size
         self.method = method
@@ -243,12 +246,27 @@ class DictLearning(BaseDecomposition, TransformerMixin):
 
         if self.verbose:
             print('[DictLearning] Learning dictionary')
-        self.components_, _ = self._cache(dict_learning_online)(
+        t0 = time.time()
+        dictionary = self._cache(dict_learning_online, func_memory_level=3)(
             data.T, self.n_components, alpha=self.alpha, n_iter=n_iter,
+            screening=self.screening,
             batch_size=self.batch_size, method=self.method,
             dict_init=dict_init, verbose=max(0, self.verbose - 1),
-            random_state=self.random_state, return_code=True, shuffle=True,
+            random_state=self.random_state, return_code=False, shuffle=True,
             n_jobs=1)
+        self.dict_learning_time_ = time.time() - t0
+        self.sparse_encode_time_ = time.time()
+        if self.verbose > 2:
+            print('Learning code...', end=' ')
+        elif self.verbose == 2:
+            print('|', end=' ')
+        self.components_ = sparse_encode(data.T, dictionary,
+                                         max_iter=10000,
+                                         algorithm='lasso_' + self.method,
+                                         alpha=self.alpha,
+                                         n_jobs=self.n_jobs,
+                                         check_input=False)
+        self.sparse_encode_time_ = time.time() - t0
         self.components_ = self.components_.T
         # Unit-variance scaling
         S = np.sqrt(np.sum(self.components_ ** 2, axis=1))

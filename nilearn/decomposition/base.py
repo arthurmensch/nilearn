@@ -3,9 +3,10 @@ Base class for decomposition estimators, utilities for masking and dimension
 reduction of group data
 """
 from __future__ import division
-from math import ceil
 
 import itertools
+from math import ceil
+
 import numpy as np
 from scipy import linalg
 from sklearn.base import BaseEstimator
@@ -13,9 +14,10 @@ from sklearn.externals.joblib import Memory, Parallel, delayed
 from sklearn.linear_model import LinearRegression
 from sklearn.utils import check_random_state
 from sklearn.utils.extmath import randomized_svd
+
 from .._utils.cache_mixin import CacheMixin, cache
-from .._utils.niimg import _safe_get_data
 from .._utils.compat import _basestring
+from .._utils.niimg import _safe_get_data
 from ..input_data import NiftiMapsMasker
 from ..input_data.masker_validation import check_embedded_nifti_masker
 
@@ -114,7 +116,7 @@ def mask_and_reduce(masker, imgs,
                          for subject_data in data_list]
 
     n_samples = np.sum(subject_n_samples)
-    n_voxels = np.sum(_safe_get_data(masker.mask_img_))
+    n_voxels = int(np.sum(_safe_get_data(masker.mask_img_)))
     data = np.empty((n_samples, n_voxels), order='F',
                     dtype='float64')
 
